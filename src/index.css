@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+@theme {
+  --color-sand: #FFDBBB;
+  --color-greige: #CCBEB1;
+  --color-taupe: #997E67;
+  --color-umber: #664930;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-sand text-umber antialiased;
+  overflow-x: hidden;
+}
+
+button,
+a {
+  transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease,
+    background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+}
+
+button:hover,
+a:hover {
+  transform: translateY(-1px);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes zoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes floatSoft {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.animate-in {
+  animation: fadeInUp 0.35s ease-out both;
+}
+
+.fade-in {
+  animation: fadeInUp 0.45s ease-out both;
+}
+
+.slide-in-from-bottom-1 {
+  animation: slideUp 0.2s ease-out both;
+}
+
+.slide-in-from-bottom-2 {
+  animation: slideUp 0.28s ease-out both;
+}
+
+.slide-in-from-bottom-6 {
+  animation: slideUp 0.4s ease-out both;
+}
+
+.zoom-in {
+  animation: zoomIn 0.28s ease-out both;
+}
+
+.float-soft {
+  animation: floatSoft 5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
