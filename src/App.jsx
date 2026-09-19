@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { 
   BookOpen, Clock, FileText, Send, ChevronLeft, ChevronRight, RotateCw, Menu, X, 
   MessageCircle, UploadCloud, Sparkles, Home, Library, Users, BarChart2, Play, Plus, 
@@ -6,7 +7,7 @@ import {
   Search, Layers, Brain, Zap, MessageSquare, TrendingUp, Calendar, Target,
   Shuffle, Maximize, Minimize, RotateCcw, Star, Check, ArrowRight, ShieldCheck, Award, Code, Cpu,
   Download, Share2, Timer, PieChart, Activity, AlertTriangle, Link as LinkIcon, Inbox,
-  Sun, Moon
+  Sun, Moon, Copy
 } from 'lucide-react';
 
 // Shadcn UI Components
@@ -43,13 +44,15 @@ export default function App() {
   
   // --- GLOBAL STATE ---
   const [isBooting, setIsBooting] = useState(true); 
+  const [isActionLoading, setIsActionLoading] = useState(false);
+  const [actionMessage, setActionMessage] = useState('');
+  
   const [myDecks, setMyDecks] = useState([]);
   const [myHubs, setMyHubs] = useState(mockHubs);
   const [activeDeck, setActiveDeck] = useState(null);
   const [activeHub, setActiveHub] = useState(null);
   const [hasActiveDeck, setHasActiveDeck] = useState(false);
   
-  // Dynamic Exam Configuration State
   const [examConfig, setExamConfig] = useState({ count: 10, timeMode: 'No Limit', isMock: false });
 
   const [isTutorOpen, setIsTutorOpen] = useState(false);
@@ -78,7 +81,6 @@ export default function App() {
     }
   }, [isDarkMode]);
 
-  // Auto-greet when a deck is opened
   useEffect(() => {
     if (activeDeck) {
       setChatMessages([{ role: 'ai', content: `I see you are studying ${activeDeck.title}. Want me to explain any confusing terms?` }]);
@@ -119,7 +121,6 @@ export default function App() {
     }
   };
   
-  // FETCH DECKS FROM FASTAPI BACKEND ON BOOT
   useEffect(() => {
     fetch('http://127.0.0.1:8000/api/decks/')
       .then(res => res.json())
@@ -145,14 +146,14 @@ export default function App() {
     }
   };
   
-  // FIXED: CONTINUITY TRANSITION
-  // Using native document.startViewTransition creates the smooth morphing effect shown in the video
   const handleNavigate = (view) => {
     if (!document.startViewTransition) {
       setCurrentView(view);
     } else {
       document.startViewTransition(() => {
-        setCurrentView(view);
+        flushSync(() => {
+          setCurrentView(view);
+        });
       });
     }
   };
@@ -195,11 +196,21 @@ export default function App() {
   return (
     <div className="flex h-screen w-full overflow-hidden font-sans bg-sand dark:bg-zinc-950 text-umber dark:text-zinc-100 relative transition-colors">
       
-      {/* Premium Toaster */}
-      <Toaster position="top-center" theme={isDarkMode ? 'dark' : 'light'} />
+      <Toaster 
+        position="top-center" 
+        theme={isDarkMode ? 'dark' : 'light'}
+        toastOptions={{
+          classNames: {
+            toast: "group flex w-full items-start gap-4 rounded-3xl border border-taupe/30 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6 shadow-2xl max-w-md mx-auto animate-in slide-in-from-top-4",
+            title: "text-lg font-black text-umber dark:text-zinc-100",
+            description: "text-sm font-medium text-taupe dark:text-zinc-400 mt-1 leading-relaxed",
+            icon: "mt-0.5 w-6 h-6 group-data-[type=error]:text-rose-500 group-data-[type=success]:text-emerald-500 group-data-[type=info]:text-amber-500",
+          },
+        }}
+      />
 
-      <main className="flex-1 flex flex-col relative overflow-y-auto"> 
-        <header className="px-6 py-4 border-b border-taupe/20 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md flex items-center justify-between sticky top-0 z-20 transition-colors">
+      <main className="flex-1 flex flex-col relative overflow-hidden"> 
+        <header className="px-6 py-4 border-b border-taupe/20 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md flex items-center justify-between sticky top-0 z-20 transition-colors shrink-0">
           <div className="flex items-center gap-4 md:gap-6">
             <div className="flex items-center gap-2 cursor-pointer group" onClick={() => handleNavigate('landing')}>
               <div className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-950 p-1.5 rounded-xl group-hover:scale-105 transition-transform">
@@ -224,19 +235,18 @@ export default function App() {
           </div>
         </header>
 
-        {/* Dynamic padding container */}
-        <div className={`flex-1 p-4 md:p-8 w-full ${showNavDock ? 'pb-32 md:pb-36' : 'pb-12 md:pb-12'}`}>
+        <div key={currentView} className={`flex-1 overflow-y-auto p-4 md:p-8 w-full animate-in fade-in duration-500 ${showNavDock ? 'pb-32 md:pb-36' : 'pb-0 md:pb-0 p-0 md:p-0'}`}>
           {/* Main Views */}
           {currentView === 'dashboard' && <DashboardView navigateTo={handleNavigate} setHasActiveDeck={setHasActiveDeck} myDecks={myDecks} />}
           {currentView === 'study' && <StudyView navigateTo={handleNavigate} hasActiveDeck={hasActiveDeck} setHasActiveDeck={setHasActiveDeck} setActiveDeck={setActiveDeck} myDecks={myDecks} />}
           {currentView === 'decks' && <DecksView navigateTo={handleNavigate} setActiveDeck={setActiveDeck} myDecks={myDecks} setMyDecks={setMyDecks} />}
           {currentView === 'hubs' && <StudyHubsView navigateTo={handleNavigate} setActiveHub={setActiveHub} myHubs={myHubs} />}
           {currentView === 'analytics' && <AnalyticsView myDecks={myDecks} />}
-          {currentView === 'new-deck' && <NewDeckView navigateTo={handleNavigate} myDecks={myDecks} setMyDecks={setMyDecks} />}
+          {currentView === 'new-deck' && <NewDeckView navigateTo={handleNavigate} myDecks={myDecks} setMyDecks={setMyDecks} setIsActionLoading={setIsActionLoading} setActionMessage={setActionMessage} />}
           {currentView === 'multiplayer' && <MultiplayerView navigateTo={handleNavigate} myDecks={myDecks} />}
           
           {/* Sub Views */}
-          {currentView === 'create-hub' && <CreateHubView navigateTo={handleNavigate} myHubs={myHubs} setMyHubs={setMyHubs} />}
+          {currentView === 'create-hub' && <CreateHubView navigateTo={handleNavigate} myHubs={myHubs} setMyHubs={setMyHubs} setIsActionLoading={setIsActionLoading} setActionMessage={setActionMessage} />}
           {currentView === 'hub-details' && <HubDetailsView navigateTo={handleNavigate} activeHub={activeHub} setActiveDeck={setActiveDeck} />}
           {currentView === 'deck-details' && <DeckDetailsView navigateTo={handleNavigate} activeDeck={activeDeck} setIsTutorOpen={setIsTutorOpen} />}
           {currentView === 'flashcard-mode' && <FlashcardModeView navigateTo={handleNavigate} activeDeck={activeDeck} setIsTutorOpen={setIsTutorOpen} />}
@@ -271,9 +281,26 @@ export default function App() {
         </nav>
       )}
 
+      {/* Action Overlays for major creations */}
+      {(isBooting || isActionLoading) && (
+        <div className="fixed inset-0 z-[100] bg-background/60 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in duration-300">
+          <div className="relative mb-8">
+            <div className="absolute inset-0 bg-amber-500/20 blur-2xl rounded-full animate-pulse"></div>
+            <Card className="w-24 h-24 border-taupe/20 dark:border-zinc-800 shadow-2xl flex items-center justify-center relative z-10 animate-bounce bg-background rounded-3xl">
+              <BookOpen size={48} className="text-umber dark:text-zinc-100" />
+            </Card>
+            <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center shadow-lg z-20">
+              <RotateCw size={20} className="text-white animate-spin" />
+            </div>
+          </div>
+          <h2 className="text-3xl md:text-4xl font-black text-foreground mb-3 tracking-tight">CramZero is cooking... 🍳</h2>
+          <p className="text-muted-foreground text-base font-medium animate-pulse">{actionMessage || 'Organizing your workspace'}</p>
+        </div>
+      )}
+
       {/* Floating AI Tutor Button */}
       {['flashcard-mode', 'deck-details', 'study', 'mock-exam-active'].includes(currentView) && (activeDeck || hasActiveDeck) && !isTutorOpen && (
-        <button onClick={() => setIsTutorOpen(true)} className={`fixed ${showNavDock ? 'bottom-24 md:bottom-8' : 'bottom-6 md:bottom-8'} right-4 md:right-8 p-3.5 md:p-4 bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-950 rounded-full shadow-xl hover:scale-105 transition-all z-40 flex items-center justify-center animate-in zoom-in duration-300 group`}>
+        <button onClick={() => setIsTutorOpen(true)} className={`fixed ${showNavDock ? 'bottom-24 md:bottom-8' : 'bottom-20 md:bottom-24'} right-4 md:right-8 p-3.5 md:p-4 bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-950 rounded-full shadow-xl hover:scale-105 transition-all z-40 flex items-center justify-center animate-in zoom-in duration-300 group`}>
           <MessageCircle size={26} />
           <span className="absolute top-2 right-2 md:top-3 md:right-3 w-3 h-3 bg-emerald-500 border-2 border-umber dark:border-zinc-100 rounded-full animate-pulse"></span>
         </button>
@@ -383,6 +410,7 @@ export default function App() {
 
 function LandingPageView({ navigateTo, isDarkMode, setIsDarkMode }) {
   const [typedText, setTypedText] = useState('');
+  const [activeStudyTab, setActiveStudyTab] = useState(1);
   const [isBuilding, setIsBuilding] = useState(true);
   const [revealedCount, setRevealedCount] = useState(0);
 
@@ -475,6 +503,73 @@ function LandingPageView({ navigateTo, isDarkMode, setIsDarkMode }) {
         </Card>
       </section>
 
+      <section id="study-ways" className="px-4 md:px-8 py-16 md:py-20 max-w-6xl mx-auto w-full">
+        <div className="mb-10 text-center md:text-left">
+          <span className="text-xs font-bold text-taupe dark:text-zinc-400 uppercase tracking-widest">See it in action</span>
+          <h2 className="text-3xl md:text-4xl font-black text-umber dark:text-zinc-100 mt-2">Study your way.</h2>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          <div className="lg:col-span-5 space-y-3">
+            {[
+              { id: 1, title: 'Flashcard Review', desc: 'Tap to flip cards. Self-rate confidence to train spaced repetition.' },
+              { id: 2, title: 'Auto-generated Quizzes', desc: 'Multiple choice & identification questions generated straight from files.' },
+              { id: 3, title: 'Professor Zero AI Tutor', desc: 'Chat with an AI that has complete context of your uploaded study material.' },
+              { id: 4, title: 'File Ingestion & Generation', desc: 'Drop PDFs, PPTX lecture slides, JSON or TXT to build decks instantly.' },
+            ].map((tab) => (
+              <div key={tab.id} onClick={() => setActiveStudyTab(tab.id)} className={`p-4 md:p-5 rounded-2xl border cursor-pointer transition-all ${activeStudyTab === tab.id ? 'bg-white dark:bg-zinc-900 border-umber dark:border-zinc-600 shadow-md lg:translate-x-2' : 'bg-sand/40 dark:bg-zinc-900/40 border-taupe/20 dark:border-zinc-800 hover:bg-white/60 dark:hover:bg-zinc-800 text-taupe dark:text-zinc-400'}`}>
+                <div className="flex items-center gap-3 mb-1">
+                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${activeStudyTab === tab.id ? 'bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900' : 'bg-taupe/30 dark:bg-zinc-800 text-umber dark:text-zinc-300'}`}>{tab.id}</span>
+                  <h3 className={`font-bold text-base md:text-lg ${activeStudyTab === tab.id ? 'text-umber dark:text-zinc-100' : 'text-taupe dark:text-zinc-400'}`}>{tab.title}</h3>
+                </div>
+                <p className="text-xs text-taupe dark:text-zinc-400 ml-9 leading-relaxed">{tab.desc}</p>
+              </div>
+            ))}
+          </div>
+          <div className="lg:col-span-7 bg-white dark:bg-zinc-900 border border-taupe/30 dark:border-zinc-800 rounded-3xl p-6 md:p-8 shadow-xl min-h-[380px] flex flex-col justify-center relative overflow-hidden animate-in fade-in duration-300">
+            {activeStudyTab === 1 && (
+              <div className="space-y-6">
+                <div className="text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider">Flashcard • Data Structures</div>
+                <div className="bg-sand/30 dark:bg-zinc-950 border border-taupe/20 dark:border-zinc-800 p-6 md:p-8 rounded-2xl text-center space-y-3">
+                  <p className="text-base md:text-lg font-bold text-umber dark:text-zinc-100">What is the worst-case time complexity of quicksort when pivot selection fails consistently?</p>
+                  <p className="text-xs text-taupe dark:text-zinc-500 italic">Tap to reveal answer</p>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <button className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-400 py-2 rounded-xl text-xs font-bold">Hard (1m)</button>
+                  <button className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 text-amber-700 dark:text-amber-500 py-2 rounded-xl text-xs font-bold">Good (10m)</button>
+                  <button className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-400 py-2 rounded-xl text-xs font-bold">Easy (4d)</button>
+                </div>
+              </div>
+            )}
+            {activeStudyTab === 2 && (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider"><span>Quiz Mode</span><span>Question 2 of 5</span></div>
+                <h3 className="font-bold text-base md:text-lg text-umber dark:text-zinc-100">Which data structure operates on a Last-In, First-Out (LIFO) basis?</h3>
+                <div className="space-y-2">{['Queue', 'Stack', 'Array', 'Graph'].map((opt, i) => (<div key={i} className={`p-3 rounded-xl border text-sm font-medium ${i === 1 ? 'bg-amber-100 dark:bg-amber-900/50 border-amber-500 dark:border-amber-600 text-umber dark:text-amber-100' : 'bg-sand/20 dark:bg-zinc-950 border-taupe/20 dark:border-zinc-800 text-taupe dark:text-zinc-400'}`}>{opt}</div>))}</div>
+              </div>
+            )}
+            {activeStudyTab === 3 && (
+              <div className="space-y-4">
+                <div className="text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider">Professor Zero AI Tutor</div>
+                <div className="space-y-3 bg-greige/10 dark:bg-zinc-950 p-4 rounded-2xl border border-taupe/20 dark:border-zinc-800">
+                  <div className="bg-white dark:bg-zinc-800 p-3 rounded-xl text-xs text-umber dark:text-zinc-200 shadow-sm max-w-[85%]">Can you explain pointer arithmetic simply?</div>
+                  <div className="bg-umber dark:bg-zinc-200 text-sand dark:text-zinc-900 p-3 rounded-xl text-xs shadow-sm max-w-[85%] ml-auto">Pointers store memory addresses. Adding 1 to a pointer advances it by the byte size of its data type!</div>
+                </div>
+              </div>
+            )}
+            {activeStudyTab === 4 && (
+              <div className="space-y-4">
+                <div className="text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider">Universal File Ingestion</div>
+                <div className="bg-sand/30 dark:bg-zinc-950 border border-taupe/20 dark:border-zinc-800 p-6 rounded-2xl flex flex-col items-center justify-center text-center">
+                  <UploadCloud size={32} className="text-umber dark:text-zinc-400 mb-2" />
+                  <p className="font-bold text-umber dark:text-zinc-200 text-sm">Drop your .PDF, .PPTX, .JSON, or .TXT</p>
+                  <p className="text-xs text-taupe dark:text-zinc-500 mt-1">Instant structural parsing & flashcard compilation</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
       <section id="architecture" className="px-4 md:px-8 py-16 md:py-20 max-w-6xl mx-auto w-full">
         <div className="mb-12 text-center max-w-2xl mx-auto">
           <h2 className="text-3xl md:text-4xl font-black text-umber dark:text-zinc-100">Engineered for absolute retention.</h2>
@@ -507,6 +602,55 @@ function LandingPageView({ navigateTo, isDarkMode, setIsDarkMode }) {
               <p className="text-taupe dark:text-zinc-400 text-sm leading-relaxed">Algorithm schedules reviews dynamically based on your confidence ratings, ensuring long-term mastery.</p>
             </div>
           </div>
+          <div className="bg-white dark:bg-zinc-900 border border-taupe/20 dark:border-zinc-800 p-6 md:p-8 rounded-3xl shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="w-12 h-12 bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-500 rounded-2xl flex items-center justify-center mb-6"><Mic size={24} /></div>
+              <h3 className="font-bold text-lg md:text-xl text-umber dark:text-zinc-100 mb-2">Vocal Language Partner</h3>
+              <p className="text-taupe dark:text-zinc-400 text-sm leading-relaxed">Web Speech API lets Professor AI speak definitions aloud and listen to your oral responses.</p>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-zinc-900 border border-taupe/20 dark:border-zinc-800 p-6 md:p-8 rounded-3xl shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="w-12 h-12 bg-greige/30 dark:bg-zinc-800 text-umber dark:text-zinc-300 rounded-2xl flex items-center justify-center mb-6"><Zap size={24} /></div>
+              <h3 className="font-bold text-lg md:text-xl text-umber dark:text-zinc-100 mb-2">Multiplayer Lobbies</h3>
+              <p className="text-taupe dark:text-zinc-400 text-sm leading-relaxed">Host live quiz rooms with classmates using a 6-digit session pin for high-stakes battles.</p>
+            </div>
+          </div>
+          <div className="md:col-span-2 bg-white dark:bg-zinc-900 border border-taupe/20 dark:border-zinc-800 p-6 md:p-8 rounded-3xl shadow-sm flex flex-col justify-between relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 text-taupe/10 dark:text-zinc-800 transition-colors pointer-events-none"><Timer size={120} /></div>
+            <div className="relative z-10">
+              <div className="w-12 h-12 bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 rounded-2xl flex items-center justify-center mb-6"><Timer size={24} /></div>
+              <h3 className="font-bold text-xl md:text-2xl text-umber dark:text-zinc-100 mb-2">AI Mock Exam Simulator</h3>
+              <p className="text-taupe dark:text-zinc-400 text-sm md:text-base max-w-lg leading-relaxed">Turn your decks into high-stakes timed exams. CramZero generates novel scenarios and trick questions based strictly on your notes.</p>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-zinc-900 border border-taupe/20 dark:border-zinc-800 p-6 md:p-8 rounded-3xl shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center mb-6"><PieChart size={24} /></div>
+              <h3 className="font-bold text-lg md:text-xl text-umber dark:text-zinc-100 mb-2">Mastery Analytics</h3>
+              <p className="text-taupe dark:text-zinc-400 text-sm leading-relaxed">Track your study streaks, monitor card maturity levels, and visualize your knowledge retention funnel.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="faq" className="px-4 md:px-8 py-16 md:py-20 max-w-5xl mx-auto w-full">
+        <div className="text-center mb-12">
+          <span className="text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-widest">Transparency & Tech</span>
+          <h2 className="text-3xl md:text-4xl font-black text-umber dark:text-zinc-100 mt-2">Frequently Asked Questions</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {[
+            { q: "Do I need to create an account to start?", a: "No! CramZero is completely account-free by design. You can drop files, generate decks, and study right in your browser instantly." },
+            { q: "What file formats are supported for upload generation?", a: "You can upload PDF documents, PowerPoint (.pptx) presentation slides, plain text (.txt), and JSON exports." },
+            { q: "How do Study Hubs work?", a: "You can create a hub for your specific class. By sharing the invite link, classmates can join and any deck uploaded to the hub is instantly synced for everyone." },
+            { q: "Is CramZero free for students?", a: "Yes, 100% free for all students with full access to flashcard reviews, quizzes, and multiplayer battle rooms." }
+          ].map((faq, i) => (
+            <div key={i} className="bg-white dark:bg-zinc-900 border border-taupe/20 dark:border-zinc-800 p-6 rounded-2xl shadow-sm">
+              <h3 className="font-bold text-umber dark:text-zinc-100 text-sm md:text-base mb-2 flex items-center gap-2"><HelpCircle size={18} className="text-taupe dark:text-zinc-500 shrink-0" /> {faq.q}</h3>
+              <p className="text-taupe dark:text-zinc-400 text-xs md:text-sm leading-relaxed ml-6">{faq.a}</p>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -533,7 +677,7 @@ function DashboardView({ navigateTo, setHasActiveDeck, myDecks }) {
   
   if (myDecks.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-[70vh] animate-in fade-in duration-300 max-w-6xl mx-auto">
+      <div className="flex flex-col items-center justify-center h-[70vh] max-w-6xl mx-auto">
         <Card className="max-w-lg w-full p-12 text-center border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-transparent">
           <div className="w-20 h-20 bg-greige/30 dark:bg-zinc-900 text-umber dark:text-zinc-100 rounded-full flex items-center justify-center mx-auto mb-6"><Inbox size={40} /></div>
           <CardTitle className="text-2xl mb-2 text-umber dark:text-zinc-100">Welcome to CramZero!</CardTitle>
@@ -547,7 +691,7 @@ function DashboardView({ navigateTo, setHasActiveDeck, myDecks }) {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300 pb-12 max-w-6xl mx-auto">
+    <div className="space-y-8 pb-12 max-w-6xl mx-auto">
       <Card className="bg-sand/40 dark:bg-zinc-900/40 border-taupe/30 dark:border-zinc-800 shadow-sm">
         <CardContent className="p-6 md:p-8 flex flex-col md:flex-row justify-between items-center gap-6">
           <div>
@@ -616,7 +760,7 @@ function StudyView({ navigateTo, setHasActiveDeck, setActiveDeck, myDecks }) {
 
   if (myDecks.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-[60vh] animate-in fade-in duration-300 max-w-4xl mx-auto">
+      <div className="flex flex-col items-center justify-center h-[60vh] max-w-4xl mx-auto">
         <Card className="max-w-lg w-full p-12 text-center border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-transparent">
           <div className="w-16 h-16 bg-greige/30 dark:bg-zinc-900 text-umber dark:text-zinc-100 rounded-full flex items-center justify-center mx-auto mb-4"><Layers size={32} /></div>
           <CardTitle className="text-2xl mb-2 text-umber dark:text-zinc-100">Nothing to study</CardTitle>
@@ -630,7 +774,7 @@ function StudyView({ navigateTo, setHasActiveDeck, setActiveDeck, myDecks }) {
   const dueCount = enrolledIds.length * 12;
 
   return (
-    <div className="max-w-4xl mx-auto animate-in fade-in duration-300">
+    <div className="max-w-4xl mx-auto p-4 md:p-8">
       <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
         {['Review', 'Quiz', 'Flashcards'].map((tab) => (
           <Button 
@@ -644,9 +788,7 @@ function StudyView({ navigateTo, setHasActiveDeck, setActiveDeck, myDecks }) {
         ))}
       </div>
 
-      {/* FIXED: Added 'key={activeTab}' to trigger Context Transition natively */}
       <div key={activeTab} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-        
         {activeTab === 'Review' && (
           <div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -733,7 +875,6 @@ function StudyView({ navigateTo, setHasActiveDeck, setActiveDeck, myDecks }) {
             </div>
           </div>
         )}
-
       </div>
     </div>
   );
@@ -752,7 +893,7 @@ function DecksView({ navigateTo, setActiveDeck, myDecks, setMyDecks }) {
   const unpinnedDecks = filteredLibrary.filter(deck => !pinnedIds.includes(deck.id));
 
   return (
-    <div className="max-w-5xl mx-auto animate-in fade-in duration-300 pb-12">
+    <div className="max-w-5xl mx-auto pb-12 p-4 md:p-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h2 className="text-2xl font-bold text-umber dark:text-zinc-100">Your Saved Decks</h2>
         <Button onClick={() => navigateTo('new-deck')} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 font-medium rounded-lg h-10 px-4 shadow-sm">
@@ -778,9 +919,7 @@ function DecksView({ navigateTo, setActiveDeck, myDecks, setMyDecks }) {
         ))}
       </div>
       
-      {/* FIXED: Added 'key' wrappers for Context Transition on filter changes */}
       <div key={activeFilter + searchQuery} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-        
         {pinnedDecks.length > 0 && (
           <div className="mb-10">
             <p className="text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider mb-4">Pinned ({pinnedDecks.length})</p>
@@ -803,7 +942,7 @@ function DecksView({ navigateTo, setActiveDeck, myDecks, setMyDecks }) {
         )}
 
         {myDecks.length === 0 ? (
-          <Card className="border-2 border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900 p-12 text-center flex flex-col items-center justify-center animate-in fade-in rounded-3xl">
+          <Card className="border-2 border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900 p-12 text-center flex flex-col items-center justify-center rounded-3xl">
               <div className="w-16 h-16 bg-greige/30 dark:bg-zinc-800 text-umber dark:text-zinc-100 rounded-full flex items-center justify-center mb-4"><Library size={32} /></div>
               <CardTitle className="text-xl font-bold text-umber dark:text-zinc-100 mb-2">Your library is empty</CardTitle>
               <CardDescription className="text-taupe dark:text-zinc-400 text-sm mb-6 max-w-md mx-auto">Create a deck from scratch or let AI generate one from your documents.</CardDescription>
@@ -837,7 +976,6 @@ function DecksView({ navigateTo, setActiveDeck, myDecks, setMyDecks }) {
             </div>
           </div>
         )}
-
       </div>
     </div>
   );
@@ -846,7 +984,7 @@ function DecksView({ navigateTo, setActiveDeck, myDecks, setMyDecks }) {
 function AnalyticsView({ myDecks }) {
   if (!myDecks || myDecks.length === 0) {
     return (
-       <div className="flex flex-col items-center justify-center h-[70vh] animate-in fade-in duration-300 max-w-6xl mx-auto">
+       <div className="flex flex-col items-center justify-center h-[70vh] max-w-6xl mx-auto">
           <Card className="max-w-lg w-full p-12 text-center border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900 rounded-3xl">
               <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4"><PieChart size={32} /></div>
               <CardTitle className="text-xl mb-2 text-umber dark:text-zinc-100">Not enough data yet</CardTitle>
@@ -857,7 +995,7 @@ function AnalyticsView({ myDecks }) {
   }
 
   return (
-    <div className="max-w-6xl mx-auto animate-in fade-in duration-300 pb-12 space-y-6">
+    <div className="max-w-6xl mx-auto pb-12 space-y-6 p-4 md:p-8">
       <div className="flex items-center justify-between mb-4 border-b border-taupe/20 dark:border-zinc-800 pb-6">
         <div>
           <h2 className="text-2xl md:text-3xl font-bold text-umber dark:text-zinc-100 mb-2">Mastery Analytics</h2>
@@ -913,7 +1051,7 @@ function AnalyticsView({ myDecks }) {
 
 function StudyHubsView({ navigateTo, setActiveHub, myHubs }) {
   return (
-    <div className="max-w-5xl mx-auto animate-in fade-in duration-300">
+    <div className="max-w-5xl mx-auto p-4 md:p-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
           <h2 className="text-2xl font-bold text-umber dark:text-zinc-100 mb-1">Collaborative Study Hubs</h2>
@@ -939,7 +1077,7 @@ function StudyHubsView({ navigateTo, setActiveHub, myHubs }) {
       </Card>
 
       {myHubs.length === 0 ? (
-        <Card className="border-2 border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900 p-12 text-center flex flex-col items-center justify-center animate-in fade-in rounded-3xl">
+        <Card className="border-2 border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900 p-12 text-center flex flex-col items-center justify-center rounded-3xl">
             <div className="w-16 h-16 bg-greige/30 dark:bg-zinc-800 text-umber dark:text-zinc-400 rounded-full flex items-center justify-center mb-4"><Users size={32} /></div>
             <CardTitle className="text-xl text-umber dark:text-zinc-100 mb-2">No active hubs</CardTitle>
             <CardDescription className="text-taupe dark:text-zinc-400 mb-6 max-w-md mx-auto">Create a new hub to invite classmates or enter an access code above to join an existing one.</CardDescription>
@@ -970,20 +1108,17 @@ function StudyHubsView({ navigateTo, setActiveHub, myHubs }) {
   );
 }
 
-function CreateHubView({ navigateTo, myHubs, setMyHubs }) {
+function CreateHubView({ navigateTo, myHubs, setMyHubs, setIsActionLoading, setActionMessage }) {
   const [selectedDeckOption, setSelectedDeckOption] = useState(null);
   const [hubName, setHubName] = useState('');
   const [hubDesc, setHubDesc] = useState('');
-  
-  // FIXED: Inline spinner state for creation actions
-  const [isCreating, setIsCreating] = useState(false);
 
   const handleCreate = () => {
     if(!hubName.trim()) return;
     
-    setIsCreating(true);
+    setIsActionLoading(true);
+    setActionMessage('Setting up your collaborative space...');
     
-    // Simulate network delay to show off inline transition
     setTimeout(() => {
       const newHub = {
         id: `hub-${Date.now()}`,
@@ -995,9 +1130,7 @@ function CreateHubView({ navigateTo, myHubs, setMyHubs }) {
         inviteCode: Math.floor(100000 + Math.random() * 900000).toString()
       };
       setMyHubs([newHub, ...myHubs]);
-      setIsCreating(false);
-      
-      // Shadcn Premium Toast
+      setIsActionLoading(false);
       toast.success("Study Hub created!", {
         description: `${hubName} is now ready for collaboration.`
       });
@@ -1006,7 +1139,7 @@ function CreateHubView({ navigateTo, myHubs, setMyHubs }) {
   };
 
   return (
-    <div className="max-w-2xl mx-auto animate-in fade-in duration-300 pb-12">
+    <div className="max-w-2xl mx-auto pb-12 p-4 md:p-8">
       <Button variant="ghost" onClick={() => navigateTo('hubs')} className="mb-6 -ml-4 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100">
         <ArrowLeft size={18} className="mr-2" /> Back to Hubs
       </Button>
@@ -1044,10 +1177,7 @@ function CreateHubView({ navigateTo, myHubs, setMyHubs }) {
           </div>
           <div className="pt-6 border-t border-taupe/20 dark:border-zinc-800 flex justify-end gap-3">
             <Button variant="ghost" type="button" onClick={() => navigateTo('hubs')} className="px-6 h-12 rounded-xl font-bold text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 hover:bg-greige/20 dark:hover:bg-zinc-800">Cancel</Button>
-            <Button type="submit" disabled={!hubName.trim() || isCreating} className="bg-blue-600 hover:bg-blue-700 text-white px-8 h-12 rounded-xl font-bold shadow-sm disabled:opacity-50 min-w-[140px]">
-               {isCreating ? <RotateCw className="mr-2 animate-spin" size={16} /> : null}
-               {isCreating ? "Creating..." : "Create Hub"}
-            </Button>
+            <Button type="submit" disabled={!hubName.trim()} className="bg-blue-600 hover:bg-blue-700 text-white px-8 h-12 rounded-xl font-bold shadow-sm disabled:opacity-50">Create Hub</Button>
           </div>
         </form>
       </Card>
@@ -1068,7 +1198,7 @@ function HubDetailsView({ navigateTo, activeHub }) {
   }
 
   return (
-    <div className="max-w-5xl mx-auto animate-in fade-in duration-300 relative">
+    <div className="max-w-5xl mx-auto relative p-4 md:p-8">
       <Button variant="ghost" onClick={() => navigateTo('hubs')} className="mb-6 -ml-4 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100">
         <ArrowLeft size={18} className="mr-2" /> Back to Hubs
       </Button>
@@ -1085,7 +1215,7 @@ function HubDetailsView({ navigateTo, activeHub }) {
             <p className="text-[10px] font-bold text-taupe dark:text-zinc-500 uppercase tracking-widest mb-1">Invite Code</p>
             <div className="flex items-center gap-2">
               <span className="font-mono font-bold text-lg text-umber dark:text-zinc-100 tracking-wider">{activeHub.inviteCode}</span>
-              <button className="text-taupe dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-1"><LinkIcon size={16}/></button>
+              <button onClick={() => { navigator.clipboard.writeText(activeHub.inviteCode); toast.success("Invite code copied"); }} className="text-taupe dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-1"><Copy size={16}/></button>
             </div>
           </div>
         </div>
@@ -1098,7 +1228,7 @@ function HubDetailsView({ navigateTo, activeHub }) {
         </Button>
       </div>
 
-      <Card className="border-2 border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900 p-12 text-center flex flex-col items-center justify-center animate-in fade-in rounded-3xl">
+      <Card className="border-2 border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900 p-12 text-center flex flex-col items-center justify-center rounded-3xl">
          <div className="w-16 h-16 bg-greige/30 dark:bg-zinc-800 text-umber dark:text-zinc-400 rounded-full flex items-center justify-center mb-4"><Library size={32} /></div>
          <CardTitle className="text-xl text-umber dark:text-zinc-100 mb-2">No decks shared yet</CardTitle>
          <CardDescription className="text-taupe dark:text-zinc-400 mb-6 max-w-md mx-auto">Be the first to upload study material to this classroom.</CardDescription>
@@ -1127,7 +1257,7 @@ function HubDetailsView({ navigateTo, activeHub }) {
   );
 }
 
-function NewDeckView({ navigateTo, myDecks, setMyDecks }) {
+function NewDeckView({ navigateTo, myDecks, setMyDecks, setIsActionLoading, setActionMessage }) {
   const [deckName, setDeckName] = useState('');
   const [deckDesc, setDeckDesc] = useState('');
   const [inputMode, setInputMode] = useState(null); 
@@ -1138,7 +1268,6 @@ function NewDeckView({ navigateTo, myDecks, setMyDecks }) {
   const [progress, setProgress] = useState(0);
   const fileInputRef = useRef(null);
   
-  // FIXED: Inline spinner state for creation actions
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSaveToDatabase = async (deckPayload) => {
@@ -1152,8 +1281,6 @@ function NewDeckView({ navigateTo, myDecks, setMyDecks }) {
        if (response.ok) {
          const savedDeck = await response.json();
          setMyDecks([savedDeck, ...myDecks]);
-         
-         // Shadcn Premium Toast
          toast.success("Deck Saved", { description: `"${deckPayload.title || 'New Deck'}" has been added to your library.` });
          navigateTo('decks');
        }
@@ -1264,7 +1391,7 @@ function NewDeckView({ navigateTo, myDecks, setMyDecks }) {
 
   if (previewDeck) {
     return (
-      <div className="max-w-4xl mx-auto animate-in slide-in-from-right-8 duration-300">
+      <div className="max-w-4xl mx-auto animate-in slide-in-from-right-8 duration-300 pb-12 p-4 md:p-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl md:text-3xl font-bold text-umber dark:text-zinc-100 flex items-center gap-2">
             <Sparkles className="text-amber-600 dark:text-amber-500"/> Review AI Output
@@ -1307,7 +1434,7 @@ function NewDeckView({ navigateTo, myDecks, setMyDecks }) {
   }
 
   return (
-    <div className="max-w-4xl mx-auto animate-in fade-in duration-300 space-y-6 overflow-x-hidden">
+    <div className="max-w-4xl mx-auto space-y-6 overflow-x-hidden p-4 md:p-8">
       <Button variant="ghost" onClick={() => navigateTo('decks')} className="-ml-4 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 font-medium mb-2 text-sm">
         <ArrowLeft size={18} className="mr-2" /> Back to Library
       </Button>
@@ -1449,7 +1576,7 @@ function DeckDetailsView({ navigateTo, activeDeck, setIsTutorOpen }) {
   const formattedDate = activeDeck.created_at ? new Date(activeDeck.created_at).toLocaleDateString() : 'Just now';
 
   return (
-    <div className="max-w-5xl mx-auto animate-in fade-in duration-300">
+    <div className="max-w-5xl mx-auto p-4 md:p-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 border-b border-taupe/20 dark:border-zinc-800 pb-6">
         <div>
           <Button variant="ghost" onClick={() => navigateTo('decks')} className="-ml-4 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 font-medium mb-3">
@@ -1527,6 +1654,7 @@ function DeckDetailsView({ navigateTo, activeDeck, setIsTutorOpen }) {
   );
 }
 
+// FIXED: Reverted to user's original preferred structure with bottom rating buttons visible.
 function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
   const safeDeck = activeDeck || { cards: [{term: "Loading...", definition: "Please hold."}] };
 
@@ -1568,8 +1696,8 @@ function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
   const toggleFullscreen = () => document.fullscreenElement ? document.exitFullscreen() : containerRef.current?.requestFullscreen().catch(e => console.log(e));
 
   return (
-    <div ref={containerRef} className="max-w-4xl w-full mx-auto flex flex-col items-center animate-in fade-in duration-300 h-full min-h-[500px] bg-white dark:bg-zinc-950 p-4 md:p-6 rounded-2xl relative">
-      <div className="w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b border-taupe/20 dark:border-zinc-800 pb-4 shrink-0">
+    <div ref={containerRef} className="max-w-4xl w-full mx-auto flex flex-col items-center animate-in fade-in duration-300 h-full min-h-[75vh] bg-white dark:bg-zinc-950 p-4 md:p-6 rounded-2xl">
+      <div className="w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b border-taupe/20 dark:border-zinc-800 pb-4">
         <div className="flex flex-wrap items-center gap-2 md:gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigateTo('deck-details')} className="text-taupe dark:text-zinc-500 hover:text-umber dark:hover:text-zinc-100 hover:bg-greige/20 dark:hover:bg-zinc-800 mr-1"><ArrowLeft size={20}/></Button>
           <div className="flex flex-wrap gap-1.5 sm:border-r sm:border-taupe/20 dark:sm:border-zinc-800 sm:pr-4">
@@ -1584,7 +1712,9 @@ function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
           <Button onClick={() => setIsTutorOpen(true)} className="h-8 bg-amber-50 dark:bg-amber-900/30 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-amber-600 dark:text-amber-500 border border-amber-200 dark:border-amber-800 text-xs font-bold shadow-sm rounded-lg"><HelpCircle size={15} className="mr-1.5" /> Ask AI</Button>
         </div>
       </div>
-      <Card onClick={() => { setIsFlipped(!isFlipped); setProgress(0); }} className="w-full max-w-2xl flex-1 flex flex-col items-center justify-center cursor-pointer hover:shadow-xl hover:border-taupe/60 dark:hover:border-zinc-600 transition-all duration-300 relative group shadow-sm overflow-hidden p-6 text-center my-auto min-h-[300px] bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 rounded-2xl mb-8">
+      
+      {/* Original Flex Layout retained to keep bottom buttons visible without scrolling */}
+      <div onClick={() => { setIsFlipped(!isFlipped); setProgress(0); }} className="w-full max-w-2xl flex-1 bg-white dark:bg-zinc-900 border border-taupe/30 dark:border-zinc-800 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:shadow-xl hover:border-taupe/60 dark:hover:border-zinc-600 transition-all duration-300 relative group shadow-sm overflow-hidden p-6 text-center my-auto min-h-[220px]">
         <span className="absolute top-4 left-4 text-[10px] md:text-xs font-bold text-taupe dark:text-zinc-500 tracking-widest uppercase">{isFlipped ? "Definition" : "Term"}</span>
         <h3 className="text-xl md:text-3xl font-medium text-umber dark:text-zinc-100 px-4 leading-relaxed">{isFlipped ? currentCard?.definition : currentCard?.term}</h3>
         {autoSpeed === 0 && <Badge className="absolute bottom-4 text-xs opacity-0 group-hover:opacity-100 transition-opacity bg-sand dark:bg-zinc-800 text-taupe dark:text-zinc-400 hover:bg-sand dark:hover:bg-zinc-800 border-none">Click to flip</Badge>}
@@ -1594,10 +1724,9 @@ function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
             <div className="absolute bottom-0 left-0 w-full h-1.5 bg-greige/30 dark:bg-zinc-800"><div className="h-full bg-amber-500 dark:bg-amber-600 transition-all ease-linear" style={{ width: `${progress}%`, transitionDuration: '50ms' }}></div></div>
           </>
         )}
-      </Card>
-      
-      {/* Sticky Bottom Navigation for Flashcards */}
-      <div className="sticky bottom-0 w-full max-w-2xl bg-white dark:bg-zinc-950 py-4 z-20 flex items-center justify-center shrink-0 border-t border-taupe/10 dark:border-zinc-800/50 mt-auto transition-colors">
+      </div>
+
+      <div className="h-20 mt-6 flex items-center justify-center w-full max-w-2xl shrink-0">
         {!isFlipped ? (
           <div className="flex gap-8 md:gap-12 text-taupe dark:text-zinc-500">
             <button onClick={handlePrev} disabled={currentIndex === 0} className="hover:text-umber dark:hover:text-zinc-100 transition-colors disabled:opacity-30"><ChevronLeft size={30}/></button>
@@ -1628,9 +1757,9 @@ function QuizSetupView({ navigateTo, setExamConfig }) {
   };
 
   return (
-    <div className="max-w-3xl mx-auto animate-in fade-in duration-300">
-      <Button variant="ghost" onClick={() => navigateTo('deck-details')} className="-ml-4 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 mb-6 font-medium">
-        <ArrowLeft size={16} className="mr-2" /> Back to Deck
+    <div className="max-w-3xl mx-auto animate-in fade-in duration-300 p-4 md:p-8">
+      <Button variant="ghost" onClick={() => navigateTo('study')} className="-ml-4 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 mb-6 font-medium">
+        <ArrowLeft size={16} className="mr-2" /> Back to Study View
       </Button>
       <h2 className="text-2xl md:text-3xl font-bold text-umber dark:text-zinc-100 mb-2">Configure Challenge</h2>
       <p className="text-taupe dark:text-zinc-400 text-xs md:text-sm mb-6">Select the test parameters for this session.</p>
@@ -1681,7 +1810,7 @@ function MockExamSetupView({ navigateTo, activeDeck, setExamConfig }) {
   };
 
   return (
-    <div className="max-w-3xl mx-auto animate-in fade-in duration-300">
+    <div className="max-w-3xl mx-auto animate-in fade-in duration-300 p-4 md:p-8">
       <Button variant="ghost" onClick={() => navigateTo('deck-details')} className="-ml-4 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 mb-6 font-medium">
         <ArrowLeft size={16} className="mr-2" /> Back to Deck
       </Button>
@@ -1796,19 +1925,17 @@ function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
   useEffect(() => {
     if (timeLeftSeconds === null || isFinished) return;
     
+    if (timeLeftSeconds <= 0) {
+      setIsFinished(true);
+      return;
+    }
+
     const timerId = setInterval(() => {
-      setTimeLeftSeconds(prev => {
-        if (prev <= 1) {
-          clearInterval(timerId);
-          setIsFinished(true);
-          return 0;
-        }
-        return prev - 1;
-      });
+      setTimeLeftSeconds(prev => prev - 1);
     }, 1000);
     
     return () => clearInterval(timerId);
-  }, [timeLeftSeconds === null, isFinished]); 
+  }, [timeLeftSeconds, isFinished]); 
 
   const formatTime = (seconds) => {
     if (seconds === null) return "--:--";
@@ -1849,7 +1976,7 @@ function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
     let feedback = percentage >= 80 ? "Outstanding Mastery!" : percentage >= 60 ? "Good Effort!" : "Keep Reviewing!";
 
     return (
-      <div className="max-w-4xl mx-auto animate-in fade-in duration-500 w-full flex flex-col pb-12">
+      <div className="max-w-4xl mx-auto w-full flex flex-col pb-12 pt-6 px-4">
          <Card className="p-8 md:p-12 text-center bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 shadow-xl rounded-3xl mb-8">
             <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
                 <CheckCircle size={40} />
@@ -1908,11 +2035,13 @@ function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
   const answeredCurrent = answers[currentIndex] !== undefined;
 
   return (
-    <div className="max-w-4xl w-full mx-auto animate-in fade-in duration-300 flex flex-col h-full relative">
-      <div className="sticky top-0 z-20 bg-sand/90 dark:bg-zinc-950/90 backdrop-blur-md pt-4 pb-4 mb-6 border-b border-taupe/20 dark:border-zinc-800 flex justify-between items-end transition-colors">
+    <div className="max-w-4xl w-full mx-auto flex flex-col h-[calc(100vh-10rem)] relative">
+      
+      {/* Premium, Left-Aligned Sticky Header */}
+      <div className="bg-sand/90 dark:bg-zinc-950/90 backdrop-blur-md pb-4 mb-6 border-b border-taupe/20 dark:border-zinc-800 flex justify-between items-end transition-colors shrink-0 px-2 md:px-0">
         <div>
-          <p className="text-[10px] font-bold text-taupe dark:text-zinc-500 uppercase tracking-widest mb-1">
-            {examConfig?.isMock ? 'Mock Exam' : 'Knowledge Check'} • Question {currentIndex + 1} of {questions.length}
+          <p className="text-[10px] font-bold text-taupe dark:text-zinc-500 uppercase tracking-widest mb-1 flex items-center gap-2">
+            <CheckCircle size={12}/> {examConfig?.isMock ? 'Mock Exam' : 'Knowledge Check'} • Question {currentIndex + 1} of {questions.length}
           </p>
           <h2 className="text-xl md:text-2xl font-bold text-umber dark:text-zinc-100 truncate max-w-[250px] md:max-w-md">
             {safeDeck.title}
@@ -1920,7 +2049,7 @@ function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
         </div>
         <div className="flex items-center gap-2 md:gap-4">
           {timeLeftSeconds !== null && (
-            <Badge variant="outline" className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-mono font-bold text-sm md:text-base border-taupe/30 dark:border-zinc-700 ${timeLeftSeconds < 60 ? 'text-rose-600 dark:text-rose-400 animate-pulse' : 'text-umber dark:text-zinc-100'}`}>
+            <Badge variant="outline" className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-mono font-bold text-sm md:text-base border-taupe/30 dark:border-zinc-700 ${timeLeftSeconds < 60 ? 'text-rose-600 dark:text-rose-400 animate-pulse bg-rose-50 dark:bg-rose-900/30' : 'text-umber dark:text-zinc-100'}`}>
               <Timer size={16} /> {formatTime(timeLeftSeconds)}
             </Badge>
           )}
@@ -1930,54 +2059,56 @@ function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
         </div>
       </div>
 
-      <Card className="flex-1 rounded-3xl p-6 md:p-10 shadow-md flex flex-col mb-8 bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800">
-        <div className="mb-8">
-          <Badge className="bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-400 hover:bg-amber-100 border-none rounded text-[10px] font-bold uppercase tracking-widest mb-4">{currentQ.scenario}</Badge>
-          <h3 className="text-lg md:text-xl font-medium text-umber dark:text-zinc-100 leading-relaxed">
-            {currentQ.question}
-          </h3>
-        </div>
-        <div className="space-y-3 mt-auto">
-          {currentQ.options.map((opt, i) => {
-            const isSelected = answers[currentIndex] === opt;
-            const isCorrect = opt === currentQ.answer;
-            const showCorrect = answeredCurrent && isCorrect;
-            const showIncorrect = isSelected && !isCorrect;
+      <div className="flex-1 overflow-y-auto pb-6 px-2 md:px-0">
+        <Card className="rounded-3xl p-6 md:p-10 shadow-md flex flex-col mb-8 bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800">
+          <div className="mb-8">
+            <Badge className="bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-400 hover:bg-amber-100 border-none rounded text-[10px] font-bold uppercase tracking-widest mb-4">{currentQ.scenario}</Badge>
+            <h3 className="text-lg md:text-xl font-medium text-umber dark:text-zinc-100 leading-relaxed">
+              {currentQ.question}
+            </h3>
+          </div>
+          <div className="space-y-3 mt-auto">
+            {currentQ.options.map((opt, i) => {
+              const isSelected = answers[currentIndex] === opt;
+              const isCorrect = opt === currentQ.answer;
+              const showCorrect = answeredCurrent && isCorrect;
+              const showIncorrect = isSelected && !isCorrect;
 
-            let bgClass = 'bg-white dark:bg-zinc-950 border-taupe/30 dark:border-zinc-800 hover:bg-greige/10 dark:hover:bg-zinc-800 text-umber dark:text-zinc-300';
-            let circleClass = 'border-taupe/40 dark:border-zinc-600 bg-transparent';
-            let textClass = 'text-umber dark:text-zinc-300 font-medium';
+              let bgClass = 'bg-white dark:bg-zinc-950 border-taupe/30 dark:border-zinc-800 hover:bg-greige/10 dark:hover:bg-zinc-800 text-umber dark:text-zinc-300';
+              let circleClass = 'border-taupe/40 dark:border-zinc-600 bg-transparent';
+              let textClass = 'text-umber dark:text-zinc-300 font-medium';
 
-            if (showCorrect) {
-                bgClass = 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 dark:border-emerald-600';
-                circleClass = 'border-emerald-600 dark:border-emerald-500 bg-emerald-600 dark:bg-emerald-500';
-                textClass = 'text-emerald-900 dark:text-emerald-400 font-bold';
-            } else if (showIncorrect) {
-                bgClass = 'bg-rose-50 dark:bg-rose-950/40 border-rose-500 dark:border-rose-600';
-                circleClass = 'border-rose-600 dark:border-rose-500 bg-rose-600 dark:bg-rose-500';
-                textClass = 'text-rose-900 dark:text-rose-400 font-bold';
-            } else if (answeredCurrent) {
-                bgClass = 'bg-white/50 dark:bg-zinc-950/50 border-taupe/20 dark:border-zinc-800/50 opacity-60';
-            }
+              if (showCorrect) {
+                  bgClass = 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 dark:border-emerald-600';
+                  circleClass = 'border-emerald-600 dark:border-emerald-500 bg-emerald-600 dark:bg-emerald-500';
+                  textClass = 'text-emerald-900 dark:text-emerald-400 font-bold';
+              } else if (showIncorrect) {
+                  bgClass = 'bg-rose-50 dark:bg-rose-950/40 border-rose-500 dark:border-rose-600';
+                  circleClass = 'border-rose-600 dark:border-rose-500 bg-rose-600 dark:bg-rose-500';
+                  textClass = 'text-rose-900 dark:text-rose-400 font-bold';
+              } else if (answeredCurrent) {
+                  bgClass = 'bg-white/50 dark:bg-zinc-950/50 border-taupe/20 dark:border-zinc-800/50 opacity-60';
+              }
 
-            return (
-              <button 
-                key={i} 
-                disabled={answeredCurrent}
-                onClick={() => handleSelect(opt)}
-                className={`w-full p-4 md:p-5 rounded-xl border-2 text-left transition-all flex items-start gap-4 ${bgClass}`}
-              >
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${circleClass}`}>
-                  {(showCorrect || showIncorrect) && <div className="w-2.5 h-2.5 bg-white rounded-full"></div>}
-                </div>
-                <p className={`text-sm md:text-base leading-relaxed ${textClass}`}>{opt}</p>
-              </button>
-            )
-          })}
-        </div>
-      </Card>
+              return (
+                <button 
+                  key={i} 
+                  disabled={answeredCurrent}
+                  onClick={() => handleSelect(opt)}
+                  className={`w-full p-4 md:p-5 rounded-xl border-2 text-left transition-all flex items-start gap-4 ${bgClass}`}
+                >
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${circleClass}`}>
+                    {(showCorrect || showIncorrect) && <div className="w-2.5 h-2.5 bg-white rounded-full"></div>}
+                  </div>
+                  <p className={`text-sm md:text-base leading-relaxed ${textClass}`}>{opt}</p>
+                </button>
+              )
+            })}
+          </div>
+        </Card>
+      </div>
 
-      <div className="sticky bottom-0 w-full bg-sand dark:bg-zinc-950 py-4 z-20 flex justify-between items-center border-t border-taupe/10 dark:border-zinc-800/50 mt-auto transition-colors">
+      <div className="sticky bottom-0 left-0 w-full bg-sand/90 dark:bg-zinc-950/90 backdrop-blur-md py-4 z-20 flex justify-between items-center border-t border-taupe/20 dark:border-zinc-800 mt-auto transition-colors px-2 md:px-0">
         <Button variant="outline" onClick={() => setCurrentIndex(prev => prev - 1)} disabled={currentIndex === 0} className="h-12 px-6 rounded-xl font-bold bg-white dark:bg-zinc-900 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 border-taupe/30 dark:border-zinc-700 shadow-sm transition-all">
            <ChevronLeft size={18} className="mr-2" /> Previous
         </Button>
@@ -1989,99 +2120,178 @@ function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// MULTIPLAYER VIEW ENGINE
+// ---------------------------------------------------------------------------
+
 function MultiplayerView({ navigateTo, myDecks }) {
   const [view, setView] = useState('menu');
   const [pinInput, setPinInput] = useState('');
   const [lobbyPin, setLobbyPin] = useState('');
   const [isHost, setIsHost] = useState(false);
   const [selectedDeck, setSelectedDeck] = useState(null);
+  
   const [players, setPlayers] = useState([]);
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
+  
   const [timeLeft, setTimeLeft] = useState(15);
+  const [countdown, setCountdown] = useState(3);
+  
+  const [answeredStatus, setAnsweredStatus] = useState(new Set());
+  const [roundScores, setRoundScores] = useState({});
+  const [botSchedules, setBotSchedules] = useState({});
 
-  useEffect(() => {
-    let interval;
-    if (view === 'lobby' && isHost) {
-      const fakeNames = ['Aleck', 'Gab', 'Ranz', 'Steven', 'Deen'];
-      let joinCount = 0;
-      interval = setInterval(() => {
-        if (joinCount < fakeNames.length) {
-          setPlayers(prev => [...prev, { name: fakeNames[joinCount], score: 0 }]);
-          joinCount++;
-        } else {
-          clearInterval(interval);
-        }
-      }, 1500);
+  // Native View Transition Helper
+  const transitionTo = (newView) => {
+    if (!document.startViewTransition) {
+      setView(newView);
+    } else {
+      document.startViewTransition(() => {
+        flushSync(() => {
+          setView(newView);
+        });
+      });
     }
-    return () => clearInterval(interval);
-  }, [view, isHost]);
+  };
 
-  useEffect(() => {
-    let timer;
-    if (view === 'playing' && timeLeft > 0) {
-      timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
-    } else if (view === 'playing' && timeLeft === 0) {
-       setTimeout(handleNextQuestion, 1500);
-    }
-    return () => clearInterval(timer);
-  }, [view, timeLeft]);
+  const handleHostDeckSelect = (deck) => {
+    const playableDeck = {
+        ...deck,
+        cards: deck.cards.map(card => {
+            let others = deck.cards.filter(c => c.term !== card.term).sort(() => 0.5 - Math.random());
+            let distractors = others.slice(0, 3).map(c => c.definition);
+            while(distractors.length < 3) distractors.push("Generic Distractor " + Math.random());
+            return { ...card, options: [card.definition, ...distractors].sort(() => 0.5 - Math.random()) };
+        })
+    };
+    setSelectedDeck(playableDeck);
+    setIsHost(true);
+    setLobbyPin(Math.floor(100000 + Math.random() * 900000).toString());
+    setPlayers([{ id: 'me', name: 'You', score: 0, isMe: true }]);
+    transitionTo('lobby');
+  };
 
   const handleJoin = () => {
     if (pinInput.length < 5) return;
     setIsHost(false);
-    setSelectedDeck({ cards: [{ term: "Placeholder", definition: "Awaiting Host" }]}); 
+    setSelectedDeck({ title: "Joined Assessment", cards: [{ term: "Placeholder", definition: "Wait for Host", options:[] }]}); 
     setLobbyPin(pinInput);
     setPlayers([
-      { name: 'Cath', score: 0 },
-      { name: 'Alaiza', score: 0 },
-      { name: 'You', score: 0, isMe: true },
+      { id: 'b1', name: 'Cath', score: 0 },
+      { id: 'b2', name: 'Alaiza', score: 0 },
+      { id: 'me', name: 'You', score: 0, isMe: true },
     ]);
-    setView('lobby');
+    transitionTo('lobby');
   };
 
-  const handleHostDeckSelect = (deck) => {
-    setSelectedDeck(deck);
-    setIsHost(true);
-    setLobbyPin(Math.floor(100000 + Math.random() * 900000).toString());
-    setPlayers([{ name: 'You', score: 0, isMe: true }]);
-    setView('lobby');
-  };
+  // Lobby Bot Joins
+  useEffect(() => {
+    if (view === 'lobby' && isHost) {
+      const bots = [
+        { id: 'b1', name: 'Aleck', score: 0 },
+        { id: 'b2', name: 'Gab', score: 0 },
+        { id: 'b3', name: 'Ranz', score: 0 }
+      ];
+      let i = 0;
+      const interval = setInterval(() => {
+        if (i < bots.length) {
+          setPlayers(prev => [...prev, bots[i]]);
+          i++;
+        } else {
+          clearInterval(interval);
+        }
+      }, 1500);
+      return () => clearInterval(interval);
+    }
+  }, [view, isHost]);
 
-  const startGame = () => {
-    setView('playing');
-    setTimeLeft(15);
-  };
+  // Handle Countdown sequence
+  useEffect(() => {
+     if (view === 'countdown') {
+         if (countdown > 0) {
+             const t = setTimeout(() => setCountdown(c => c - 1), 1000);
+             return () => clearTimeout(t);
+         } else {
+             // Generate random answer times for bots
+             const schedules = {};
+             players.filter(p => !p.isMe).forEach(p => {
+                 schedules[p.id] = Math.floor(Math.random() * 10) + 2; 
+             });
+             setBotSchedules(schedules);
+             setAnsweredStatus(new Set());
+             setRoundScores({});
+             setSelectedAnswer(null);
+             setTimeLeft(15);
+             transitionTo('playing');
+         }
+     }
+  }, [view, countdown, players]);
 
-  const handleAnswerSelect = (optIndex) => {
-    if (selectedAnswer !== null) return;
-    setSelectedAnswer(optIndex);
-    setPlayers(prev => prev.map(p => {
-       if (p.isMe) return { ...p, score: p.score + (optIndex === 0 ? 150 : 0) };
-       return { ...p, score: p.score + (Math.random() > 0.4 ? 120 : 0) };
-    }).sort((a, b) => b.score - a.score));
+  // Handle Active Play Timer & Bot Submissions
+  useEffect(() => {
+    if (view === 'playing' && timeLeft > 0) {
+        const timer = setInterval(() => {
+            setTimeLeft(prev => {
+                const newTime = prev - 1;
+                const newAnswers = [];
+                Object.entries(botSchedules).forEach(([botId, timeTrigger]) => {
+                    if (newTime === timeTrigger) {
+                        newAnswers.push(botId);
+                        const isCorrect = Math.random() > 0.4; // 60% accuracy for bots
+                        const pts = isCorrect ? Math.floor(1000 * (newTime / 15)) : 0;
+                        setRoundScores(prevScores => ({...prevScores, [botId]: pts}));
+                    }
+                });
+                
+                if (newAnswers.length > 0) {
+                    setAnsweredStatus(prevStatus => new Set([...prevStatus, ...newAnswers]));
+                }
+                
+                return newTime;
+            });
+        }, 1000);
+        return () => clearInterval(timer);
+    } else if (view === 'playing' && timeLeft === 0) {
+        setPlayers(prev => prev.map(p => ({
+            ...p,
+            score: p.score + (roundScores[p.id] || 0)
+        })).sort((a,b) => b.score - a.score));
+        
+        transitionTo('round-result');
+    }
+  }, [view, timeLeft, botSchedules, roundScores]);
+
+  const handleUserAnswer = (opt) => {
+      if (selectedAnswer !== null) return;
+      setSelectedAnswer(opt);
+      setAnsweredStatus(prev => new Set([...prev, 'me']));
+      
+      const isCorrect = opt === selectedDeck.cards[currentQIndex].definition;
+      const pts = isCorrect ? Math.floor(1000 * (timeLeft / 15)) : 0;
+      setRoundScores(prev => ({...prev, 'me': pts}));
   };
 
   const handleNextQuestion = () => {
-    if (currentQIndex < (selectedDeck?.cards?.length || 0) - 1) {
-       setCurrentQIndex(prev => prev + 1);
-       setSelectedAnswer(null);
-       setTimeLeft(15);
-    } else {
-       setView('results');
-    }
+      if (currentQIndex < selectedDeck.cards.length - 1) {
+          setCurrentQIndex(q => q + 1);
+          setCountdown(3);
+          transitionTo('countdown');
+      } else {
+          transitionTo('results');
+      }
   };
 
   if (view === 'select-deck') {
     return (
-      <div className="max-w-5xl mx-auto animate-in fade-in duration-300 pb-12">
-        <Button variant="ghost" onClick={() => setView('menu')} className="-ml-4 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 mb-6 font-medium">
+      <div className="max-w-5xl mx-auto pb-12 p-4 md:p-8">
+        <Button variant="ghost" onClick={() => transitionTo('menu')} className="-ml-4 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 mb-6 font-medium">
           <ArrowLeft size={16} className="mr-2" /> Back to Multiplayer
         </Button>
         <h2 className="text-2xl font-bold text-umber dark:text-zinc-100 mb-6">Select a Deck to Host</h2>
         
         {myDecks.length === 0 ? (
-           <Card className="border-2 border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900 p-12 text-center flex flex-col items-center justify-center animate-in fade-in rounded-3xl">
+           <Card className="border-2 border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900 p-12 text-center flex flex-col items-center justify-center rounded-3xl">
               <div className="w-16 h-16 bg-greige/30 dark:bg-zinc-800 text-umber dark:text-zinc-400 rounded-full flex items-center justify-center mb-4"><Zap size={32} /></div>
               <CardTitle className="text-xl text-umber dark:text-zinc-100 mb-2">No decks available</CardTitle>
               <CardDescription className="text-taupe dark:text-zinc-500 mb-6 max-w-md mx-auto">You need to create a deck first before you can host a live multiplayer battle.</CardDescription>
@@ -2090,7 +2300,7 @@ function MultiplayerView({ navigateTo, myDecks }) {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {myDecks.map(deck => (
-              <Card key={deck.id} onClick={() => handleHostDeckSelect(deck)} className="bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 hover:shadow-md transition-shadow cursor-pointer flex flex-col justify-between h-40 relative group animate-in zoom-in duration-200 rounded-xl">
+              <Card key={deck.id} onClick={() => handleHostDeckSelect(deck)} className="bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 hover:shadow-md transition-shadow cursor-pointer flex flex-col justify-between h-40 relative group rounded-xl">
                 <CardContent className="pt-5 pb-0">
                   <h3 className="font-semibold text-umber dark:text-zinc-100 text-lg group-hover:text-amber-700 dark:group-hover:text-amber-500 transition-colors pr-8 truncate">{deck.title}</h3>
                   <p className="text-xs text-taupe dark:text-zinc-500 mt-1">{new Date(deck.createdAt || Date.now()).toLocaleDateString()}</p>
@@ -2109,11 +2319,14 @@ function MultiplayerView({ navigateTo, myDecks }) {
 
   if (view === 'lobby') {
     return (
-      <div className="max-w-3xl mx-auto animate-in fade-in duration-300 pb-12 text-center mt-10">
+      <div className="max-w-3xl mx-auto pb-12 p-4 md:p-8 text-center mt-10">
         <h2 className="text-xl font-bold text-taupe dark:text-zinc-500 uppercase tracking-widest mb-4">Waiting for players...</h2>
-        <Card className="p-10 shadow-sm mb-10 bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 rounded-3xl">
+        <Card className="p-10 shadow-sm mb-10 bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 rounded-3xl relative">
           <p className="text-sm font-bold text-taupe dark:text-zinc-500 uppercase tracking-widest mb-2">Join at CramZero with Pin:</p>
-          <p className="text-6xl md:text-7xl font-mono font-black text-umber dark:text-zinc-100 tracking-[0.2em]">{lobbyPin}</p>
+          <div className="flex items-center justify-center gap-4">
+             <p className="text-6xl md:text-7xl font-mono font-black text-umber dark:text-zinc-100 tracking-[0.2em]">{lobbyPin}</p>
+             <button onClick={() => { navigator.clipboard.writeText(lobbyPin); toast.success("PIN Copied!"); }} className="p-3 bg-greige/30 dark:bg-zinc-800 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 rounded-xl transition-colors"><Copy size={24}/></button>
+          </div>
         </Card>
         
         <div className="flex flex-wrap justify-center gap-4 mb-12">
@@ -2129,7 +2342,7 @@ function MultiplayerView({ navigateTo, myDecks }) {
         </div>
 
         {isHost ? (
-          <Button size="lg" onClick={startGame} disabled={players.length < 2} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 h-14 px-10 rounded-xl font-bold text-lg shadow-md">
+          <Button size="lg" onClick={() => { setCountdown(3); transitionTo('countdown'); }} disabled={players.length < 2} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 h-14 px-10 rounded-xl font-bold text-lg shadow-md">
             Start Live Battle
           </Button>
         ) : (
@@ -2141,77 +2354,177 @@ function MultiplayerView({ navigateTo, myDecks }) {
     );
   }
 
-  if (view === 'playing') {
+  if (view === 'countdown') {
     return (
-      <div className="max-w-5xl mx-auto flex flex-col lg:flex-row gap-6 animate-in fade-in duration-300 h-full relative">
-        <div className="flex-[3] flex flex-col">
-          <div className="sticky top-0 z-20 bg-sand/90 dark:bg-zinc-950/90 backdrop-blur-md pt-2 pb-4 mb-6 border-b border-taupe/20 dark:border-zinc-800 flex justify-between items-end transition-colors">
-            <div>
-              <p className="text-[10px] font-bold text-taupe dark:text-zinc-500 uppercase tracking-widest mb-1">
-                Live Battle • Question {currentQIndex + 1} of {selectedDeck?.cards?.length || 0}
-              </p>
-              <h2 className="text-xl md:text-2xl font-bold text-umber dark:text-zinc-100 truncate max-w-[200px] md:max-w-xs">
-                {selectedDeck?.title}
-              </h2>
-            </div>
-            <div className="flex items-center gap-2 md:gap-4">
-              <Badge variant="outline" className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-mono font-bold text-sm md:text-base border-taupe/30 dark:border-zinc-700 ${timeLeft < 6 ? 'text-rose-600 dark:text-rose-400 animate-pulse' : 'text-umber dark:text-zinc-100'}`}>
-                <Timer size={16} /> {timeLeft}s
-              </Badge>
-              <Button variant="ghost" size="icon" onClick={() => setView('menu')} className="text-taupe dark:text-zinc-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 -mr-2" title="Quit Exam">
-                <X size={20} />
-              </Button>
-            </div>
+      <div className="flex items-center justify-center h-[70vh]">
+         <div className="text-[12rem] font-black text-umber dark:text-zinc-100 animate-in zoom-in duration-300">
+            {countdown}
+         </div>
+      </div>
+    );
+  }
+
+  if (view === 'round-result') {
+      const currentCard = selectedDeck.cards[currentQIndex];
+      const isCorrect = selectedAnswer === currentCard.definition;
+      const myPoints = roundScores['me'] || 0;
+
+      return (
+        <div className="max-w-4xl w-full mx-auto flex flex-col h-[calc(100vh-10rem)] relative">
+           
+           <div className="bg-sand/90 dark:bg-zinc-950/90 backdrop-blur-md pb-4 mb-6 border-b border-taupe/20 dark:border-zinc-800 flex justify-between items-end transition-colors shrink-0 px-2 md:px-0">
+             <div>
+               <p className="text-[10px] font-bold text-taupe dark:text-zinc-500 uppercase tracking-widest mb-1 flex items-center gap-2">
+                 Round Complete
+               </p>
+               <h2 className="text-xl md:text-2xl font-bold text-umber dark:text-zinc-100 truncate max-w-[250px] md:max-w-md">
+                 Question {currentQIndex + 1}
+               </h2>
+             </div>
+             <Button variant="ghost" size="icon" onClick={() => transitionTo('menu')} className="text-taupe dark:text-zinc-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 -mr-2" title="Quit Match">
+               <X size={20} />
+             </Button>
+           </div>
+
+           <div className="flex-1 overflow-y-auto pb-6 px-2 md:px-0 grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 flex flex-col gap-6">
+                 <Card className={`p-8 md:p-12 text-center bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 shadow-md rounded-3xl`}>
+                    {isCorrect ? (
+                        <>
+                          <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4"><CheckCircle size={32} /></div>
+                          <h2 className="text-3xl font-black text-emerald-600 dark:text-emerald-500 mb-2">Correct!</h2>
+                          <Badge className="bg-emerald-500 hover:bg-emerald-500 text-white px-4 py-1.5 text-lg font-bold rounded-xl border-none">+{myPoints}</Badge>
+                        </>
+                    ) : (
+                        <>
+                          <div className="w-16 h-16 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4"><X size={32} /></div>
+                          <h2 className="text-3xl font-black text-rose-600 dark:text-rose-500 mb-2">Incorrect</h2>
+                          <Badge className="bg-rose-500 hover:bg-rose-500 text-white px-4 py-1.5 text-lg font-bold rounded-xl border-none">+0</Badge>
+                        </>
+                    )}
+                 </Card>
+
+                 <Card className="rounded-3xl p-6 shadow-sm bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800">
+                    <p className="font-bold text-umber dark:text-zinc-100 mb-4 text-sm md:text-base leading-relaxed">What is the definition of "{currentCard.term}"?</p>
+                    <div className="space-y-1.5 text-xs md:text-sm bg-sand/30 dark:bg-zinc-950 p-4 rounded-xl border border-taupe/20 dark:border-zinc-800">
+                        <p className="text-taupe dark:text-zinc-400 flex flex-col md:flex-row md:items-start gap-1 md:gap-2">
+                          <span className="shrink-0 font-medium">Your Answer:</span> 
+                          <span className={`font-semibold ${isCorrect ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{!selectedAnswer ? 'Skipped' : selectedAnswer}</span>
+                        </p>
+                        {!isCorrect && (
+                          <p className="text-taupe dark:text-zinc-400 flex flex-col md:flex-row md:items-start gap-1 md:gap-2 mt-2 pt-2 border-t border-taupe/20 dark:border-zinc-800">
+                            <span className="shrink-0 font-medium">Correct Answer:</span> 
+                            <span className="font-semibold text-emerald-600 dark:text-emerald-400">{currentCard.definition}</span>
+                          </p>
+                        )}
+                    </div>
+                 </Card>
+              </div>
+
+              <Card className="lg:col-span-1 rounded-3xl p-6 shadow-sm flex flex-col h-full bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800">
+                 <h3 className="font-bold text-umber dark:text-zinc-100 mb-4 flex items-center gap-2 border-b border-taupe/20 dark:border-zinc-800 pb-4"><Target size={18}/> Leaderboard</h3>
+                 <div className="flex-1 overflow-y-auto space-y-3">
+                    {players.map((p, i) => (
+                      <div key={i} className={`flex items-center justify-between p-3 rounded-xl border ${p.isMe ? 'bg-sand dark:bg-amber-950/20 border-amber-300 dark:border-amber-800' : 'bg-greige/10 dark:bg-zinc-950 border-taupe/20 dark:border-zinc-800'}`}>
+                        <div className="flex items-center gap-3">
+                          <span className="font-bold text-taupe dark:text-zinc-500 w-4">{i + 1}</span>
+                          <div className="w-8 h-8 rounded-full bg-white dark:bg-zinc-800 border border-taupe/20 dark:border-zinc-700 text-umber dark:text-zinc-100 flex items-center justify-center font-bold text-xs uppercase shadow-sm">
+                            {p.name.substring(0,2)}
+                          </div>
+                          <span className={`font-bold text-sm ${p.isMe ? 'text-amber-800 dark:text-amber-500' : 'text-umber dark:text-zinc-300'}`}>{p.name}</span>
+                        </div>
+                        <span className="font-mono font-bold text-umber dark:text-zinc-100">{p.score}</span>
+                      </div>
+                    ))}
+                 </div>
+              </Card>
+           </div>
+
+           {isHost && (
+               <div className="sticky bottom-0 left-0 w-full bg-sand/90 dark:bg-zinc-950/90 backdrop-blur-md py-4 z-20 flex justify-end items-center border-t border-taupe/20 dark:border-zinc-800 mt-auto transition-colors px-2 md:px-0">
+                 <Button onClick={handleNextQuestion} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 h-12 px-8 rounded-xl font-bold shadow-md transition-all">
+                    {currentQIndex < selectedDeck.cards.length - 1 ? "Next Question" : "Show Podium"} <ChevronRight size={18} className="ml-2" />
+                 </Button>
+               </div>
+           )}
+        </div>
+      );
+  }
+
+  if (view === 'playing') {
+    const currentQ = selectedDeck?.cards[currentQIndex];
+    return (
+      <div className="max-w-4xl w-full mx-auto flex flex-col h-[calc(100vh-10rem)] relative">
+        <div className="bg-sand/90 dark:bg-zinc-950/90 backdrop-blur-md pb-4 mb-6 border-b border-taupe/20 dark:border-zinc-800 flex justify-between items-end transition-colors shrink-0 px-2 md:px-0">
+          <div>
+            <p className="text-[10px] font-bold text-taupe dark:text-zinc-500 uppercase tracking-widest mb-1 flex items-center gap-2">
+              <Zap size={12}/> Live Battle • Question {currentQIndex + 1} of {selectedDeck?.cards?.length || 0}
+            </p>
+            <h2 className="text-xl md:text-2xl font-bold text-umber dark:text-zinc-100 truncate max-w-[250px] md:max-w-md">
+              {selectedDeck?.title}
+            </h2>
           </div>
-
-          <Card className="flex-1 rounded-3xl p-6 shadow-md flex flex-col mb-4 bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800">
-            <h3 className="text-2xl font-medium text-umber dark:text-zinc-100 leading-relaxed text-center my-auto">
-              What is the definition of "{selectedDeck?.cards[currentQIndex]?.term}"?
-            </h3>
-          </Card>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[
-              selectedDeck?.cards[currentQIndex]?.definition,
-              "A generic distractor option generated by the AI.",
-              "Another plausible but incorrect definition.",
-              "A completely wrong answer to test your active recall."
-            ].map((opt, i) => (
-              <button 
-                key={i} 
-                disabled={selectedAnswer !== null}
-                onClick={() => handleAnswerSelect(i)}
-                className={`p-6 rounded-2xl border-2 text-left font-medium transition-all ${
-                  selectedAnswer === i 
-                    ? i === 0 ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 dark:border-emerald-600 text-emerald-800 dark:text-emerald-400 shadow-md' : 'bg-rose-50 dark:bg-rose-950/40 border-rose-500 dark:border-rose-600 text-rose-800 dark:text-rose-400 shadow-md'
-                    : selectedAnswer !== null && i === 0 
-                      ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 dark:border-emerald-600 text-emerald-800 dark:text-emerald-400 shadow-md'
-                      : 'bg-white dark:bg-zinc-950 border-taupe/30 dark:border-zinc-800 text-umber dark:text-zinc-300 hover:border-umber dark:hover:border-zinc-600 disabled:opacity-50'
-                }`}
-              >
-                {opt}
-              </button>
-            ))}
+          <div className="flex items-center gap-2 md:gap-4">
+            <Badge variant="outline" className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-mono font-bold text-sm md:text-base border-taupe/30 dark:border-zinc-700 ${timeLeft < 6 ? 'text-rose-600 dark:text-rose-400 animate-pulse bg-rose-50 dark:bg-rose-900/30' : 'text-umber dark:text-zinc-100'}`}>
+              <Timer size={16} /> {timeLeft}s
+            </Badge>
+            <Button variant="ghost" size="icon" onClick={() => transitionTo('menu')} className="text-taupe dark:text-zinc-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 -mr-2" title="Quit Match">
+              <X size={20} />
+            </Button>
           </div>
         </div>
 
-        <Card className="flex-1 rounded-3xl p-6 shadow-sm flex flex-col h-[50vh] lg:h-[80vh] overflow-hidden bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 sticky top-24">
-          <h3 className="font-bold text-umber dark:text-zinc-100 mb-4 flex items-center gap-2 border-b border-taupe/20 dark:border-zinc-800 pb-4"><Target size={18}/> Live Leaderboard</h3>
-          <div className="flex-1 overflow-y-auto space-y-3">
-            {players.map((p, i) => (
-              <div key={i} className={`flex items-center justify-between p-3 rounded-xl border ${p.isMe ? 'bg-sand dark:bg-amber-950/20 border-amber-300 dark:border-amber-800' : 'bg-greige/10 dark:bg-zinc-950 border-taupe/20 dark:border-zinc-800'}`}>
-                <div className="flex items-center gap-3">
-                  <span className="font-bold text-taupe dark:text-zinc-500 w-4">{i + 1}</span>
-                  <div className="w-8 h-8 rounded-full bg-white dark:bg-zinc-800 border border-taupe/20 dark:border-zinc-700 text-umber dark:text-zinc-100 flex items-center justify-center font-bold text-xs uppercase shadow-sm">
-                    {p.name.substring(0,2)}
-                  </div>
-                  <span className={`font-bold text-sm ${p.isMe ? 'text-amber-800 dark:text-amber-500' : 'text-umber dark:text-zinc-300'}`}>{p.name}</span>
-                </div>
-                <span className="font-mono font-bold text-umber dark:text-zinc-100">{p.score}</span>
-              </div>
-            ))}
+        <div className="flex-1 overflow-y-auto pb-6 px-2 md:px-0 grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 flex flex-col">
+            <Card className="rounded-3xl p-6 shadow-md flex flex-col mb-4 bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 min-h-[160px]">
+              <h3 className="text-xl md:text-2xl font-medium text-umber dark:text-zinc-100 leading-relaxed text-center my-auto">
+                What is the definition of "{currentQ?.term}"?
+              </h3>
+            </Card>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {currentQ?.options.map((opt, i) => {
+                const isSelected = selectedAnswer === opt;
+                return (
+                  <button 
+                    key={i} 
+                    disabled={selectedAnswer !== null}
+                    onClick={() => handleUserAnswer(opt)}
+                    className={`w-full p-6 rounded-2xl border-2 text-left font-medium transition-all ${
+                      isSelected 
+                        ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-500 dark:border-amber-600 text-amber-800 dark:text-amber-400 shadow-md scale-[1.02]' 
+                        : selectedAnswer !== null 
+                          ? 'bg-white/50 dark:bg-zinc-950/50 border-taupe/20 dark:border-zinc-800/50 opacity-60 text-umber dark:text-zinc-300'
+                          : 'bg-white dark:bg-zinc-950 border-taupe/30 dark:border-zinc-800 text-umber dark:text-zinc-300 hover:border-umber dark:hover:border-zinc-600 hover:bg-greige/10 dark:hover:bg-zinc-800'
+                    }`}
+                  >
+                    {opt}
+                  </button>
+                )
+              })}
+            </div>
           </div>
-        </Card>
+
+          <Card className="lg:col-span-1 rounded-3xl p-6 shadow-sm flex flex-col h-[50vh] lg:h-full overflow-hidden bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800">
+            <h3 className="font-bold text-umber dark:text-zinc-100 mb-4 flex items-center gap-2 border-b border-taupe/20 dark:border-zinc-800 pb-4"><Target size={18}/> Status</h3>
+            <div className="flex-1 overflow-y-auto space-y-3">
+              {players.map((p, i) => {
+                const hasAnswered = answeredStatus.has(p.id);
+                return (
+                  <div key={i} className={`flex items-center justify-between p-3 rounded-xl border ${p.isMe ? 'bg-sand dark:bg-amber-950/20 border-amber-300 dark:border-amber-800' : 'bg-greige/10 dark:bg-zinc-950 border-taupe/20 dark:border-zinc-800'}`}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-white dark:bg-zinc-800 border border-taupe/20 dark:border-zinc-700 text-umber dark:text-zinc-100 flex items-center justify-center font-bold text-xs uppercase shadow-sm">
+                        {p.name.substring(0,2)}
+                      </div>
+                      <span className={`font-bold text-sm ${p.isMe ? 'text-amber-800 dark:text-amber-500' : 'text-umber dark:text-zinc-300'}`}>{p.name}</span>
+                    </div>
+                    {hasAnswered ? <CheckCircle size={18} className="text-emerald-500" /> : <RotateCw size={14} className="text-taupe dark:text-zinc-500 animate-spin" />}
+                  </div>
+                )
+              })}
+            </div>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -2237,7 +2550,7 @@ function MultiplayerView({ navigateTo, myDecks }) {
           ))}
         </div>
 
-        <Button size="lg" onClick={() => setView('menu')} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 h-14 rounded-xl font-bold w-full shadow-md">
+        <Button size="lg" onClick={() => transitionTo('menu')} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 h-14 rounded-xl font-bold w-full shadow-md">
           Back to Multiplayer Menu
         </Button>
       </Card>
@@ -2245,7 +2558,7 @@ function MultiplayerView({ navigateTo, myDecks }) {
   }
 
   return (
-    <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 animate-in fade-in duration-300 items-center pb-12">
+    <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 items-center pb-12 p-4 md:p-8 animate-in fade-in duration-300">
       <Card className="p-6 md:p-8 rounded-2xl shadow-sm text-center bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800">
         <div className="w-16 h-16 bg-greige/30 dark:bg-zinc-800 text-umber dark:text-zinc-300 rounded-full flex items-center justify-center mx-auto mb-6"><Users size={32}/></div>
         <h2 className="text-xl md:text-2xl font-bold text-umber dark:text-zinc-100 mb-2">Join a Lobby</h2>
@@ -2265,7 +2578,7 @@ function MultiplayerView({ navigateTo, myDecks }) {
       <Card className="bg-sand/40 dark:bg-zinc-900/40 p-6 md:p-8 rounded-2xl shadow-sm text-center h-full flex flex-col justify-center border-taupe/30 dark:border-zinc-800">
         <h2 className="text-xl md:text-2xl font-bold text-umber dark:text-zinc-100 mb-2">Host a Lobby</h2>
         <p className="text-taupe dark:text-zinc-400 text-xs md:text-sm mb-6">Select one of your existing decks and challenge your friends in real-time.</p>
-        <Button variant="outline" size="lg" onClick={() => setView('select-deck')} className="w-full h-12 rounded-xl font-medium border-2 border-umber dark:border-zinc-500 text-umber dark:text-zinc-300 hover:bg-umber/5 dark:hover:bg-zinc-800 hover:text-umber dark:hover:text-zinc-100 bg-transparent">
+        <Button variant="outline" size="lg" onClick={() => transitionTo('select-deck')} className="w-full h-12 rounded-xl font-medium border-2 border-umber dark:border-zinc-500 text-umber dark:text-zinc-300 hover:bg-umber/5 dark:hover:bg-zinc-800 hover:text-umber dark:hover:text-zinc-100 bg-transparent">
           Select Deck to Host
         </Button>
       </Card>
