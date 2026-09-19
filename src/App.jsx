@@ -39,14 +39,160 @@ const mockHubs = [
   { id: 'hub-2', name: 'Web Dev Portfolio Prep', description: 'Frontend, Backend, and Full-Stack interview prep.', role: 'Member', members: 12, decks: 5, inviteCode: 'WEB-DEV-99' }
 ];
 
+const VIEW_META = {
+  dashboard: { title: 'Home', parent: null },
+  study: { title: 'Study', parent: null },
+  decks: { title: 'Library', parent: null },
+  hubs: { title: 'Hubs', parent: null },
+  analytics: { title: 'Analytics', parent: null },
+  multiplayer: { title: 'Play', parent: null },
+  'new-deck': { title: 'New deck', parent: { id: 'decks', label: 'Library' } },
+  'deck-details': { title: 'Deck', parent: { id: 'decks', label: 'Library' } },
+  'flashcard-mode': { title: 'Flashcards', parent: { id: 'deck-details', label: 'Deck' } },
+  'quiz-setup': { title: 'Quiz setup', parent: { id: 'deck-details', label: 'Deck' } },
+  'mock-exam-setup': { title: 'Mock exam', parent: { id: 'deck-details', label: 'Deck' } },
+  'mock-exam-active': { title: 'Assessment', parent: { id: 'deck-details', label: 'Deck' } },
+  'create-hub': { title: 'New hub', parent: { id: 'hubs', label: 'Hubs' } },
+  'hub-details': { title: 'Hub', parent: { id: 'hubs', label: 'Hubs' } },
+};
+
+function BrandMark({ className = '' }) {
+  return (
+    <span className={`inline-flex items-center justify-center bg-umber text-sand rounded-md p-1.5 ${className}`}>
+      <BookOpen size={18} strokeWidth={2.25} aria-hidden="true" />
+    </span>
+  );
+}
+
+function ThemeSwitch({ isDarkMode, setIsDarkMode }) {
+  return (
+    <button
+      type="button"
+      onClick={() => setIsDarkMode((v) => !v)}
+      className="cz-icon-btn"
+      aria-pressed={isDarkMode}
+      aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+      title={isDarkMode ? 'Light mode' : 'Dark mode'}
+    >
+      {isDarkMode ? <Sun size={16} aria-hidden="true" /> : <Moon size={16} aria-hidden="true" />}
+    </button>
+  );
+}
+
+function getActiveNavId(view) {
+  if (view === 'new-deck' || view === 'deck-details') return 'decks';
+  if (view === 'create-hub' || view === 'hub-details') return 'hubs';
+  if (view === 'flashcard-mode' || view === 'quiz-setup' || view === 'mock-exam-setup' || view === 'mock-exam-active') return 'study';
+  return view;
+}
+
+function WorkspaceHeader({
+  navItems,
+  activeNavId,
+  headerTitle,
+  isNavOpen,
+  setIsNavOpen,
+  navigateTo,
+  isDarkMode,
+  setIsDarkMode,
+}) {
+  return (
+    <header className="cz-header">
+      <div className="cz-header-row">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <button type="button" onClick={() => navigateTo('landing')} className="cz-brand" aria-label="CramZero home">
+            <BrandMark />
+            <span className="hidden sm:inline">CramZero</span>
+          </button>
+          <span className="h-4 w-px bg-line hidden sm:block lg:hidden shrink-0" aria-hidden="true" />
+          <p className="cz-page-label lg:hidden">{headerTitle}</p>
+          <nav className="cz-nav" aria-label="Primary">
+            {navItems.map((item) => {
+              const isActive = activeNavId === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => navigateTo(item.id)}
+                  className="cz-nav-link"
+                  aria-current={isActive ? 'page' : undefined}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+        <div className="flex items-center gap-0.5 shrink-0">
+          <ThemeSwitch isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => navigateTo('landing')}
+            className="text-taupe hover:text-umber hidden lg:inline-flex"
+          >
+            Exit
+          </Button>
+          <button
+            type="button"
+            className="cz-icon-btn lg:hidden"
+            aria-label={isNavOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={isNavOpen}
+            aria-controls="cz-mobile-nav"
+            onClick={() => setIsNavOpen((v) => !v)}
+          >
+            {isNavOpen ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}
+          </button>
+        </div>
+      </div>
+
+      {isNavOpen && (
+        <>
+          <div className="cz-nav-backdrop lg:hidden" onClick={() => setIsNavOpen(false)} aria-hidden="true" />
+          <nav id="cz-mobile-nav" className="cz-nav-panel lg:hidden" aria-label="Primary">
+            {navItems.map((item) => {
+              const isActive = activeNavId === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => navigateTo(item.id)}
+                  className="cz-nav-panel-link"
+                  aria-current={isActive ? 'page' : undefined}
+                >
+                  <item.icon size={18} strokeWidth={isActive ? 2.4 : 2} aria-hidden="true" />
+                  <span>{item.label}</span>
+                  {isActive && <span className="sr-only">(current)</span>}
+                </button>
+              );
+            })}
+            <div className="cz-nav-sep" aria-hidden="true" />
+            <button type="button" onClick={() => navigateTo('landing')} className="cz-nav-panel-link text-taupe">
+              <ArrowLeft size={18} aria-hidden="true" />
+              <span>Exit to site</span>
+            </button>
+          </nav>
+        </>
+      )}
+    </header>
+  );
+}
+
+function activateOnEnter(handler) {
+  return (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handler(e);
+    }
+  };
+}
+
 export default function App() {
   const [currentView, setCurrentView] = useState('landing');
   
   // --- GLOBAL STATE ---
   const [isBooting, setIsBooting] = useState(true); 
-  const [isActionLoading, setIsActionLoading] = useState(false);
-  const [actionMessage, setActionMessage] = useState('');
-  
   const [myDecks, setMyDecks] = useState([]);
   const [myHubs, setMyHubs] = useState(mockHubs);
   const [activeDeck, setActiveDeck] = useState(null);
@@ -75,9 +221,11 @@ export default function App() {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
       localStorage.setItem('cramzero-theme', 'dark');
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#12100e');
     } else {
       document.documentElement.classList.remove('dark');
       localStorage.setItem('cramzero-theme', 'light');
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#f1ebe1');
     }
   }, [isDarkMode]);
 
@@ -122,16 +270,29 @@ export default function App() {
   };
   
   useEffect(() => {
-    fetch('http://127.0.0.1:8000/api/decks/')
+    const controller = new AbortController();
+    const failSafe = setTimeout(() => {
+      controller.abort();
+      setIsBooting(false);
+    }, 1800);
+
+    fetch('http://127.0.0.1:8000/api/decks/', { signal: controller.signal })
       .then(res => res.json())
       .then(data => {
-        setMyDecks(data.reverse());
-        setTimeout(() => setIsBooting(false), 800);
+        if (Array.isArray(data)) setMyDecks(data.reverse());
       })
       .catch(err => {
-        console.error("Backend offline or error:", err);
-        setTimeout(() => setIsBooting(false), 800);
+        if (err?.name !== 'AbortError') console.error("Backend offline or error:", err);
+      })
+      .finally(() => {
+        clearTimeout(failSafe);
+        setIsBooting(false);
       });
+
+    return () => {
+      controller.abort();
+      clearTimeout(failSafe);
+    };
   }, []);
 
   const handleSpeak = (text) => {
@@ -146,14 +307,14 @@ export default function App() {
     }
   };
   
+  // FIXED: CONTINUITY TRANSITION
+  // Using native document.startViewTransition creates the smooth morphing effect shown in the video
   const handleNavigate = (view) => {
     if (!document.startViewTransition) {
       setCurrentView(view);
     } else {
       document.startViewTransition(() => {
-        flushSync(() => {
-          setCurrentView(view);
-        });
+        setCurrentView(view);
       });
     }
   };
@@ -167,26 +328,30 @@ export default function App() {
     { id: 'multiplayer', label: 'Play', icon: Zap },
   ];
 
-  const focusViews = ['new-deck', 'deck-details', 'create-hub', 'hub-details', 'flashcard-mode', 'quiz-setup', 'mock-exam-setup', 'mock-exam-active'];
-  const showNavDock = !focusViews.includes(currentView);
+  const activeNavId = getActiveNavId(currentView);
+
+  useEffect(() => {
+    if (!isNavOpen) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setIsNavOpen(false); };
+    const onResize = () => { if (window.innerWidth >= 1024) setIsNavOpen(false); };
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('resize', onResize);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onResize);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isNavOpen]);
 
   if (currentView === 'landing') {
     return (
       <>
         <LandingPageView navigateTo={handleNavigate} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
         {isBooting && (
-          <div className="fixed inset-0 z-[100] bg-sand dark:bg-zinc-950 flex flex-col items-center justify-center animate-in fade-in duration-200">
-            <div className="relative mb-6">
-              <div className="absolute inset-0 bg-amber-200 dark:bg-amber-900 blur-xl rounded-full animate-pulse"></div>
-              <div className="w-20 h-20 bg-white dark:bg-zinc-900 border border-taupe/20 dark:border-zinc-800 rounded-3xl shadow-xl flex items-center justify-center relative z-10 animate-bounce">
-                <BookOpen size={40} className="text-umber dark:text-zinc-100" />
-              </div>
-              <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center shadow-lg z-20">
-                <RotateCw size={16} className="text-white animate-spin" />
-              </div>
-            </div>
-            <h2 className="text-2xl md:text-3xl font-black text-umber dark:text-zinc-100 mb-2 tracking-tight">CramZero is cooking  🍳</h2>
-            <p className="text-taupe dark:text-zinc-400 text-sm font-medium animate-pulse">Firing up the engines</p>
+          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 pointer-events-none" role="status" aria-live="polite">
+            <div className="cz-surface px-3.5 py-2 text-sm text-taupe shadow-sm">Loading library…</div>
           </div>
         )}
       </>
@@ -194,23 +359,13 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden font-sans bg-sand dark:bg-zinc-950 text-umber dark:text-zinc-100 relative transition-colors">
+    <div className="flex h-screen w-full overflow-hidden font-sans bg-sand text-umber relative transition-colors">
       
-      <Toaster 
-        position="top-center" 
-        theme={isDarkMode ? 'dark' : 'light'}
-        toastOptions={{
-          classNames: {
-            toast: "group flex w-full items-start gap-4 rounded-3xl border border-taupe/30 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6 shadow-2xl max-w-md mx-auto animate-in slide-in-from-top-4",
-            title: "text-lg font-black text-umber dark:text-zinc-100",
-            description: "text-sm font-medium text-taupe dark:text-zinc-400 mt-1 leading-relaxed",
-            icon: "mt-0.5 w-6 h-6 group-data-[type=error]:text-rose-500 group-data-[type=success]:text-emerald-500 group-data-[type=info]:text-amber-500",
-          },
-        }}
-      />
+      {/* Premium Toaster */}
+      <Toaster position="top-center" theme={isDarkMode ? 'dark' : 'light'} />
 
-      <main className="flex-1 flex flex-col relative overflow-hidden"> 
-        <header className="px-6 py-4 border-b border-taupe/20 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md flex items-center justify-between sticky top-0 z-20 transition-colors shrink-0">
+      <main className="flex-1 flex flex-col relative overflow-y-auto"> 
+        <header className="px-6 py-4 border-b border-taupe/20 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md flex items-center justify-between sticky top-0 z-20 transition-colors">
           <div className="flex items-center gap-4 md:gap-6">
             <div className="flex items-center gap-2 cursor-pointer group" onClick={() => handleNavigate('landing')}>
               <div className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-950 p-1.5 rounded-xl group-hover:scale-105 transition-transform">
@@ -235,9 +390,10 @@ export default function App() {
           </div>
         </header>
 
-        <div key={currentView} className={`flex-1 overflow-y-auto p-4 md:p-8 w-full animate-in fade-in duration-500 ${showNavDock ? 'pb-32 md:pb-36' : 'pb-0 md:pb-0 p-0 md:p-0'}`}>
+        {/* Dynamic padding container */}
+        <div className={`flex-1 p-4 md:p-8 w-full ${showNavDock ? 'pb-32 md:pb-36' : 'pb-12 md:pb-12'}`}>
           {/* Main Views */}
-          {currentView === 'dashboard' && <DashboardView navigateTo={handleNavigate} setHasActiveDeck={setHasActiveDeck} myDecks={myDecks} />}
+          {currentView === 'dashboard' && <DashboardView navigateTo={handleNavigate} setHasActiveDeck={setHasActiveDeck} setActiveDeck={setActiveDeck} myDecks={myDecks} />}
           {currentView === 'study' && <StudyView navigateTo={handleNavigate} hasActiveDeck={hasActiveDeck} setHasActiveDeck={setHasActiveDeck} setActiveDeck={setActiveDeck} myDecks={myDecks} />}
           {currentView === 'decks' && <DecksView navigateTo={handleNavigate} setActiveDeck={setActiveDeck} myDecks={myDecks} setMyDecks={setMyDecks} />}
           {currentView === 'hubs' && <StudyHubsView navigateTo={handleNavigate} setActiveHub={setActiveHub} myHubs={myHubs} />}
@@ -281,26 +437,9 @@ export default function App() {
         </nav>
       )}
 
-      {/* Action Overlays for major creations */}
-      {(isBooting || isActionLoading) && (
-        <div className="fixed inset-0 z-[100] bg-background/60 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in duration-300">
-          <div className="relative mb-8">
-            <div className="absolute inset-0 bg-amber-500/20 blur-2xl rounded-full animate-pulse"></div>
-            <Card className="w-24 h-24 border-taupe/20 dark:border-zinc-800 shadow-2xl flex items-center justify-center relative z-10 animate-bounce bg-background rounded-3xl">
-              <BookOpen size={48} className="text-umber dark:text-zinc-100" />
-            </Card>
-            <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center shadow-lg z-20">
-              <RotateCw size={20} className="text-white animate-spin" />
-            </div>
-          </div>
-          <h2 className="text-3xl md:text-4xl font-black text-foreground mb-3 tracking-tight">CramZero is cooking... 🍳</h2>
-          <p className="text-muted-foreground text-base font-medium animate-pulse">{actionMessage || 'Organizing your workspace'}</p>
-        </div>
-      )}
-
       {/* Floating AI Tutor Button */}
       {['flashcard-mode', 'deck-details', 'study', 'mock-exam-active'].includes(currentView) && (activeDeck || hasActiveDeck) && !isTutorOpen && (
-        <button onClick={() => setIsTutorOpen(true)} className={`fixed ${showNavDock ? 'bottom-24 md:bottom-8' : 'bottom-20 md:bottom-24'} right-4 md:right-8 p-3.5 md:p-4 bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-950 rounded-full shadow-xl hover:scale-105 transition-all z-40 flex items-center justify-center animate-in zoom-in duration-300 group`}>
+        <button onClick={() => setIsTutorOpen(true)} className={`fixed ${showNavDock ? 'bottom-24 md:bottom-8' : 'bottom-6 md:bottom-8'} right-4 md:right-8 p-3.5 md:p-4 bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-950 rounded-full shadow-xl hover:scale-105 transition-all z-40 flex items-center justify-center animate-in zoom-in duration-300 group`}>
           <MessageCircle size={26} />
           <span className="absolute top-2 right-2 md:top-3 md:right-3 w-3 h-3 bg-emerald-500 border-2 border-umber dark:border-zinc-100 rounded-full animate-pulse"></span>
         </button>
@@ -309,36 +448,47 @@ export default function App() {
       {/* Professor AI Chat Window */}
       {['flashcard-mode', 'deck-details', 'study', 'mock-exam-active'].includes(currentView) && (activeDeck || hasActiveDeck) && isTutorOpen && (
         <>
-          {isTutorExpanded && <div className="fixed inset-0 bg-umber/20 dark:bg-black/50 backdrop-blur-sm z-[55] animate-in fade-in duration-300" onClick={() => setIsTutorExpanded(false)} />}
-          <aside className={`fixed bg-white dark:bg-zinc-950 border border-taupe/30 dark:border-zinc-800 shadow-2xl flex flex-col z-[60] overflow-hidden transition-all duration-300 ease-in-out ${isTutorExpanded ? 'inset-4 md:inset-10 lg:inset-x-[15%] lg:inset-y-10 rounded-3xl' : 'bottom-4 right-4 left-4 md:left-auto md:bottom-8 md:right-8 md:w-[400px] h-[500px] md:h-[600px] rounded-2xl animate-in slide-in-from-bottom-6'}`}>
-            
-            <div className="p-4 border-b border-taupe/30 dark:border-zinc-800 bg-greige/40 dark:bg-zinc-900 flex justify-between items-start shrink-0">
+          {isTutorExpanded && <div className="fixed inset-0 bg-umber/25 backdrop-blur-sm z-[55]" onClick={() => setIsTutorExpanded(false)} aria-hidden="true" />}
+          <aside
+            role="dialog"
+            aria-label="Zero AI tutor"
+            className={`cz-chat fixed z-[60] ${isTutorExpanded
+              ? 'inset-4 md:inset-10 lg:inset-x-[18%] lg:inset-y-10 rounded-xl'
+              : 'bottom-4 md:bottom-8 right-4 left-4 md:left-auto md:right-8 md:w-[380px] h-[min(28rem,calc(100dvh-8rem))] md:h-[32rem] rounded-xl'
+            }`}
+          >
+            <div className="px-4 py-3 border-b border-line bg-greige/60 flex justify-between items-start shrink-0">
               <div>
-                <h3 className="font-bold text-umber dark:text-zinc-100 flex items-center gap-2 text-base md:text-lg"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>Zero AI</h3>
-                <p className="text-xs text-taupe dark:text-zinc-400 mt-1 ml-4 font-medium">Vocal Language Partner & Tutor</p>
+                <h3 className="font-semibold text-umber flex items-center gap-2 text-sm">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" aria-hidden="true"></span>
+                  Zero AI
+                </h3>
+                <p className="text-xs text-taupe mt-0.5 ml-4">Study partner for this deck</p>
               </div>
-              <div className="flex items-center gap-1">
-                <button onClick={() => setIsTutorExpanded(!isTutorExpanded)} className="text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 transition-colors p-1.5 rounded hover:bg-taupe/20 dark:hover:bg-zinc-800">
-                  {isTutorExpanded ? <Minimize size={18} /> : <Maximize size={18} />}
+              <div className="flex items-center gap-0.5">
+                <button type="button" onClick={() => setIsTutorExpanded(!isTutorExpanded)} className="cz-icon-btn" aria-label={isTutorExpanded ? 'Collapse tutor' : 'Expand tutor'}>
+                  {isTutorExpanded ? <Minimize size={16} /> : <Maximize size={16} />}
                 </button>
-                <button onClick={() => { setIsTutorOpen(false); setIsTutorExpanded(false); }} className="text-taupe dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-500 transition-colors p-1.5 rounded hover:bg-rose-50 dark:hover:bg-rose-950/30"><X size={18} /></button>
+                <button type="button" onClick={() => { setIsTutorOpen(false); setIsTutorExpanded(false); }} className="cz-icon-btn" data-danger aria-label="Close tutor">
+                  <X size={16} />
+                </button>
               </div>
             </div>
             
-            <div className={`flex-1 overflow-y-auto bg-greige/10 dark:bg-zinc-900/50 flex flex-col ${isTutorExpanded ? 'p-6 md:p-8' : 'p-4 md:p-5'}`}>
+            <div className={`flex-1 overflow-y-auto bg-greige/40 flex flex-col ${isTutorExpanded ? 'p-6 md:p-8' : 'p-4 md:p-5'}`}>
               <div className="flex w-full flex-col gap-6">
                 {chatMessages.map((msg, idx) => (
                   <Message key={idx} align={msg.role === 'user' ? 'end' : 'start'} className="w-full">
                     <MessageAvatar className="shrink-0 mt-auto">
-                      <Avatar className="w-8 h-8 md:w-9 md:h-9 shadow-sm border border-taupe/20 dark:border-zinc-700">
-                        <AvatarFallback className={`w-full h-full flex items-center justify-center font-bold text-[10px] md:text-xs rounded-full ${msg.role === 'ai' ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-500' : 'bg-umber dark:bg-zinc-200 text-sand dark:text-zinc-900'}`}>
+                      <Avatar className="w-8 h-8 md:w-9 md:h-9 shadow-sm border border-line">
+                        <AvatarFallback className={`w-full h-full flex items-center justify-center font-bold text-[10px] md:text-xs rounded-full ${msg.role === 'ai' ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-500' : 'bg-umber text-sand'}`}>
                           {msg.role === 'user' ? 'ME' : 'AI'}
                         </AvatarFallback>
                       </Avatar>
                     </MessageAvatar>
                     
                     <MessageContent className="max-w-[85%] md:max-w-[75%]">
-                      <div className={`relative px-4 py-3 md:px-5 md:py-4 shadow-sm ${msg.role === 'user' ? 'bg-umber dark:bg-zinc-200 text-sand dark:text-zinc-900 rounded-3xl rounded-br-sm' : 'bg-white dark:bg-zinc-800 border border-taupe/20 dark:border-zinc-700 text-umber dark:text-zinc-100 rounded-3xl rounded-bl-sm'}`}>
+                      <div className={`relative px-4 py-3 md:px-5 md:py-4 shadow-sm ${msg.role === 'user' ? 'bg-umber text-sand rounded-xl rounded-br-sm' : 'bg-paper border border-line text-umber rounded-xl rounded-bl-sm'}`}>
                         <div className="whitespace-pre-wrap break-words text-[13px] md:text-sm leading-relaxed space-y-3">
                           <ReactMarkdown 
                             components={{
@@ -360,7 +510,7 @@ export default function App() {
                         
                         {msg.role === 'ai' && (
                           <div className="flex justify-end mt-2 -mb-1 -mr-1">
-                            <button onClick={() => handleSpeak(msg.content)} title="Listen to response" className="cursor-pointer text-taupe dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 bg-greige/30 dark:bg-zinc-700 hover:bg-amber-50 dark:hover:bg-amber-900/30 p-1.5 rounded-full transition-all border border-transparent hover:border-amber-200 dark:hover:border-amber-800">
+                            <button type="button" onClick={() => handleSpeak(msg.content)} title="Listen to response" aria-label="Listen to response" className="cz-icon-btn">
                               <Volume2 size={14} />
                             </button>
                           </div>
@@ -372,7 +522,7 @@ export default function App() {
 
                 {isChatLoading && (
                   <Marker role="status" className="mt-2">
-                    <MarkerContent className="shimmer text-xs dark:text-zinc-400">
+                    <MarkerContent className="shimmer text-xs ">
                       <span className="font-medium text-amber-600 dark:text-amber-500">Zero AI</span> is thinking...
                     </MarkerContent>
                   </Marker>
@@ -380,20 +530,23 @@ export default function App() {
               </div>
             </div>
             
-            <div className={`bg-white dark:bg-zinc-950 border-t border-taupe/20 dark:border-zinc-800 shrink-0 ${isTutorExpanded ? 'p-6' : 'p-3 md:p-4'}`}>
+            <div className={`bg-paper border-t border-line shrink-0 ${isTutorExpanded ? 'p-6' : 'p-3 md:p-4'}`}>
               <div className="flex gap-2 items-end">
-                <button className={`rounded-xl transition-all flex items-center justify-center shadow-sm border bg-greige/20 dark:bg-zinc-900 text-taupe dark:text-zinc-400 border-taupe/30 dark:border-zinc-800 ${isTutorExpanded ? 'p-4' : 'p-2.5 md:p-3'}`}>
-                  <MicOff size={isTutorExpanded ? 24 : 20} />
+                <button type="button" aria-label="Voice input unavailable" title="Voice input unavailable" className={`rounded-md flex items-center justify-center border bg-greige text-taupe border-line ${isTutorExpanded ? 'p-3.5' : 'p-2.5'}`}>
+                  <MicOff size={isTutorExpanded ? 20 : 18} aria-hidden="true" />
                 </button>
+                <label htmlFor="cz-tutor-input" className="sr-only">Message Zero</label>
                 <textarea 
+                  id="cz-tutor-input"
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendChat(); } }}
-                  placeholder="Ask Zero..." 
-                  className={`flex-1 bg-greige/10 dark:bg-zinc-900 border border-taupe/30 dark:border-zinc-800 rounded-xl text-umber dark:text-zinc-100 placeholder:text-taupe dark:placeholder:text-zinc-500 focus:outline-none focus:border-amber-500 dark:focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all resize-none ${isTutorExpanded ? 'px-4 py-4 text-base h-[60px] min-h-[60px]' : 'px-3 py-2.5 text-xs md:text-sm h-[42px] min-h-[42px]'}`}
+                  placeholder="Ask Zero…" 
+                  rows={1}
+                  className={`flex-1 bg-sand border border-line rounded-md text-umber placeholder:text-taupe focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 resize-none ${isTutorExpanded ? 'px-4 py-3 text-base min-h-[56px]' : 'px-3 py-2.5 text-sm min-h-[42px]'}`}
                 />
-                <button onClick={handleSendChat} disabled={isChatLoading || !chatInput.trim()} className={`bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 rounded-xl hover:bg-umber/90 dark:hover:bg-zinc-300 transition-all flex items-center justify-center shadow-sm disabled:opacity-50 ${isTutorExpanded ? 'p-4' : 'p-2.5 md:p-3'}`}>
-                  <Send size={isTutorExpanded ? 22 : 18} />
+                <button type="button" onClick={handleSendChat} disabled={isChatLoading || !chatInput.trim()} aria-label="Send message" className={`bg-umber text-sand rounded-md hover:opacity-90 flex items-center justify-center disabled:opacity-50 ${isTutorExpanded ? 'p-3.5' : 'p-2.5'}`}>
+                  <Send size={isTutorExpanded ? 18 : 16} aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -413,6 +566,7 @@ function LandingPageView({ navigateTo, isDarkMode, setIsDarkMode }) {
   const [activeStudyTab, setActiveStudyTab] = useState(1);
   const [isBuilding, setIsBuilding] = useState(true);
   const [revealedCount, setRevealedCount] = useState(0);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const fullPrompt = "Cardiac medications — ACE inhibitors, beta blockers, CCBs...";
   const generatedItems = ["Generated 12 cards", "ACE inhibitors", "Beta blockers", "Calcium channel blockers"];
@@ -435,72 +589,98 @@ function LandingPageView({ navigateTo, isDarkMode, setIsDarkMode }) {
     return () => clearTimeout(timeout);
   }, [typedText, isBuilding, revealedCount]);
 
+  useEffect(() => {
+    if (!isMenuOpen) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setIsMenuOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [isMenuOpen]);
+
   return (
-    <div className="min-h-screen bg-sand dark:bg-zinc-950 text-umber dark:text-zinc-100 font-sans flex flex-col selection:bg-umber dark:selection:bg-zinc-100 selection:text-sand dark:selection:text-zinc-900 transition-colors">
-      <header className="px-4 md:px-8 py-5 flex justify-between items-center w-full border-b border-taupe/20 dark:border-zinc-800 bg-white dark:bg-zinc-950 transition-colors">
-        <div className="max-w-7xl mx-auto w-full flex justify-between items-center">
-          <div className="flex items-center gap-2 text-xl md:text-2xl font-black tracking-tight cursor-pointer group" onClick={() => navigateTo('landing')}>
-            <div className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 p-1.5 rounded-xl group-hover:scale-105 transition-transform">
-              <BookOpen size={20} fill="currentColor" />
-            </div>
+    <div className="min-h-screen bg-sand text-umber font-sans flex flex-col">
+      <header className="cz-header">
+        <div className="cz-header-row max-w-6xl mx-auto w-full">
+          <button type="button" className="cz-brand" onClick={() => navigateTo('landing')} aria-label="CramZero">
+            <BrandMark />
             CramZero
-          </div>
-          <nav className="hidden md:flex items-center gap-8 font-medium text-umber/80 dark:text-zinc-300 text-sm">
-            <a href="#study-ways" className="hover:text-umber dark:hover:text-zinc-100 transition-colors">Interactive Modes</a>
-            <a href="#architecture" className="hover:text-umber dark:hover:text-zinc-100 transition-colors">Ecosystem</a>
-            <a href="#faq" className="hover:text-umber dark:hover:text-zinc-100 transition-colors">Architecture & FAQ</a>
+          </button>
+          <nav className="cz-nav" aria-label="Landing">
+            <a href="#study-ways" className="cz-nav-link" onClick={() => setIsMenuOpen(false)}>Modes</a>
+            <a href="#architecture" className="cz-nav-link" onClick={() => setIsMenuOpen(false)}>Ecosystem</a>
+            <a href="#faq" className="cz-nav-link" onClick={() => setIsMenuOpen(false)}>FAQ</a>
           </nav>
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-sand/50 dark:bg-zinc-900 border border-taupe/20 dark:border-zinc-800 transition-colors mr-2">
-              <Sun size={14} className="text-amber-600 dark:text-zinc-500" />
-              <Switch checked={isDarkMode} onCheckedChange={setIsDarkMode} className="data-[state=checked]:bg-indigo-500" />
-              <Moon size={14} className="text-taupe dark:text-indigo-400" />
-            </div>
-            <Button variant="ghost" onClick={() => navigateTo('dashboard')} className="font-semibold text-umber/90 dark:text-zinc-300 hover:text-umber dark:hover:text-zinc-100 hidden sm:inline-flex hover:bg-taupe/10 dark:hover:bg-zinc-800">Sign in</Button>
-            <Button onClick={() => navigateTo('dashboard')} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 rounded-full font-bold hover:bg-umber/90 dark:hover:bg-zinc-300 shadow-sm hover:scale-105">Launch App →</Button>
+          <div className="flex items-center gap-1 shrink-0">
+            <ThemeSwitch isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
+            <Button type="button" variant="ghost" onClick={() => navigateTo('dashboard')} className="hidden sm:inline-flex text-taupe hover:text-umber">Sign in</Button>
+            <Button type="button" onClick={() => navigateTo('dashboard')} className="bg-umber text-sand hover:opacity-90 h-9 px-3.5">Launch app</Button>
+            <button
+              type="button"
+              className="cz-icon-btn lg:hidden"
+              aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={isMenuOpen}
+              aria-controls="cz-landing-nav"
+              onClick={() => setIsMenuOpen((v) => !v)}
+            >
+              {isMenuOpen ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}
+            </button>
           </div>
         </div>
+        {isMenuOpen && (
+          <>
+            <div className="cz-nav-backdrop lg:hidden" onClick={() => setIsMenuOpen(false)} aria-hidden="true" />
+            <nav id="cz-landing-nav" className="cz-nav-panel lg:hidden" aria-label="Landing">
+              <a href="#study-ways" className="cz-nav-panel-link" onClick={() => setIsMenuOpen(false)}>Modes</a>
+              <a href="#architecture" className="cz-nav-panel-link" onClick={() => setIsMenuOpen(false)}>Ecosystem</a>
+              <a href="#faq" className="cz-nav-panel-link" onClick={() => setIsMenuOpen(false)}>FAQ</a>
+              <div className="cz-nav-sep" aria-hidden="true" />
+              <button type="button" className="cz-nav-panel-link sm:hidden" onClick={() => navigateTo('dashboard')}>Sign in</button>
+              <button type="button" className="cz-nav-panel-link" onClick={() => navigateTo('dashboard')}>Launch app</button>
+            </nav>
+          </>
+        )}
       </header>
 
-      <section className="px-4 md:px-8 py-16 md:py-24 max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-        <div className="lg:col-span-6 space-y-6 text-center lg:text-left">
-          <Badge variant="outline" className="bg-greige/30 dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 text-umber dark:text-zinc-100 px-3 py-1 font-bold uppercase tracking-wider">
-            <Sparkles size={14} className="text-amber-600 dark:text-amber-500 mr-2" /> Account-Free & Frictionless
-          </Badge>
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.08] text-umber dark:text-zinc-50">
-            Upload files. Generate decks. <span className="text-taupe dark:text-zinc-500 underline decoration-umber/30 dark:decoration-zinc-700">Zero friction.</span>
-          </h1>
-          <p className="text-base md:text-lg text-taupe dark:text-zinc-400 leading-relaxed font-medium max-w-lg mx-auto lg:mx-0">
-            Transform heavy PDFs, PPTX slides, and lecture notes into smart flashcards and quizzes instantly using Google Gemini AI.
+      <section className="px-4 md:px-8 py-14 md:py-20 max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
+        <div className="lg:col-span-6 space-y-5 text-center lg:text-left">
+          <p className="cz-kicker inline-flex items-center gap-2">
+            <Sparkles size={13} className="text-accent" aria-hidden="true" /> Account-free · No signup
           </p>
-          <div className="flex items-center justify-center lg:justify-start gap-4 pt-2">
-            <Button size="lg" onClick={() => navigateTo('dashboard')} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 rounded-xl font-bold text-base hover:bg-umber/90 dark:hover:bg-zinc-300 shadow-md hover:scale-105 h-14 px-8">
-              Start Studying Now <ArrowRight size={18} className="ml-2" />
+          <h1 className="cz-display text-4xl sm:text-5xl lg:text-[3.4rem]">
+            Upload files. Generate decks. <em className="not-italic text-taupe">Zero friction.</em>
+          </h1>
+          <p className="cz-lede text-base md:text-lg max-w-lg mx-auto lg:mx-0">
+            Turn PDFs, slides, and lecture notes into flashcards, quizzes, and a tutor you can actually study with.
+          </p>
+          <div className="flex items-center justify-center lg:justify-start gap-3 pt-1">
+            <Button type="button" size="lg" onClick={() => navigateTo('dashboard')} className="bg-umber text-sand hover:opacity-90 h-12 px-6">
+              Start studying <ArrowRight size={16} className="ml-2" />
             </Button>
           </div>
         </div>
 
-        <Card className="lg:col-span-6 rounded-3xl p-6 pt-16 shadow-2xl relative overflow-hidden border-taupe/30 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-          <Badge className="absolute top-5 right-6 bg-amber-500 hover:bg-amber-500 text-umber dark:text-amber-950 text-[10px] font-black px-3.5 py-1 rounded-full uppercase tracking-widest shadow-sm z-10">Live AI Synthesis</Badge>
-          <div className="mb-6">
-            <span className="text-xs font-bold text-taupe dark:text-zinc-400 uppercase tracking-wider block mb-2">GENERATE : PHARMACOLOGY</span>
-            <div className="bg-sand/30 dark:bg-zinc-950 border border-taupe/20 dark:border-zinc-800 rounded-xl p-4 font-mono text-sm text-umber dark:text-zinc-300 min-h-[54px] flex items-center">
-              <span>{typedText}</span><span className="w-2 h-4 bg-umber dark:bg-zinc-400 ml-1 animate-pulse"></span>
-            </div>
+        <div className="lg:col-span-6 cz-surface p-5 md:p-6">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <p className="cz-kicker">Generate · Pharmacology</p>
+            <span className="text-[11px] font-medium text-taupe">Preview</span>
           </div>
-          <div className="space-y-3 bg-greige/10 dark:bg-zinc-800/50 p-5 rounded-2xl border border-taupe/20 dark:border-zinc-800 min-h-[160px] flex flex-col justify-center">
+          <div className="bg-sand border border-line rounded-lg p-3.5 font-mono text-sm text-umber min-h-[52px] flex items-center">
+            <span>{typedText}</span><span className="w-px h-4 bg-umber ml-1 animate-pulse" aria-hidden="true"></span>
+          </div>
+          <div className="mt-4 space-y-2.5 bg-greige/40 p-4 rounded-lg border border-line min-h-[148px] flex flex-col justify-center">
             {isBuilding ? (
-              <div className="flex items-center justify-center gap-2 text-taupe dark:text-zinc-400 text-sm font-medium py-4"><RotateCw size={16} className="animate-spin text-amber-600 dark:text-amber-500" /> Building your deck...</div>
+              <div className="flex items-center justify-center gap-2 text-taupe text-sm py-4"><RotateCw size={15} className="animate-spin text-accent" aria-hidden="true" /> Building deck…</div>
             ) : (
-              <div className="space-y-3 animate-in fade-in duration-300">
+              <div className="space-y-2.5 animate-in fade-in">
                 {generatedItems.slice(0, revealedCount).map((item, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm text-umber dark:text-zinc-200 font-medium animate-in slide-in-from-bottom-1 duration-200"><Check size={16} className="text-emerald-600 dark:text-emerald-500 shrink-0" /> {item}</div>
+                  <div key={i} className="flex items-center gap-2 text-sm text-umber animate-in slide-in-from-bottom-1">
+                    <Check size={15} className="text-success shrink-0" aria-hidden="true" /> {item}
+                  </div>
                 ))}
-                {revealedCount >= generatedItems.length && <p className="text-[11px] text-taupe/70 dark:text-zinc-500 pt-1 font-semibold">+ 8 more terms compiled...</p>}
+                {revealedCount >= generatedItems.length && <p className="text-xs text-taupe pt-1">+ 8 more terms</p>}
               </div>
             )}
           </div>
-        </Card>
+        </div>
       </section>
 
       <section id="study-ways" className="px-4 md:px-8 py-16 md:py-20 max-w-6xl mx-auto w-full">
@@ -570,36 +750,58 @@ function LandingPageView({ navigateTo, isDarkMode, setIsDarkMode }) {
         </div>
       </section>
 
-      <section id="architecture" className="px-4 md:px-8 py-16 md:py-20 max-w-6xl mx-auto w-full">
-        <div className="mb-12 text-center max-w-2xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-black text-umber dark:text-zinc-100">Engineered for absolute retention.</h2>
-          <p className="text-taupe dark:text-zinc-400 mt-2 text-sm md:text-base">An entire ecosystem built to eliminate student friction.</p>
+      <section id="study-ways" className="px-4 md:px-8 py-14 md:py-16 max-w-6xl mx-auto w-full">
+        <div className="mb-8 max-w-2xl">
+          <p className="cz-kicker mb-2">Interactive modes</p>
+          <h2 className="cz-title text-3xl md:text-4xl">Study the way the exam actually feels.</h2>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-2 bg-umber dark:bg-zinc-200 text-sand dark:text-zinc-900 p-6 md:p-8 rounded-3xl shadow-xl flex flex-col justify-between relative overflow-hidden group">
-            <div className="relative z-10">
-              <div className="w-12 h-12 bg-sand/10 dark:bg-zinc-900/20 text-sand dark:text-zinc-900 rounded-2xl flex items-center justify-center mb-6 border border-sand/20 dark:border-zinc-900/30"><UploadCloud size={24} /></div>
-              <h3 className="font-bold text-xl md:text-2xl mb-2">Universal Document Ingestion</h3>
-              <p className="text-sand/80 dark:text-zinc-800 text-sm md:text-base max-w-lg leading-relaxed">Instantly upload course materials. CramZero's parser extracts definitions, key terms, and generates complete interactive decks automatically.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            { icon: Layers, title: 'Flashcards', body: 'Flip, rate, and schedule reviews with spaced repetition.' },
+            { icon: CheckCircle, title: 'Quizzes', body: 'Multiple-choice checks generated from your own cards.' },
+            { icon: Timer, title: 'Mock exams', body: 'Timed, high-stakes runs with scenario-style questions.' },
+            { icon: MessageCircle, title: 'Zero tutor', body: 'Ask about a term without leaving the study session.' },
+          ].map((mode) => (
+            <div key={mode.title} className="cz-surface p-5">
+              <div className="cz-icon-well mb-4"><mode.icon size={18} aria-hidden="true" /></div>
+              <h3 className="font-semibold mb-1">{mode.title}</h3>
+              <p className="text-sm text-taupe leading-relaxed">{mode.body}</p>
             </div>
-            <div className="mt-8 flex gap-2 md:gap-3 relative z-10 flex-wrap">
-              <span className="bg-sand/10 dark:bg-zinc-900/20 border border-sand/20 dark:border-zinc-900/30 px-3 py-1 rounded-lg text-xs font-bold">PDF Support</span>
-              <span className="bg-sand/10 dark:bg-zinc-900/20 border border-sand/20 dark:border-zinc-900/30 px-3 py-1 rounded-lg text-xs font-bold">PowerPoint PPTX</span>
-              <span className="bg-sand/10 dark:bg-zinc-900/20 border border-sand/20 dark:border-zinc-900/30 px-3 py-1 rounded-lg text-xs font-bold">JSON & TXT</span>
+          ))}
+        </div>
+      </section>
+
+      <section id="architecture" className="px-4 md:px-8 py-14 md:py-16 max-w-6xl mx-auto w-full">
+        <div className="mb-8 max-w-2xl">
+          <p className="cz-kicker mb-2">Ecosystem</p>
+          <h2 className="cz-title text-3xl md:text-4xl">Built to keep you in the material.</h2>
+          <p className="cz-lede mt-2 text-sm md:text-base">Upload once. Study everywhere — decks, hubs, and live play.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="md:col-span-2 bg-umber text-sand p-6 md:p-8 rounded-xl flex flex-col justify-between">
+            <div>
+              <div className="w-10 h-10 bg-sand/10 text-sand rounded-lg flex items-center justify-center mb-5 border border-sand/15"><UploadCloud size={20} aria-hidden="true" /></div>
+              <h3 className="font-semibold text-xl md:text-2xl mb-2 tracking-tight">Upload once. Study from it.</h3>
+              <p className="text-sand/75 text-sm md:text-base max-w-lg leading-relaxed">Parser extracts definitions and key terms from course files, then builds a deck you can review, quiz, or exam.</p>
+            </div>
+            <div className="mt-8 flex gap-2 flex-wrap">
+              <span className="bg-sand/10 border border-sand/15 px-2.5 py-1 rounded-md text-xs font-medium">PDF</span>
+              <span className="bg-sand/10 border border-sand/15 px-2.5 py-1 rounded-md text-xs font-medium">PPTX</span>
+              <span className="bg-sand/10 border border-sand/15 px-2.5 py-1 rounded-md text-xs font-medium">TXT</span>
             </div>
           </div>
-          <div className="bg-white dark:bg-zinc-900 border border-taupe/20 dark:border-zinc-800 p-6 md:p-8 rounded-3xl shadow-sm flex flex-col justify-between">
+          <div className="cz-surface p-6 md:p-8 flex flex-col justify-between">
             <div>
-              <div className="w-12 h-12 bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center mb-6"><Share2 size={24} /></div>
-              <h3 className="font-bold text-lg md:text-xl text-umber dark:text-zinc-100 mb-2">Collaborative Study Hubs</h3>
-              <p className="text-taupe dark:text-zinc-400 text-sm leading-relaxed">Create private classrooms for your section. Invite classmates via link to pool resources and auto-sync shared decks.</p>
+              <div className="cz-icon-well mb-5"><Share2 size={18} aria-hidden="true" /></div>
+              <h3 className="font-semibold text-lg text-umber mb-2">Study hubs</h3>
+              <p className="text-taupe text-sm leading-relaxed">Private classrooms for a section. Invite with a code and pool decks.</p>
             </div>
           </div>
-          <div className="bg-white dark:bg-zinc-900 border border-taupe/20 dark:border-zinc-800 p-6 md:p-8 rounded-3xl shadow-sm flex flex-col justify-between">
+          <div className="cz-surface p-6 md:p-8 flex flex-col justify-between">
             <div>
-              <div className="w-12 h-12 bg-greige/30 dark:bg-zinc-800 text-umber dark:text-zinc-300 rounded-2xl flex items-center justify-center mb-6"><Brain size={24} /></div>
-              <h3 className="font-bold text-lg md:text-xl text-umber dark:text-zinc-100 mb-2">Neural Spaced Repetition</h3>
-              <p className="text-taupe dark:text-zinc-400 text-sm leading-relaxed">Algorithm schedules reviews dynamically based on your confidence ratings, ensuring long-term mastery.</p>
+              <div className="cz-icon-well mb-5"><Brain size={18} aria-hidden="true" /></div>
+              <h3 className="font-semibold text-lg text-umber mb-2">Spaced repetition</h3>
+              <p className="text-taupe text-sm leading-relaxed">Reviews schedule from your confidence ratings, not a fixed calendar.</p>
             </div>
           </div>
           <div className="bg-white dark:bg-zinc-900 border border-taupe/20 dark:border-zinc-800 p-6 md:p-8 rounded-3xl shadow-sm flex flex-col justify-between">
@@ -654,14 +856,34 @@ function LandingPageView({ navigateTo, isDarkMode, setIsDarkMode }) {
         </div>
       </section>
 
-      <footer className="bg-umber dark:bg-zinc-900 text-sand dark:text-zinc-100 py-12 md:py-16 px-8 text-center mt-auto border-t border-taupe/20 dark:border-zinc-800">
-        <div className="max-w-4xl mx-auto space-y-4 md:space-y-6">
-          <div className="flex items-center justify-center gap-2 text-2xl font-black">
-            <div className="bg-sand dark:bg-zinc-100 text-umber dark:text-zinc-900 p-1.5 rounded-xl"><BookOpen size={20} fill="currentColor" /></div>
+      <section id="faq" className="px-4 md:px-8 py-14 md:py-16 max-w-6xl mx-auto w-full">
+        <p className="cz-kicker mb-2">FAQ</p>
+        <h2 className="cz-title text-3xl mb-8">Straight answers.</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {[
+            { q: 'Do I need an account?', a: 'No. CramZero is account-free. Open the app and start studying.' },
+            { q: 'What files can I upload?', a: 'PDF, PowerPoint (PPTX), and plain text. You can also generate a deck from a topic prompt.' },
+            { q: 'Does the tutor use my deck?', a: 'Yes. When a deck is open, Zero answers with that card context.' },
+            { q: 'Is there a live quiz mode?', a: 'Host or join a multiplayer lobby from Play, using any deck in your library.' },
+          ].map((item) => (
+            <div key={item.q} className="border-t border-line pt-4">
+              <h3 className="font-semibold mb-1.5">{item.q}</h3>
+              <p className="text-sm text-taupe leading-relaxed">{item.a}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <footer className="bg-umber text-sand py-10 px-6 text-center mt-auto">
+        <div className="max-w-3xl mx-auto space-y-3">
+          <div className="flex items-center justify-center gap-2 text-lg font-semibold">
+            <span className="inline-flex items-center justify-center bg-sand text-umber rounded-md p-1.5">
+              <BookOpen size={18} strokeWidth={2.25} aria-hidden="true" />
+            </span>
             CramZero
           </div>
-          <p className="text-sand/70 dark:text-zinc-400 text-xs md:text-sm max-w-md mx-auto">The high-performance study platform built for students who value speed, accuracy, and zero friction.</p>
-          <div className="pt-6 md:pt-8 border-t border-sand/10 dark:border-zinc-800 text-xs text-sand/50 dark:text-zinc-500">© 2026 CramZero. Built for modern learners.</div>
+          <p className="text-sand/65 text-sm max-w-md mx-auto">Study tools without the signup wall.</p>
+          <p className="pt-4 border-t border-sand/10 text-xs text-sand/50">© 2026 CramZero</p>
         </div>
       </footer>
     </div>
@@ -672,12 +894,15 @@ function LandingPageView({ navigateTo, isDarkMode, setIsDarkMode }) {
    WORKSPACE VIEWS
    ========================================= */
 
-function DashboardView({ navigateTo, setHasActiveDeck, myDecks }) {
+function DashboardView({ navigateTo, setHasActiveDeck, setActiveDeck, myDecks }) {
   const handleStartStudying = () => { setHasActiveDeck(true); navigateTo('study'); };
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const recent = myDecks.slice(0, 6);
   
   if (myDecks.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-[70vh] max-w-6xl mx-auto">
+      <div className="flex flex-col items-center justify-center h-[70vh] animate-in fade-in duration-300 max-w-6xl mx-auto">
         <Card className="max-w-lg w-full p-12 text-center border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-transparent">
           <div className="w-20 h-20 bg-greige/30 dark:bg-zinc-900 text-umber dark:text-zinc-100 rounded-full flex items-center justify-center mx-auto mb-6"><Inbox size={40} /></div>
           <CardTitle className="text-2xl mb-2 text-umber dark:text-zinc-100">Welcome to CramZero!</CardTitle>
@@ -685,13 +910,13 @@ function DashboardView({ navigateTo, setHasActiveDeck, myDecks }) {
           <Button onClick={() => navigateTo('new-deck')} size="lg" className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 mx-auto font-bold rounded-xl h-14 px-8">
             <Plus size={18} className="mr-2" /> Create First Deck
           </Button>
-        </Card>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 pb-12 max-w-6xl mx-auto">
+    <div className="space-y-8 animate-in fade-in duration-300 pb-12 max-w-6xl mx-auto">
       <Card className="bg-sand/40 dark:bg-zinc-900/40 border-taupe/30 dark:border-zinc-800 shadow-sm">
         <CardContent className="p-6 md:p-8 flex flex-col md:flex-row justify-between items-center gap-6">
           <div>
@@ -701,24 +926,53 @@ function DashboardView({ navigateTo, setHasActiveDeck, myDecks }) {
           <Button size="lg" onClick={handleStartStudying} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 rounded-xl font-bold h-14 px-8 w-full md:w-auto transition-transform hover:scale-105">
             <Play size={18} fill="currentColor" className="mr-2" /> Resume Last Session
           </Button>
-        </CardContent>
-      </Card>
+          <Button onClick={handleStartStudying} className="bg-umber text-sand hover:opacity-90 h-11 px-5">
+            <Play size={16} className="mr-2" /> Resume studying
+          </Button>
+        </div>
+      </section>
+
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="cz-kicker">Recent decks</h3>
+          <button type="button" onClick={() => navigateTo('decks')} className="text-sm font-medium text-taupe hover:text-umber">View library</button>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          {recent.map((deck) => (
+            <div
+              key={deck.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => { setActiveDeck(deck); navigateTo('deck-details'); }}
+              onKeyDown={activateOnEnter(() => { setActiveDeck(deck); navigateTo('deck-details'); })}
+              className="cz-surface cz-surface-hover p-4 min-h-[7.5rem] flex flex-col justify-between"
+            >
+              <div>
+                <h4 className="font-semibold text-umber truncate pr-2">{deck.title}</h4>
+                <p className="text-xs text-taupe mt-1">{deck.cards?.length || 0} cards</p>
+              </div>
+              <span className="text-xs font-semibold text-taupe group-hover:text-accent inline-flex items-center gap-1">Open <ArrowRight size={12} /></span>
+            </div>
+          ))}
+        </div>
+      </section>
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <section className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         {[
-          { title: 'Global Mastery', icon: Brain, val: '0%', sub: 'Avg. confidence rating', color: 'text-emerald-600 dark:text-emerald-500' },
-          { title: 'Study Momentum', icon: Zap, val: '0', sub: 'Active days this month', color: 'text-amber-600 dark:text-amber-500' },
-          { title: 'Cards Conquered', icon: Target, val: '0', sub: 'Total successful flips', color: 'text-umber dark:text-zinc-100' },
-          { title: 'AI Interactions', icon: MessageSquare, val: '0', sub: 'Questions answered by Tutor', color: 'text-blue-600 dark:text-blue-400' },
+          { title: 'Global Mastery', icon: Brain, val: '0%', sub: 'Avg. confidence rating' },
+          { title: 'Study Momentum', icon: Zap, val: '0', sub: 'Active days this month' },
+          { title: 'Cards Conquered', icon: Target, val: '0', sub: 'Total successful flips' },
+          { title: 'AI Interactions', icon: MessageSquare, val: '0', sub: 'Questions answered by Tutor' },
         ].map((stat, i) => (
-          <Card key={i} className="hover:-translate-y-1 transition-transform cursor-default shadow-sm border-taupe/20 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-            <CardContent className="p-5 flex flex-col justify-between h-full">
-              <div className="flex items-center gap-2 text-taupe dark:text-zinc-400 text-xs font-bold uppercase tracking-wider mb-4"><stat.icon size={16} className={stat.color} /> {stat.title}</div>
-              <div><p className="text-3xl font-bold text-umber dark:text-zinc-100 mb-1">{stat.val}</p><p className="text-xs font-semibold text-taupe dark:text-zinc-500">{stat.sub}</p></div>
-            </CardContent>
-          </Card>
+          <div key={i} className="cz-surface p-4 min-h-[6.5rem] flex flex-col justify-between">
+            <div className="flex items-center gap-2 text-taupe text-[11px] font-semibold uppercase tracking-wider"><stat.icon size={14} aria-hidden="true" /> {stat.title}</div>
+            <div>
+              <p className="text-2xl font-semibold tabular-nums text-umber">{stat.val}</p>
+              <p className="text-xs text-taupe mt-0.5">{stat.sub}</p>
+            </div>
+          </div>
         ))}
-      </div>
+      </section>
     </div>
   );
 }
@@ -760,7 +1014,7 @@ function StudyView({ navigateTo, setHasActiveDeck, setActiveDeck, myDecks }) {
 
   if (myDecks.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-[60vh] max-w-4xl mx-auto">
+      <div className="flex flex-col items-center justify-center h-[60vh] animate-in fade-in duration-300 max-w-4xl mx-auto">
         <Card className="max-w-lg w-full p-12 text-center border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-transparent">
           <div className="w-16 h-16 bg-greige/30 dark:bg-zinc-900 text-umber dark:text-zinc-100 rounded-full flex items-center justify-center mx-auto mb-4"><Layers size={32} /></div>
           <CardTitle className="text-2xl mb-2 text-umber dark:text-zinc-100">Nothing to study</CardTitle>
@@ -774,17 +1028,20 @@ function StudyView({ navigateTo, setHasActiveDeck, setActiveDeck, myDecks }) {
   const dueCount = enrolledIds.length * 12;
 
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-8">
+    <div className="max-w-4xl mx-auto animate-in fade-in duration-300">
       <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
         {['Review', 'Quiz', 'Flashcards'].map((tab) => (
-          <Button 
-            key={tab} 
-            variant="outline"
-            onClick={() => setActiveTab(tab)} 
-            className={`rounded-full font-bold px-6 border-taupe/20 dark:border-zinc-800 transition-all ${activeTab === tab ? 'bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 border-transparent hover:bg-umber/90 dark:hover:bg-zinc-300 shadow-sm' : 'bg-white dark:bg-zinc-900 text-umber dark:text-zinc-300 hover:bg-greige/10 dark:hover:bg-zinc-800'}`}
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab}
+            data-active={activeTab === tab}
+            onClick={() => setActiveTab(tab)}
+            className="cz-seg-item"
           >
-            {tab === 'Review' ? 'Spaced Repetition' : tab}
-          </Button>
+            {tab === 'Review' ? 'Spaced repetition' : tab}
+          </button>
         ))}
       </div>
 
@@ -792,32 +1049,33 @@ function StudyView({ navigateTo, setHasActiveDeck, setActiveDeck, myDecks }) {
         {activeTab === 'Review' && (
           <div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <Card className="md:col-span-2 p-6 md:p-8 bg-umber dark:bg-zinc-200 text-sand dark:text-zinc-900 rounded-3xl shadow-xl flex flex-col justify-center border-none">
-                <h3 className="text-3xl md:text-4xl font-black mb-2">{dueCount} Cards Due</h3>
-                <p className="text-sand/80 dark:text-zinc-700 font-medium mb-6">Across {enrolledIds.length} enrolled decks for today's spaced repetition session.</p>
-                <Button onClick={() => startCombinedSession('flashcard-mode')} disabled={dueCount === 0} className="w-max bg-white dark:bg-zinc-900 text-umber dark:text-zinc-100 hover:bg-greige/20 dark:hover:bg-zinc-800 font-bold px-8 h-12 rounded-xl shadow-md border-none">
-                   Start Daily Review <Play size={16} className="ml-2"/>
+              <Card className="md:col-span-2 p-6 md:p-7 bg-umber text-sand rounded-xl flex flex-col justify-center border-none">
+                <p className="text-sand/60 text-xs font-semibold uppercase tracking-wider mb-2">Today</p>
+                <h3 className="cz-display text-3xl md:text-[2.4rem] mb-2 cz-stat">{dueCount} cards due</h3>
+                <p className="text-sand/75 mb-6 text-sm">Across {enrolledIds.length} enrolled deck{enrolledIds.length === 1 ? '' : 's'}.</p>
+                <Button type="button" onClick={() => startCombinedSession('flashcard-mode')} disabled={dueCount === 0} className="w-max bg-paper text-umber hover:bg-greige font-medium px-5 h-11 rounded-lg border-none">
+                   Start daily review <Play size={15} className="ml-2"/>
                 </Button>
               </Card>
-              <Card className="p-6 rounded-3xl border-taupe/20 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col items-center justify-center text-center shadow-sm">
-                 <div className="w-14 h-14 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-500 rounded-full flex items-center justify-center mb-4"><TrendingUp size={28}/></div>
-                 <h4 className="font-bold text-xl text-umber dark:text-zinc-100">86% Retention</h4>
-                 <p className="text-xs text-taupe dark:text-zinc-500 mt-1">Based on last 7 days</p>
+              <Card className="p-6 rounded-xl border-line bg-paper flex flex-col justify-center">
+                 <p className="cz-kicker mb-3">Last 7 days</p>
+                 <p className="cz-display text-3xl cz-stat text-umber">86%</p>
+                 <p className="text-sm text-taupe mt-1">Retention</p>
               </Card>
             </div>
 
-            <p className="text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider mb-4">Spaced Repetition Enrollment</p>
+            <p className="text-xs font-bold text-taupe uppercase tracking-wider mb-4">Spaced Repetition Enrollment</p>
             <div className="space-y-3">
                {myDecks.map(deck => {
                  const isEnrolled = enrolledIds.includes(deck.id);
                  return (
-                   <Card key={deck.id} className="shadow-sm border-taupe/30 dark:border-zinc-800 bg-white dark:bg-zinc-900 transition-colors">
+                   <Card key={deck.id} className="shadow-sm border-line bg-paper transition-colors">
                      <CardContent className="flex justify-between items-center p-4 md:p-5">
                        <div>
-                         <span className="font-bold text-umber dark:text-zinc-100 block text-sm md:text-base">{deck.title}</span>
-                         <span className="text-xs text-taupe dark:text-zinc-500">{deck.cards?.length || 0} total cards</span>
+                         <span className="font-bold text-umber block text-sm md:text-base">{deck.title}</span>
+                         <span className="text-xs text-taupe">{deck.cards?.length || 0} total cards</span>
                        </div>
-                       <Switch checked={isEnrolled} onCheckedChange={() => toggleEnrollment(deck.id)} className="data-[state=checked]:bg-emerald-500" />
+                       <Switch checked={isEnrolled} onCheckedChange={() => toggleEnrollment(deck.id)} />
                      </CardContent>
                    </Card>
                  );
@@ -830,19 +1088,19 @@ function StudyView({ navigateTo, setHasActiveDeck, setActiveDeck, myDecks }) {
           <div>
             <div className="flex justify-between items-end mb-6">
               <div>
-                <h3 className="text-xl font-bold text-umber dark:text-zinc-100">Knowledge Check</h3>
-                <p className="text-sm text-taupe dark:text-zinc-400 mt-1">Select a deck to configure your multiple-choice assessment.</p>
+                <h3 className="text-xl font-bold text-umber">Knowledge Check</h3>
+                <p className="text-sm text-taupe mt-1">Select a deck to configure your multiple-choice assessment.</p>
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {myDecks.map(deck => (
-                <Card key={deck.id} onClick={() => { setActiveDeck(deck); navigateTo('quiz-setup'); }} className="cursor-pointer hover:border-umber/40 dark:hover:border-zinc-600 transition-all p-5 shadow-sm border-taupe/20 dark:border-zinc-800 bg-white dark:bg-zinc-900 group">
+                <Card key={deck.id} onClick={() => { setActiveDeck(deck); navigateTo('quiz-setup'); }} className="cursor-pointer hover:border-umber/30 transition-all p-5 shadow-sm border-line bg-paper group">
                   <div className="flex justify-between items-start mb-4">
-                    <div className="w-10 h-10 rounded-lg bg-greige/30 dark:bg-zinc-800 flex items-center justify-center text-umber dark:text-zinc-300 group-hover:scale-110 transition-transform"><CheckCircle size={20}/></div>
-                    <Badge variant="secondary" className="bg-sand dark:bg-zinc-800 text-umber dark:text-zinc-300 border-none">{deck.cards?.length || 0} Qs</Badge>
+                    <div className="w-10 h-10 rounded-lg bg-greige flex items-center justify-center text-umber transition-transform"><CheckCircle size={20}/></div>
+                    <Badge variant="secondary" className="bg-sand text-umber border-none">{deck.cards?.length || 0} Qs</Badge>
                   </div>
-                  <h4 className="font-bold text-lg text-umber dark:text-zinc-100 truncate pr-2">{deck.title}</h4>
-                  <p className="text-xs text-taupe dark:text-zinc-500 mt-1 font-medium group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors flex items-center gap-1">Configure Quiz <ArrowRight size={12}/></p>
+                  <h4 className="font-bold text-lg text-umber truncate pr-2">{deck.title}</h4>
+                  <p className="text-xs text-taupe mt-1 font-medium group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors flex items-center gap-1">Configure Quiz <ArrowRight size={12}/></p>
                 </Card>
               ))}
             </div>
@@ -853,23 +1111,23 @@ function StudyView({ navigateTo, setHasActiveDeck, setActiveDeck, myDecks }) {
           <div>
             <div className="flex flex-col md:flex-row justify-between md:items-end gap-4 mb-6">
               <div>
-                <h3 className="text-xl font-bold text-umber dark:text-zinc-100">Deep Dive</h3>
-                <p className="text-sm text-taupe dark:text-zinc-400 mt-1">Master individual topics or combine everything.</p>
+                <h3 className="text-xl font-bold text-umber">Deep Dive</h3>
+                <p className="text-sm text-taupe mt-1">Master individual topics or combine everything.</p>
               </div>
-              <Button size="lg" onClick={() => startCombinedSession('flashcard-mode')} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 rounded-xl font-bold h-12 shadow-sm w-full md:w-auto">
+              <Button size="lg" onClick={() => startCombinedSession('flashcard-mode')} className="bg-umber text-sand hover:opacity-90 rounded-xl font-bold h-12 shadow-sm w-full md:w-auto">
                 <Layers size={18} className="mr-2" /> Combine All Decks
               </Button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {myDecks.map(deck => (
-                <Card key={deck.id} onClick={() => { setActiveDeck(deck); navigateTo('flashcard-mode'); }} className="cursor-pointer hover:border-umber/40 dark:hover:border-zinc-600 transition-all p-5 shadow-sm border-taupe/20 dark:border-zinc-800 bg-white dark:bg-zinc-900 group">
+                <Card key={deck.id} role="button" tabIndex={0} onKeyDown={activateOnEnter(() => { setActiveDeck(deck); navigateTo('flashcard-mode'); })} onClick={() => { setActiveDeck(deck); navigateTo('flashcard-mode'); }} className="cursor-pointer hover:border-umber/30 transition-all p-5 shadow-sm border-line bg-paper group">
                   <div className="flex justify-between items-start mb-4">
-                    <div className="w-10 h-10 rounded-lg bg-sand dark:bg-zinc-800 flex items-center justify-center text-umber dark:text-zinc-300 group-hover:scale-110 transition-transform"><BookOpen size={20}/></div>
-                    <Badge variant="outline" className="text-taupe dark:text-zinc-400 border-taupe/30 dark:border-zinc-700">{deck.cards?.length || 0} Cards</Badge>
+                    <div className="w-10 h-10 rounded-lg bg-sand flex items-center justify-center text-umber transition-transform"><BookOpen size={20}/></div>
+                    <Badge variant="outline" className="text-taupe border-line">{deck.cards?.length || 0} Cards</Badge>
                   </div>
-                  <h4 className="font-bold text-lg text-umber dark:text-zinc-100 truncate pr-2">{deck.title}</h4>
-                  <p className="text-xs text-taupe dark:text-zinc-500 mt-1 font-medium group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors flex items-center gap-1">Start Flashcards <ArrowRight size={12}/></p>
+                  <h4 className="font-bold text-lg text-umber truncate pr-2">{deck.title}</h4>
+                  <p className="text-xs text-taupe mt-1 font-medium group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors flex items-center gap-1">Start Flashcards <ArrowRight size={12}/></p>
                 </Card>
               ))}
             </div>
@@ -895,45 +1153,52 @@ function DecksView({ navigateTo, setActiveDeck, myDecks, setMyDecks }) {
   return (
     <div className="max-w-5xl mx-auto pb-12 p-4 md:p-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h2 className="text-2xl font-bold text-umber dark:text-zinc-100">Your Saved Decks</h2>
-        <Button onClick={() => navigateTo('new-deck')} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 font-medium rounded-lg h-10 px-4 shadow-sm">
+        <div>
+          <h2 className="cz-title text-2xl">Library</h2>
+          <p className="cz-lede text-sm mt-1">Search, pin, and open decks.</p>
+        </div>
+        <Button onClick={() => navigateTo('new-deck')} className="bg-umber text-sand hover:opacity-90 font-medium rounded-lg h-10 px-4 shadow-sm">
           <Plus size={18} className="mr-2" /> New Deck
         </Button>
       </div>
 
       <div className="relative mb-6">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-taupe dark:text-zinc-500" size={20} />
-        <Input type="text" placeholder="Search your library..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-12 h-14 rounded-xl text-sm border-taupe/30 dark:border-zinc-800 text-umber dark:text-zinc-100 focus-visible:ring-umber dark:focus-visible:ring-zinc-600 bg-white dark:bg-zinc-900 shadow-sm" />
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-taupe" size={16} aria-hidden="true" />
+        <label htmlFor="cz-library-search" className="sr-only">Search library</label>
+        <Input id="cz-library-search" type="text" placeholder="Search your library…" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10 h-11 rounded-md text-sm border-line text-umber focus-visible:ring-accent bg-paper" />
       </div>
 
-      <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
+      <div className="cz-seg mb-8" role="tablist" aria-label="Library filters">
         {['all', 'created', 'saved'].map(filter => (
-          <Button 
-            key={filter} 
-            variant="outline"
-            onClick={() => setActiveFilter(filter)} 
-            className={`rounded-full font-bold capitalize px-6 border-taupe/20 dark:border-zinc-800 transition-all ${activeFilter === filter ? 'bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 border-transparent hover:bg-umber/90 dark:hover:bg-zinc-300 shadow-sm' : 'bg-white dark:bg-zinc-900 text-umber dark:text-zinc-300 hover:bg-greige/10 dark:hover:bg-zinc-800'}`}
+          <button
+            key={filter}
+            type="button"
+            role="tab"
+            aria-selected={activeFilter === filter}
+            data-active={activeFilter === filter}
+            onClick={() => setActiveFilter(filter)}
+            className="cz-seg-item"
           >
-            {filter === 'all' ? 'All Decks' : filter === 'created' ? 'My Decks' : 'Saved Decks'}
-          </Button>
+            {filter === 'all' ? 'All decks' : filter === 'created' ? 'My decks' : 'Saved'}
+          </button>
         ))}
       </div>
       
       <div key={activeFilter + searchQuery} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
         {pinnedDecks.length > 0 && (
           <div className="mb-10">
-            <p className="text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider mb-4">Pinned ({pinnedDecks.length})</p>
+            <p className="text-xs font-bold text-taupe uppercase tracking-wider mb-4">Pinned ({pinnedDecks.length})</p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {pinnedDecks.map((deck) => (
-                <Card key={deck.id} onClick={() => handleDeckClick(deck)} className="bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 hover:shadow-md transition-shadow cursor-pointer flex flex-col justify-between h-40 group relative">
-                  <button onClick={(e) => togglePin(e, deck.id)} className="absolute top-5 right-5 text-amber-500 hover:scale-110 transition-transform"><Star size={20} fill="currentColor" /></button>
+                <Card key={deck.id} role="button" tabIndex={0} onKeyDown={activateOnEnter(() => handleDeckClick(deck))} onClick={() => handleDeckClick(deck)} className="bg-paper border-line hover:shadow-sm cursor-pointer flex flex-col justify-between min-h-40 group relative">
+                  <button type="button" aria-label="Unpin deck" onClick={(e) => togglePin(e, deck.id)} className="cz-icon-btn absolute top-3 right-3 z-10 text-accent"><Star size={16} fill="currentColor" /></button>
                   <CardContent className="pt-5 pb-0">
-                    <h3 className="font-semibold text-umber dark:text-zinc-100 text-lg group-hover:text-amber-700 dark:group-hover:text-amber-500 transition-colors pr-8 truncate">{deck.title}</h3>
-                    <div className="flex items-center gap-2 mt-1">{deck.type === 'saved' && <Badge variant="secondary" className="bg-greige/50 dark:bg-zinc-800 text-umber dark:text-zinc-300 text-[10px] uppercase font-bold tracking-widest hover:bg-greige/50 dark:hover:bg-zinc-800 border-none">Saved</Badge>}</div>
+                    <h3 className="font-semibold text-umber text-lg group-hover:text-amber-700 dark:group-hover:text-amber-500 transition-colors pr-8 truncate">{deck.title}</h3>
+                    <div className="flex items-center gap-2 mt-1">{deck.type === 'saved' && <Badge variant="secondary" className="bg-greige/50 text-umber text-[10px] uppercase font-bold tracking-widest hover:bg-greige/50 border-none">Saved</Badge>}</div>
                   </CardContent>
                   <CardFooter className="flex items-center justify-between mt-auto pb-5">
-                    <Badge variant="outline" className="bg-sand dark:bg-zinc-950 border-transparent text-umber dark:text-zinc-300">{deck.cards.length} Cards</Badge>
-                    <div className="text-taupe dark:text-zinc-500 group-hover:text-umber dark:group-hover:text-zinc-100 transition-colors p-2 rounded-full"><Play size={20}/></div>
+                    <Badge variant="outline" className="bg-sand border-transparent text-umber">{deck.cards.length} Cards</Badge>
+                    <div className="text-taupe group-hover:text-umber transition-colors p-2 rounded-full"><Play size={20}/></div>
                   </CardFooter>
                 </Card>
               ))}
@@ -942,7 +1207,7 @@ function DecksView({ navigateTo, setActiveDeck, myDecks, setMyDecks }) {
         )}
 
         {myDecks.length === 0 ? (
-          <Card className="border-2 border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900 p-12 text-center flex flex-col items-center justify-center rounded-3xl">
+          <Card className="border-2 border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900 p-12 text-center flex flex-col items-center justify-center animate-in fade-in rounded-3xl">
               <div className="w-16 h-16 bg-greige/30 dark:bg-zinc-800 text-umber dark:text-zinc-100 rounded-full flex items-center justify-center mb-4"><Library size={32} /></div>
               <CardTitle className="text-xl font-bold text-umber dark:text-zinc-100 mb-2">Your library is empty</CardTitle>
               <CardDescription className="text-taupe dark:text-zinc-400 text-sm mb-6 max-w-md mx-auto">Create a deck from scratch or let AI generate one from your documents.</CardDescription>
@@ -952,27 +1217,27 @@ function DecksView({ navigateTo, setActiveDeck, myDecks, setMyDecks }) {
           </Card>
         ) : (
           <div>
-            <p className="text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider mb-4">Library Results ({unpinnedDecks.length})</p>
+            <p className="text-xs font-bold text-taupe uppercase tracking-wider mb-4">Library Results ({unpinnedDecks.length})</p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {!searchQuery && activeFilter === 'all' && (
-                <Card onClick={() => navigateTo('new-deck')} className="border-2 border-dashed border-taupe/50 dark:border-zinc-700 bg-greige/10 dark:bg-zinc-900/50 hover:bg-greige/30 dark:hover:bg-zinc-800 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all h-40 text-umber dark:text-zinc-300 group shadow-none">
-                  <div className="p-3 bg-white dark:bg-zinc-800 rounded-full shadow-sm mb-3 group-hover:scale-110 transition-transform"><Plus size={24} /></div><span className="font-semibold text-sm">Create New Deck</span>
+                <Card onClick={() => navigateTo('new-deck')} className="border-2 border-dashed border-line bg-greige/40 hover:bg-greige rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all h-40 text-umber group shadow-none">
+                  <div className="p-3 bg-paper rounded-full shadow-sm mb-3 transition-transform"><Plus size={24} /></div><span className="font-semibold text-sm">Create New Deck</span>
                 </Card>
               )}
               {unpinnedDecks.map((deck) => (
-                <Card key={deck.id} onClick={() => handleDeckClick(deck)} className="bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 hover:shadow-md transition-shadow cursor-pointer flex flex-col justify-between h-40 group relative animate-in zoom-in duration-200">
-                  <button onClick={(e) => togglePin(e, deck.id)} className="absolute top-5 right-5 text-taupe dark:text-zinc-600 hover:text-amber-500 dark:hover:text-amber-500 hover:scale-110 transition-all z-10"><Star size={20} /></button>
+                <Card key={deck.id} role="button" tabIndex={0} onKeyDown={activateOnEnter(() => handleDeckClick(deck))} onClick={() => handleDeckClick(deck)} className="bg-paper border-line hover:shadow-sm cursor-pointer flex flex-col justify-between min-h-40 group relative">
+                  <button type="button" aria-label="Pin deck" onClick={(e) => togglePin(e, deck.id)} className="cz-icon-btn absolute top-3 right-3 z-10"><Star size={16} /></button>
                   <CardContent className="pt-5 pb-0">
-                    <h3 className="font-semibold text-umber dark:text-zinc-100 text-lg group-hover:text-amber-700 dark:group-hover:text-amber-500 transition-colors pr-8 truncate">{deck.title}</h3>
-                    <div className="flex items-center gap-2 mt-1">{deck.type === 'saved' && <Badge variant="secondary" className="bg-greige/50 dark:bg-zinc-800 text-umber dark:text-zinc-300 hover:bg-greige/50 dark:hover:bg-zinc-800 text-[10px] uppercase font-bold tracking-widest border-none">Saved</Badge>}</div>
+                    <h3 className="font-semibold text-umber text-lg group-hover:text-amber-700 dark:group-hover:text-amber-500 transition-colors pr-8 truncate">{deck.title}</h3>
+                    <div className="flex items-center gap-2 mt-1">{deck.type === 'saved' && <Badge variant="secondary" className="bg-greige/50 text-umber hover:bg-greige/50 text-[10px] uppercase font-bold tracking-widest border-none">Saved</Badge>}</div>
                   </CardContent>
                   <CardFooter className="flex items-center justify-between mt-auto pb-5">
-                    <Badge variant="outline" className="bg-sand dark:bg-zinc-950 border-transparent text-umber dark:text-zinc-300">{deck.cards.length} Cards</Badge>
-                    <div className="text-taupe dark:text-zinc-500 group-hover:text-umber dark:group-hover:text-zinc-100 transition-colors p-2 rounded-full"><Play size={20}/></div>
+                    <Badge variant="outline" className="bg-sand border-transparent text-umber">{deck.cards.length} Cards</Badge>
+                    <div className="text-taupe group-hover:text-umber transition-colors p-2 rounded-full"><Play size={20}/></div>
                   </CardFooter>
                 </Card>
               ))}
-              {unpinnedDecks.length === 0 && searchQuery && (<div className="col-span-full py-12 text-center text-taupe dark:text-zinc-500 border-2 border-dashed border-taupe/30 dark:border-zinc-800 rounded-xl">No matching decks found.</div>)}
+              {unpinnedDecks.length === 0 && searchQuery && (<div className="col-span-full py-12 text-center text-taupe border-2 border-dashed border-line rounded-xl">No matching decks found.</div>)}
             </div>
           </div>
         )}
@@ -984,60 +1249,60 @@ function DecksView({ navigateTo, setActiveDeck, myDecks, setMyDecks }) {
 function AnalyticsView({ myDecks }) {
   if (!myDecks || myDecks.length === 0) {
     return (
-       <div className="flex flex-col items-center justify-center h-[70vh] max-w-6xl mx-auto">
+       <div className="flex flex-col items-center justify-center h-[70vh] animate-in fade-in duration-300 max-w-6xl mx-auto">
           <Card className="max-w-lg w-full p-12 text-center border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900 rounded-3xl">
               <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4"><PieChart size={32} /></div>
-              <CardTitle className="text-xl mb-2 text-umber dark:text-zinc-100">Not enough data yet</CardTitle>
-              <CardDescription className="mb-6 max-w-md mx-auto text-taupe dark:text-zinc-400">Complete more study sessions and mock exams to unlock your neural mastery analytics and decay forecasts.</CardDescription>
+              <CardTitle className="text-xl mb-2 text-umber">Not enough data yet</CardTitle>
+              <CardDescription className="mb-6 max-w-md mx-auto text-taupe">Complete more study sessions and mock exams to unlock your neural mastery analytics and decay forecasts.</CardDescription>
           </Card>
        </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto pb-12 space-y-6 p-4 md:p-8">
+    <div className="max-w-6xl mx-auto animate-in fade-in duration-300 pb-12 space-y-6">
       <div className="flex items-center justify-between mb-4 border-b border-taupe/20 dark:border-zinc-800 pb-6">
         <div>
-          <h2 className="text-2xl md:text-3xl font-bold text-umber dark:text-zinc-100 mb-2">Mastery Analytics</h2>
-          <p className="text-taupe dark:text-zinc-400 text-sm">Deep insights into your retention, weak points, and study habits.</p>
+          <h2 className="cz-title text-2xl mb-1">Analytics</h2>
+          <p className="cz-lede text-sm">Retention, weak points, and consistency.</p>
         </div>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 shadow-sm border-taupe/20 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+        <Card className="lg:col-span-2 shadow-sm border-line bg-paper">
           <CardContent className="p-6 md:p-8">
             <div className="flex items-center justify-between mb-8">
-              <h3 className="font-bold text-lg text-umber dark:text-zinc-100 flex items-center gap-2"><Timer size={18} className="text-amber-600 dark:text-amber-500"/> Concept Decay Forecast</h3>
-              <select className="bg-greige/10 dark:bg-zinc-950 border border-taupe/30 dark:border-zinc-700 text-umber dark:text-zinc-300 text-xs rounded-lg px-2 py-1"><option>Next 7 Days</option><option>Next 30 Days</option></select>
+              <h3 className="font-bold text-lg text-umber flex items-center gap-2"><Timer size={18} className="text-amber-600 dark:text-amber-500"/> Concept Decay Forecast</h3>
+              <select className="bg-greige/40 border border-line text-umber text-xs rounded-lg px-2 py-1"><option>Next 7 Days</option><option>Next 30 Days</option></select>
             </div>
-            <div className="flex items-end justify-between gap-2 h-48 border-b border-taupe/20 dark:border-zinc-800 pb-2">
+            <div className="flex items-end justify-between gap-2 h-48 border-b border-line pb-2">
               {[0, 0, 0, 0, 0, 0, 0].map((h, i) => (
                 <div key={i} className="flex-1 flex flex-col items-center gap-2 group">
-                  <div className="w-full bg-greige/30 dark:bg-zinc-800 rounded-t-md transition-all relative" style={{ height: `10%` }}></div>
+                  <div className="w-full bg-greige rounded-t-md transition-all relative" style={{ height: `10%` }}></div>
                 </div>
               ))}
             </div>
-            <div className="flex justify-between mt-2 text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider">
+            <div className="flex justify-between mt-2 text-xs font-bold text-taupe uppercase tracking-wider">
               <span>Today</span><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span>
             </div>
           </CardContent>
         </Card>
-        <Card className="shadow-sm border-taupe/20 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+        <Card className="shadow-sm border-line bg-paper">
           <CardContent className="flex flex-col justify-center text-center items-center py-20 h-full">
-            <AlertTriangle size={32} className="text-taupe/50 dark:text-zinc-700 mb-3"/>
-            <h3 className="font-bold text-lg text-umber dark:text-zinc-100 mb-1">No Weak Concepts</h3>
-            <p className="text-xs text-taupe dark:text-zinc-500">Keep studying to map your weak points.</p>
+            <AlertTriangle size={32} className="text-taupe/60 mb-3"/>
+            <h3 className="font-bold text-lg text-umber mb-1">No Weak Concepts</h3>
+            <p className="text-xs text-taupe">Keep studying to map your weak points.</p>
           </CardContent>
         </Card>
       </div>
-      <Card className="shadow-sm overflow-x-auto border-taupe/20 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+      <Card className="shadow-sm overflow-x-auto border-line bg-paper">
         <CardContent className="p-6 md:p-8">
-          <h3 className="font-bold text-lg text-umber dark:text-zinc-100 flex items-center gap-2 mb-6"><Activity size={18} className="text-emerald-600 dark:text-emerald-500"/> Study Consistency</h3>
+          <h3 className="font-bold text-lg text-umber flex items-center gap-2 mb-6"><Activity size={18} className="text-emerald-600 dark:text-emerald-500"/> Study Consistency</h3>
           <div className="flex gap-1 min-w-max">
             {[...Array(52)].map((_, col) => (
               <div key={col} className="flex flex-col gap-1">
                 {[...Array(7)].map((_, row) => {
                   const intensity = Math.random();
-                  let colorClass = intensity > 0.8 ? 'bg-emerald-600 dark:bg-emerald-500' : intensity > 0.5 ? 'bg-emerald-400 dark:bg-emerald-600' : intensity > 0.2 ? 'bg-emerald-200 dark:bg-emerald-800' : 'bg-greige/20 dark:bg-zinc-800';
+                  let colorClass = intensity > 0.8 ? 'bg-emerald-600 dark:bg-emerald-500' : intensity > 0.5 ? 'bg-emerald-400 dark:bg-emerald-600' : intensity > 0.2 ? 'bg-emerald-200 dark:bg-emerald-800' : 'bg-greige';
                   return <div key={row} className={`w-3 h-3 md:w-4 md:h-4 rounded-sm ${colorClass}`}></div>;
                 })}
               </div>
@@ -1054,50 +1319,51 @@ function StudyHubsView({ navigateTo, setActiveHub, myHubs }) {
     <div className="max-w-5xl mx-auto p-4 md:p-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
-          <h2 className="text-2xl font-bold text-umber dark:text-zinc-100 mb-1">Collaborative Study Hubs</h2>
-          <p className="text-taupe dark:text-zinc-400 text-sm">Join classrooms, pool notes, and study together.</p>
+          <h2 className="cz-title text-2xl mb-1">Hubs</h2>
+          <p className="cz-lede text-sm">Join classrooms, pool notes, and study together.</p>
         </div>
-        <Button onClick={() => navigateTo('create-hub')} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 font-medium rounded-lg h-10 px-4 shadow-sm text-sm">
+        <Button type="button" onClick={() => navigateTo('create-hub')} className="bg-umber text-sand hover:opacity-90 font-medium rounded-lg h-10 px-4 shadow-sm text-sm">
           <Plus size={18} className="mr-2" /> Create Hub
         </Button>
       </div>
 
-      <Card className="bg-blue-50/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900 mb-10 shadow-sm text-umber dark:text-zinc-100">
-        <CardContent className="p-6 flex flex-col md:flex-row items-center gap-6">
-          <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center shrink-0"><Share2 size={24} /></div>
-          <div className="flex-1 text-center md:text-left">
-            <h3 className="font-bold text-lg text-umber dark:text-zinc-100 mb-1">Join a Class Hub</h3>
-            <p className="text-taupe dark:text-zinc-400 text-sm">Got an invite link or access code? Enter it below.</p>
+      <Card className="bg-paper border-line mb-10 shadow-sm text-umber">
+        <CardContent className="p-5 md:p-6 flex flex-col md:flex-row items-center gap-4 md:gap-6">
+          <div className="cz-icon-well shrink-0"><Share2 size={20} aria-hidden="true" /></div>
+          <div className="flex-1 text-center md:text-left min-w-0">
+            <h3 className="font-semibold text-umber mb-1">Join a class hub</h3>
+            <p className="text-taupe text-sm">Got an invite link or access code? Enter it below.</p>
           </div>
-          <div className="flex w-full md:w-auto gap-2">
-            <Input type="text" placeholder="e.g. BSIT-3A-26" className="flex-1 md:w-48 bg-white dark:bg-zinc-950 border-taupe/30 dark:border-zinc-800 h-12 rounded-xl text-umber dark:text-zinc-100 focus-visible:ring-blue-400" />
-            <Button variant="outline" className="h-12 px-6 rounded-xl font-bold text-umber dark:text-zinc-100 bg-white dark:bg-zinc-900 hover:bg-greige/10 dark:hover:bg-zinc-800 border-taupe/30 dark:border-zinc-700 shadow-sm">Join</Button>
-          </div>
+          <form className="flex w-full md:w-auto gap-2" onSubmit={(e) => e.preventDefault()}>
+            <label htmlFor="cz-hub-code" className="sr-only">Hub invite code</label>
+            <Input id="cz-hub-code" type="text" placeholder="e.g. BSIT-3A-26" className="flex-1 md:w-48 bg-paper border-line h-11 rounded-lg text-umber focus-visible:ring-accent" />
+            <Button type="submit" variant="outline" className="h-11 px-5 rounded-lg font-medium text-umber bg-paper hover:bg-greige border-line">Join</Button>
+          </form>
         </CardContent>
       </Card>
 
       {myHubs.length === 0 ? (
-        <Card className="border-2 border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900 p-12 text-center flex flex-col items-center justify-center rounded-3xl">
+        <Card className="border-2 border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900 p-12 text-center flex flex-col items-center justify-center animate-in fade-in rounded-3xl">
             <div className="w-16 h-16 bg-greige/30 dark:bg-zinc-800 text-umber dark:text-zinc-400 rounded-full flex items-center justify-center mb-4"><Users size={32} /></div>
             <CardTitle className="text-xl text-umber dark:text-zinc-100 mb-2">No active hubs</CardTitle>
             <CardDescription className="text-taupe dark:text-zinc-400 mb-6 max-w-md mx-auto">Create a new hub to invite classmates or enter an access code above to join an existing one.</CardDescription>
         </Card>
       ) : (
         <>
-          <p className="text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider mb-4">Your Active Hubs ({myHubs.length})</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <p className="cz-kicker mb-4">Your hubs ({myHubs.length})</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {myHubs.map(hub => (
-              <Card key={hub.id} onClick={() => { setActiveHub(hub); navigateTo('hub-details'); }} className="bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all cursor-pointer relative group flex flex-col justify-between min-h-[180px] rounded-2xl">
-                <CardContent className="pt-6">
-                  <div className="flex justify-between items-start mb-3">
-                    <h3 className="font-bold text-xl text-umber dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors pr-4">{hub.name}</h3>
-                    <Badge variant={hub.role === 'Admin' ? 'default' : 'secondary'} className={hub.role === 'Admin' ? 'bg-blue-50 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/50' : 'bg-greige/30 dark:bg-zinc-800 text-umber dark:text-zinc-300 hover:bg-greige/30 dark:hover:bg-zinc-800 uppercase tracking-widest text-[10px] border-none'}>{hub.role}</Badge>
+              <Card key={hub.id} role="button" tabIndex={0} onKeyDown={activateOnEnter(() => { setActiveHub(hub); navigateTo('hub-details'); })} onClick={() => { setActiveHub(hub); navigateTo('hub-details'); }} className="bg-paper border-line hover:shadow-sm cursor-pointer relative group flex flex-col justify-between min-h-[168px] rounded-xl">
+                <CardContent className="pt-5">
+                  <div className="flex justify-between items-start mb-3 gap-3">
+                    <h3 className="font-semibold text-lg text-umber pr-2">{hub.name}</h3>
+                    <Badge variant={hub.role === 'Admin' ? 'default' : 'secondary'} className={hub.role === 'Admin' ? 'bg-greige text-umber hover:bg-greige' : 'bg-sand text-taupe hover:bg-sand uppercase tracking-widest text-[10px] border-none'}>{hub.role}</Badge>
                   </div>
-                  <p className="text-sm text-taupe dark:text-zinc-400 line-clamp-2">{hub.description}</p>
+                  <p className="text-sm text-taupe line-clamp-2">{hub.description}</p>
                 </CardContent>
-                <CardFooter className="pt-4 border-t border-taupe/10 dark:border-zinc-800 text-sm font-medium text-umber dark:text-zinc-300 gap-5 mt-4">
-                  <span className="flex items-center gap-1.5"><BookOpen size={16} className="text-taupe dark:text-zinc-500" /> {hub.decks} Decks</span>
-                  <span className="flex items-center gap-1.5"><Users size={16} className="text-taupe dark:text-zinc-500" /> {hub.members} Members</span>
+                <CardFooter className="pt-4 border-t border-line text-sm font-medium text-umber gap-5 mt-4">
+                  <span className="flex items-center gap-1.5"><BookOpen size={16} className="text-taupe" /> {hub.decks} Decks</span>
+                  <span className="flex items-center gap-1.5"><Users size={16} className="text-taupe" /> {hub.members} Members</span>
                 </CardFooter>
               </Card>
             ))}
@@ -1139,45 +1405,48 @@ function CreateHubView({ navigateTo, myHubs, setMyHubs, setIsActionLoading, setA
   };
 
   return (
-    <div className="max-w-2xl mx-auto pb-12 p-4 md:p-8">
+    <div className="max-w-2xl mx-auto animate-in fade-in duration-300 pb-12">
       <Button variant="ghost" onClick={() => navigateTo('hubs')} className="mb-6 -ml-4 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100">
         <ArrowLeft size={18} className="mr-2" /> Back to Hubs
       </Button>
-      <Card className="p-8 md:p-10 shadow-sm border-taupe/30 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-3xl">
-        <div className="flex items-center gap-4 mb-8 border-b border-taupe/20 dark:border-zinc-800 pb-6">
-          <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center shrink-0"><Users size={24} /></div>
-          <div><h2 className="text-2xl font-bold text-umber dark:text-zinc-100">Create a Study Hub</h2><p className="text-taupe dark:text-zinc-400 text-sm">Set up a collaborative space for your class or study group.</p></div>
+      <Card className="p-8 md:p-10 shadow-sm border-line bg-paper rounded-xl">
+        <div className="flex items-center gap-4 mb-8 border-b border-line pb-6">
+          <div className="cz-icon-well w-11 h-11"><Users size={20} aria-hidden="true" /></div>
+          <div><h2 className="cz-title text-2xl">Create a study hub</h2><p className="cz-lede text-sm mt-0.5">A shared space for a class or group.</p></div>
         </div>
         <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleCreate(); }}>
           <div>
-            <label className="block text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider mb-2">Hub Name *</label>
-            <Input type="text" value={hubName} onChange={(e) => setHubName(e.target.value)} placeholder="e.g., BSIT 3A Core Subjects" required className="h-12 text-sm rounded-xl bg-sand/20 dark:bg-zinc-950 border-taupe/40 dark:border-zinc-800 text-umber dark:text-zinc-100 focus-visible:ring-blue-400" />
+            <label className="block text-xs font-bold text-taupe uppercase tracking-wider mb-2">Hub Name *</label>
+            <Input type="text" value={hubName} onChange={(e) => setHubName(e.target.value)} placeholder="e.g., BSIT 3A Core Subjects" required className="h-12 text-sm rounded-lg bg-sand border-line text-umber focus-visible:ring-accent" />
           </div>
           <div>
-            <label className="block text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider mb-2">Description / Subject Focus</label>
-            <Textarea value={hubDesc} onChange={(e) => setHubDesc(e.target.value)} placeholder="What will this group study?" className="h-24 resize-none rounded-xl text-sm bg-sand/20 dark:bg-zinc-950 border-taupe/40 dark:border-zinc-800 text-umber dark:text-zinc-100 focus-visible:ring-blue-400"></Textarea>
+            <label className="block text-xs font-bold text-taupe uppercase tracking-wider mb-2">Description / Subject Focus</label>
+            <Textarea value={hubDesc} onChange={(e) => setHubDesc(e.target.value)} placeholder="What will this group study?" className="h-24 resize-none rounded-lg text-sm bg-sand border-line text-umber focus-visible:ring-accent"></Textarea>
           </div>
-          <div className="bg-greige/10 dark:bg-zinc-950 p-5 rounded-xl border border-taupe/20 dark:border-zinc-800 space-y-4 mt-6">
-            <h4 className="font-bold text-sm text-umber dark:text-zinc-100">Hub Permissions</h4>
+          <div className="bg-greige/40 p-5 rounded-xl border border-line space-y-4 mt-6">
+            <h4 className="font-bold text-sm text-umber">Hub Permissions</h4>
             <label className="flex items-start gap-3 cursor-pointer">
               <input type="checkbox" defaultChecked className="mt-1" />
-              <div><p className="text-sm font-bold text-umber dark:text-zinc-100">Allow members to upload decks</p><p className="text-xs text-taupe dark:text-zinc-500 mt-0.5">If unchecked, only Admins can add new material.</p></div>
+              <div><p className="text-sm font-bold text-umber">Allow members to upload decks</p><p className="text-xs text-taupe mt-0.5">If unchecked, only Admins can add new material.</p></div>
             </label>
           </div>
-          <div className="pt-6 border-t border-taupe/20 dark:border-zinc-800">
-            <h4 className="font-bold text-sm text-umber dark:text-zinc-100 mb-4">Initial Shared Deck (Optional)</h4>
+          <div className="pt-6 border-t border-line">
+            <h4 className="font-bold text-sm text-umber mb-4">Initial Shared Deck (Optional)</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <button type="button" onClick={() => setSelectedDeckOption('existing')} className={`p-4 border rounded-xl text-left transition-colors flex flex-col gap-2 ${selectedDeckOption === 'existing' ? 'border-umber dark:border-zinc-500 bg-greige/10 dark:bg-zinc-800 shadow-inner' : 'border-taupe/30 dark:border-zinc-800 hover:bg-greige/10 dark:hover:bg-zinc-800'}`}>
-                <div className="flex items-center gap-2 text-umber dark:text-zinc-100 font-bold"><Library size={18} /> Select Existing</div><span className="text-xs text-taupe dark:text-zinc-500">Search from your created or saved decks</span>
+              <button type="button" onClick={() => setSelectedDeckOption('existing')} className={`p-4 border rounded-xl text-left transition-colors flex flex-col gap-2 ${selectedDeckOption === 'existing' ? 'border-umber  bg-greige/40 shadow-inner' : 'border-line hover:bg-greige'}`}>
+                <div className="flex items-center gap-2 text-umber font-bold"><Library size={18} /> Select Existing</div><span className="text-xs text-taupe">Search from your created or saved decks</span>
               </button>
               <button type="button" onClick={() => setSelectedDeckOption('generate')} className={`p-4 border rounded-xl text-left transition-colors flex flex-col gap-2 ${selectedDeckOption === 'generate' ? 'border-amber-600 dark:border-amber-500 bg-amber-100 dark:bg-amber-900/50 shadow-inner' : 'border-amber-600/30 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/30 hover:bg-amber-50 dark:hover:bg-amber-900/50'}`}>
-                <div className="flex items-center gap-2 text-amber-700 dark:text-amber-500 font-bold"><UploadCloud size={18} /> Generate via File</div><span className="text-xs text-taupe dark:text-zinc-500">Upload .PDF, .PPTX, or .TXT to build</span>
+                <div className="flex items-center gap-2 text-amber-700 dark:text-amber-500 font-bold"><UploadCloud size={18} /> Generate via File</div><span className="text-xs text-taupe">Upload .PDF, .PPTX, or .TXT to build</span>
               </button>
             </div>
           </div>
           <div className="pt-6 border-t border-taupe/20 dark:border-zinc-800 flex justify-end gap-3">
             <Button variant="ghost" type="button" onClick={() => navigateTo('hubs')} className="px-6 h-12 rounded-xl font-bold text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 hover:bg-greige/20 dark:hover:bg-zinc-800">Cancel</Button>
-            <Button type="submit" disabled={!hubName.trim()} className="bg-blue-600 hover:bg-blue-700 text-white px-8 h-12 rounded-xl font-bold shadow-sm disabled:opacity-50">Create Hub</Button>
+            <Button type="submit" disabled={!hubName.trim() || isCreating} className="bg-blue-600 hover:bg-blue-700 text-white px-8 h-12 rounded-xl font-bold shadow-sm disabled:opacity-50 min-w-[140px]">
+               {isCreating ? <RotateCw className="mr-2 animate-spin" size={16} /> : null}
+               {isCreating ? "Creating..." : "Create Hub"}
+            </Button>
           </div>
         </form>
       </Card>
@@ -1187,63 +1456,70 @@ function CreateHubView({ navigateTo, myHubs, setMyHubs, setIsActionLoading, setA
 
 function HubDetailsView({ navigateTo, activeHub }) {
   const [showUploadModal, setShowUploadModal] = useState(false);
+
+  useEffect(() => {
+    if (!showUploadModal) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setShowUploadModal(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showUploadModal]);
   
   if (!activeHub) {
     return (
        <div className="max-w-5xl mx-auto p-12 text-center">
-         <h2 className="text-xl font-bold text-umber dark:text-zinc-100">Hub Error</h2>
-         <Button onClick={() => navigateTo('hubs')} className="mt-4 bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 rounded-xl h-10 px-4">Return</Button>
+         <h2 className="text-xl font-bold text-umber">Hub Error</h2>
+         <Button onClick={() => navigateTo('hubs')} className="mt-4 bg-umber text-sand rounded-xl h-10 px-4">Return</Button>
        </div>
     );
   }
 
   return (
-    <div className="max-w-5xl mx-auto relative p-4 md:p-8">
+    <div className="max-w-5xl mx-auto animate-in fade-in duration-300 relative">
       <Button variant="ghost" onClick={() => navigateTo('hubs')} className="mb-6 -ml-4 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100">
         <ArrowLeft size={18} className="mr-2" /> Back to Hubs
       </Button>
       
-      <Card className="rounded-3xl p-6 md:p-8 shadow-sm mb-8 relative overflow-hidden bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800">
-        <div className="absolute top-0 right-0 p-8 text-taupe/5 dark:text-zinc-800 pointer-events-none"><Users size={150} /></div>
+      <Card className="rounded-xl p-6 md:p-8 shadow-sm mb-8 relative overflow-hidden bg-paper border-line">
+        <div className="absolute top-0 right-0 p-8 text-taupe/5 pointer-events-none"><Users size={150} /></div>
         <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
-            <Badge className="bg-blue-50 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/50 text-[10px] font-bold uppercase tracking-widest mb-3 border-none">{activeHub.role}</Badge>
-            <h2 className="text-3xl md:text-4xl font-black text-umber dark:text-zinc-100 mb-2">{activeHub.name}</h2>
-            <p className="text-taupe dark:text-zinc-400 text-sm md:text-base max-w-xl">{activeHub.description}</p>
+            <Badge className="bg-greige text-umber hover:bg-greige mb-3 border-none">{activeHub.role}</Badge>
+            <h2 className="cz-title text-3xl mb-2">{activeHub.name}</h2>
+            <p className="text-taupe text-sm md:text-base max-w-xl">{activeHub.description}</p>
           </div>
-          <div className="bg-sand/40 dark:bg-zinc-950 border border-taupe/30 dark:border-zinc-800 p-4 rounded-xl flex flex-col items-center min-w-[160px]">
-            <p className="text-[10px] font-bold text-taupe dark:text-zinc-500 uppercase tracking-widest mb-1">Invite Code</p>
+          <div className="bg-sand border border-line p-4 rounded-xl flex flex-col items-center min-w-[160px]">
+            <p className="text-[10px] font-bold text-taupe uppercase tracking-widest mb-1">Invite Code</p>
             <div className="flex items-center gap-2">
               <span className="font-mono font-bold text-lg text-umber dark:text-zinc-100 tracking-wider">{activeHub.inviteCode}</span>
-              <button onClick={() => { navigator.clipboard.writeText(activeHub.inviteCode); toast.success("Invite code copied"); }} className="text-taupe dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-1"><Copy size={16}/></button>
+              <button className="text-taupe dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-1"><LinkIcon size={16}/></button>
             </div>
           </div>
         </div>
       </Card>
 
       <div className="flex justify-between items-center mb-6">
-        <h3 className="text-xl font-bold text-umber dark:text-zinc-100">Shared Materials</h3>
-        <Button onClick={() => setShowUploadModal(true)} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 font-medium rounded-lg h-10 px-4 shadow-sm text-sm">
+        <h3 className="text-xl font-bold text-umber">Shared Materials</h3>
+        <Button onClick={() => setShowUploadModal(true)} className="bg-umber text-sand hover:opacity-90 font-medium rounded-lg h-10 px-4 shadow-sm text-sm">
           <UploadCloud size={16} className="mr-2" /> Upload to Hub
         </Button>
       </div>
 
-      <Card className="border-2 border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900 p-12 text-center flex flex-col items-center justify-center rounded-3xl">
+      <Card className="border-2 border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900 p-12 text-center flex flex-col items-center justify-center animate-in fade-in rounded-3xl">
          <div className="w-16 h-16 bg-greige/30 dark:bg-zinc-800 text-umber dark:text-zinc-400 rounded-full flex items-center justify-center mb-4"><Library size={32} /></div>
          <CardTitle className="text-xl text-umber dark:text-zinc-100 mb-2">No decks shared yet</CardTitle>
          <CardDescription className="text-taupe dark:text-zinc-400 mb-6 max-w-md mx-auto">Be the first to upload study material to this classroom.</CardDescription>
       </Card>
 
       {showUploadModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <Card className="rounded-3xl p-6 md:p-8 max-w-md w-full shadow-md relative animate-in zoom-in-95 duration-200 bg-white dark:bg-zinc-900 border-taupe/20 dark:border-zinc-800">
-            <button onClick={() => setShowUploadModal(false)} className="absolute top-6 right-6 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100"><X size={20} /></button>
-            <h3 className="text-xl font-bold text-umber dark:text-zinc-100 mb-2">Share Deck to Hub</h3>
-            <p className="text-taupe dark:text-zinc-400 text-sm mb-6">Choose how you want to add study material to {activeHub.name}.</p>
+        <div className="fixed inset-0 bg-umber/40 backdrop-blur-sm z-[70] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <Card className="rounded-xl p-6 md:p-8 max-w-md w-full shadow-md relative animate-in zoom-in-95 duration-200 bg-paper border-line">
+            <button type="button" onClick={() => setShowUploadModal(false)} className="cz-icon-btn absolute top-4 right-4" aria-label="Close"><X size={18} /></button>
+            <h3 className="text-xl font-bold text-umber mb-2">Share Deck to Hub</h3>
+            <p className="text-taupe text-sm mb-6">Choose how you want to add study material to {activeHub.name}.</p>
             <div className="space-y-4">
-              <button className="w-full p-4 border border-taupe/30 dark:border-zinc-800 rounded-xl hover:bg-greige/10 dark:hover:bg-zinc-800 text-left transition-colors flex items-center gap-4 group">
-                <div className="w-10 h-10 bg-greige/20 dark:bg-zinc-950 rounded-lg flex items-center justify-center group-hover:bg-white dark:group-hover:bg-zinc-900 transition-colors"><Library size={20} className="text-umber dark:text-zinc-300"/></div>
-                <div><p className="font-bold text-umber dark:text-zinc-100 text-sm">Select Existing Deck</p><p className="text-xs text-taupe dark:text-zinc-500 mt-0.5">Pick from your personal library</p></div>
+              <button className="w-full p-4 border border-line rounded-xl hover:bg-greige text-left transition-colors flex items-center gap-4 group">
+                <div className="w-10 h-10 bg-greige/20 rounded-lg flex items-center justify-center group-hover:bg-white transition-colors"><Library size={20} className="text-umber"/></div>
+                <div><p className="font-bold text-umber text-sm">Select Existing Deck</p><p className="text-xs text-taupe mt-0.5">Pick from your personal library</p></div>
               </button>
               <button className="w-full p-4 border border-amber-600/30 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/30 rounded-xl hover:bg-amber-50 dark:hover:bg-amber-900/50 text-left transition-colors flex items-center gap-4 group">
                 <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/80 rounded-lg flex items-center justify-center transition-colors"><UploadCloud size={20} className="text-amber-600 dark:text-amber-500"/></div>
@@ -1393,38 +1669,38 @@ function NewDeckView({ navigateTo, myDecks, setMyDecks, setIsActionLoading, setA
     return (
       <div className="max-w-4xl mx-auto animate-in slide-in-from-right-8 duration-300 pb-12 p-4 md:p-8">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-umber dark:text-zinc-100 flex items-center gap-2">
+          <h2 className="text-2xl md:text-3xl font-bold text-umber flex items-center gap-2">
             <Sparkles className="text-amber-600 dark:text-amber-500"/> Review AI Output
           </h2>
           <div className="flex gap-3">
-             <Button variant="ghost" onClick={() => setPreviewDeck(null)} className="font-bold text-taupe dark:text-zinc-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg">Discard</Button>
-             <Button onClick={() => handleSaveToDatabase(previewDeck)} disabled={isSaving} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 font-bold rounded-lg shadow-md min-w-[150px]">
+             <Button variant="ghost" onClick={() => setPreviewDeck(null)} className="font-bold text-taupe hover:bg-rose-50 dark:hover:bg-rose-900/30 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg">Discard</Button>
+             <Button onClick={() => handleSaveToDatabase(previewDeck)} disabled={isSaving} className="bg-umber text-sand hover:opacity-90 font-bold rounded-lg shadow-md min-w-[150px]">
                 {isSaving ? <RotateCw className="mr-2 animate-spin" size={16} /> : <CheckCircle size={16} className="mr-2"/>}
                 {isSaving ? "Saving..." : "Save to Library"}
              </Button>
           </div>
         </div>
         
-        <Card className="p-6 shadow-sm mb-6 border-taupe/30 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-2xl">
-           <label className="block text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider mb-2">Deck Title</label>
+        <Card className="p-6 shadow-sm mb-6 border-line bg-paper rounded-2xl">
+           <label className="block text-xs font-bold text-taupe uppercase tracking-wider mb-2">Deck Title</label>
            <Input 
              value={previewDeck.title} 
              onChange={(e) => setPreviewDeck({...previewDeck, title: e.target.value})}
-             className="h-14 text-lg font-bold bg-sand/20 dark:bg-zinc-950 border-taupe/40 dark:border-zinc-800 text-umber dark:text-zinc-100 focus-visible:ring-umber dark:focus-visible:ring-zinc-600 rounded-lg"
+             className="h-14 text-lg font-bold bg-sand border-line text-umber focus-visible:ring-accent rounded-lg"
            />
         </Card>
 
-        <h3 className="font-bold text-lg text-umber dark:text-zinc-100 mb-4">Generated Flashcards ({previewDeck.cards.length})</h3>
+        <h3 className="font-bold text-lg text-umber mb-4">Generated Flashcards ({previewDeck.cards.length})</h3>
         <div className="space-y-3">
           {previewDeck.cards.map((card, i) => (
-            <Card key={i} className="p-4 flex flex-col md:flex-row gap-4 md:gap-6 shadow-sm border-taupe/20 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-xl">
-              <div className="flex-1 md:border-r md:border-taupe/20 dark:md:border-zinc-800 md:pr-6">
-                <p className="text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider mb-1">Term</p>
-                <p className="text-umber dark:text-zinc-100 font-medium">{card.term}</p>
+            <Card key={i} className="p-4 flex flex-col md:flex-row gap-4 md:gap-6 shadow-sm border-line bg-paper rounded-xl">
+              <div className="flex-1 md:border-r md:border-taupe/20 md:pr-6">
+                <p className="text-xs font-bold text-taupe uppercase tracking-wider mb-1">Term</p>
+                <p className="text-umber font-medium">{card.term}</p>
               </div>
               <div className="flex-[2]">
-                <p className="text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider mb-1">Definition</p>
-                <p className="text-umber dark:text-zinc-300 text-sm">{card.definition}</p>
+                <p className="text-xs font-bold text-taupe uppercase tracking-wider mb-1">Definition</p>
+                <p className="text-umber text-sm">{card.definition}</p>
               </div>
             </Card>
           ))}
@@ -1434,14 +1710,14 @@ function NewDeckView({ navigateTo, myDecks, setMyDecks, setIsActionLoading, setA
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 overflow-x-hidden p-4 md:p-8">
+    <div className="max-w-4xl mx-auto animate-in fade-in duration-300 space-y-6 overflow-x-hidden">
       <Button variant="ghost" onClick={() => navigateTo('decks')} className="-ml-4 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 font-medium mb-2 text-sm">
         <ArrowLeft size={18} className="mr-2" /> Back to Library
       </Button>
       
-      <Card className="p-6 shadow-sm mb-4 border-taupe/30 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-2xl">
-        <h3 className="font-bold text-umber dark:text-zinc-100 mb-4 flex items-center gap-2"><Settings size={18}/> AI Generation Settings</h3>
-        <label className="block text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider mb-3">Cards to Generate</label>
+      <Card className="p-6 shadow-sm mb-4 border-line bg-paper rounded-2xl">
+        <h3 className="font-bold text-umber mb-4 flex items-center gap-2"><Settings size={18}/> AI Generation Settings</h3>
+        <label className="block text-xs font-bold text-taupe uppercase tracking-wider mb-3">Cards to Generate</label>
         <div className="flex gap-2 sm:gap-4">
           {[5, 10, 15, 20].map(num => (
             <Button 
@@ -1449,7 +1725,7 @@ function NewDeckView({ navigateTo, myDecks, setMyDecks, setIsActionLoading, setA
               type="button"
               variant="outline"
               onClick={() => setCardCount(num)}
-              className={`flex-1 h-12 font-bold text-sm md:text-base border-2 transition-all rounded-xl ${cardCount === num ? 'bg-amber-50 dark:bg-amber-900/30 border-amber-500 dark:border-amber-600 text-amber-700 dark:text-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900/50 hover:text-amber-800 dark:hover:text-amber-400 scale-[1.02]' : 'bg-greige/10 dark:bg-zinc-800 text-taupe dark:text-zinc-400 hover:bg-greige/20 dark:hover:bg-zinc-700 hover:text-umber dark:hover:text-zinc-100 border-transparent'}`}
+              className={`flex-1 h-12 font-bold text-sm md:text-base border-2 transition-all rounded-xl ${cardCount === num ? 'bg-amber-50 dark:bg-amber-900/30 border-amber-500 dark:border-amber-600 text-amber-700 dark:text-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900/50 hover:text-amber-800 dark:hover:text-amber-400 scale-[1.02]' : 'bg-greige/40 text-taupe hover:bg-greige hover:text-umber border-transparent'}`}
             >
               {num} <span className="hidden sm:inline ml-1">Cards</span>
             </Button>
@@ -1462,10 +1738,10 @@ function NewDeckView({ navigateTo, myDecks, setMyDecks, setIsActionLoading, setA
       <div className="flex flex-col md:flex-row gap-4 w-full">
           <div 
             onClick={() => !isGeneratingAI && fileInputRef.current?.click()} 
-            className={`relative overflow-hidden transition-all duration-500 ease-in-out border-2 border-dashed bg-greige/10 dark:bg-zinc-900/50 rounded-2xl flex flex-col items-center justify-center text-center 
-              ${inputMode === 'file' ? 'w-full md:w-full opacity-100 p-8 md:p-12 border-umber/50 dark:border-zinc-500' : 
+            className={`relative overflow-hidden transition-all duration-500 ease-in-out border-2 border-dashed bg-greige/40 rounded-2xl flex flex-col items-center justify-center text-center 
+              ${inputMode === 'file' ? 'w-full md:w-full opacity-100 p-8 md:p-12 border-umber/50 ' : 
                 inputMode === 'ai' ? 'w-full md:w-0 opacity-0 p-0 border-0 h-0 md:h-auto gap-0 m-0 pointer-events-none' : 
-                'w-full md:w-1/2 p-6 md:p-8 cursor-pointer hover:bg-greige/20 dark:hover:bg-zinc-800 border-taupe/50 dark:border-zinc-700'}
+                'w-full md:w-1/2 p-6 md:p-8 cursor-pointer hover:bg-greige border-line'}
             `}
           >
             {isGeneratingAI && inputMode === 'file' ? (
@@ -1482,9 +1758,9 @@ function NewDeckView({ navigateTo, myDecks, setMyDecks, setIsActionLoading, setA
                 </div>
             ) : (
                 <div className="flex flex-col items-center justify-center min-w-[200px]">
-                  <UploadCloud size={32} className="text-umber dark:text-zinc-100 mb-3" />
-                  <h3 className="font-bold text-base md:text-lg text-umber dark:text-zinc-100 mb-1 whitespace-nowrap">Import from file</h3>
-                  <p className="text-taupe dark:text-zinc-500 text-xs md:text-sm whitespace-nowrap">.pdf, .pptx, or .txt</p>
+                  <UploadCloud size={32} className="text-umber mb-3" />
+                  <h3 className="font-bold text-base md:text-lg text-umber mb-1 whitespace-nowrap">Import from file</h3>
+                  <p className="text-taupe text-xs md:text-sm whitespace-nowrap">.pdf, .pptx, or .txt</p>
                 </div>
             )}
           </div>
@@ -1516,7 +1792,7 @@ function NewDeckView({ navigateTo, myDecks, setMyDecks, setIsActionLoading, setA
                    <Input 
                      autoFocus disabled={isGeneratingAI} value={aiTopic} onChange={(e) => setAiTopic(e.target.value)}
                      placeholder="e.g., 'World War II History'" 
-                     className="h-12 bg-white dark:bg-zinc-950 border-amber-200 dark:border-amber-900 text-sm focus-visible:ring-amber-500 mb-4 text-umber dark:text-zinc-100 rounded-lg"
+                     className="h-12 bg-paper border-amber-200 dark:border-amber-900 text-sm focus-visible:ring-amber-500 mb-4 text-umber rounded-lg"
                    />
                    <div className="flex justify-end gap-2 mt-2">
                      <Button type="button" variant="ghost" onClick={(e) => { e.stopPropagation(); setInputMode(null); }} disabled={isGeneratingAI} className="text-amber-700 dark:text-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900/50 font-bold rounded-lg">Cancel</Button>
@@ -1529,30 +1805,30 @@ function NewDeckView({ navigateTo, myDecks, setMyDecks, setIsActionLoading, setA
             ) : (
               <div className="flex flex-col items-center justify-center min-w-[200px]">
                 <Sparkles size={32} className="text-amber-600 dark:text-amber-500 mb-3" />
-                <h3 className="font-bold text-base md:text-lg text-umber dark:text-zinc-100 mb-1 whitespace-nowrap">Generate with AI</h3>
-                <p className="text-taupe dark:text-zinc-500 text-xs md:text-sm whitespace-nowrap">Describe a topic directly</p>
+                <h3 className="font-bold text-base md:text-lg text-umber mb-1 whitespace-nowrap">Generate with AI</h3>
+                <p className="text-taupe text-xs md:text-sm whitespace-nowrap">Describe a topic directly</p>
               </div>
             )}
           </div>
       </div>
 
-      <div className="flex items-center gap-4 w-full py-4"><div className="h-px bg-taupe/30 dark:bg-zinc-800 flex-1"></div><span className="text-xs font-bold text-taupe dark:text-zinc-600 uppercase tracking-widest">OR CREATE FROM SCRATCH</span><div className="h-px bg-taupe/30 dark:bg-zinc-800 flex-1"></div></div>
+      <div className="flex items-center gap-4 w-full py-4"><div className="h-px bg-taupe/30 flex-1"></div><span className="text-xs font-bold text-taupe uppercase tracking-widest">OR CREATE FROM SCRATCH</span><div className="h-px bg-taupe/30 flex-1"></div></div>
       
-      <Card className="p-6 md:p-8 shadow-sm border-taupe/30 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-2xl">
+      <Card className="p-6 md:p-8 shadow-sm border-line bg-paper rounded-2xl">
         <form onSubmit={handleManualCreate}>
-          <h3 className="font-bold text-lg md:text-xl text-umber dark:text-zinc-100 border-b border-taupe/20 dark:border-zinc-800 pb-4 mb-6">New Deck Details</h3>
+          <h3 className="font-bold text-lg md:text-xl text-umber border-b border-line pb-4 mb-6">New Deck Details</h3>
           <div className="space-y-6">
             <div>
-              <label className="block text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider mb-2">Deck Name *</label>
-              <Input type="text" value={deckName} onChange={(e)=>setDeckName(e.target.value)} required placeholder="e.g. Intro to Databases" className="h-12 bg-sand/20 dark:bg-zinc-950 border-taupe/40 dark:border-zinc-800 text-umber dark:text-zinc-100 focus-visible:ring-umber dark:focus-visible:ring-zinc-600 rounded-lg" />
+              <label className="block text-xs font-bold text-taupe uppercase tracking-wider mb-2">Deck Name *</label>
+              <Input type="text" value={deckName} onChange={(e)=>setDeckName(e.target.value)} required placeholder="e.g. Intro to Databases" className="h-12 bg-sand border-line text-umber focus-visible:ring-accent rounded-lg" />
             </div>
             <div>
-              <label className="block text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider mb-2">Description</label>
-              <Textarea value={deckDesc} onChange={(e)=>setDeckDesc(e.target.value)} placeholder="What is this deck about?" className="h-24 resize-none bg-sand/20 dark:bg-zinc-950 border-taupe/40 dark:border-zinc-800 text-umber dark:text-zinc-100 focus-visible:ring-umber dark:focus-visible:ring-zinc-600 rounded-lg"></Textarea>
+              <label className="block text-xs font-bold text-taupe uppercase tracking-wider mb-2">Description</label>
+              <Textarea value={deckDesc} onChange={(e)=>setDeckDesc(e.target.value)} placeholder="What is this deck about?" className="h-24 resize-none bg-sand border-line text-umber focus-visible:ring-accent rounded-lg"></Textarea>
             </div>
           </div>
           <div className="flex justify-end mt-8">
-             <Button type="submit" size="lg" disabled={!deckName.trim() || isSaving} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 font-bold px-8 h-12 rounded-xl shadow-md disabled:opacity-50 min-w-[180px]">
+             <Button type="submit" size="lg" disabled={!deckName.trim() || isSaving} className="bg-umber text-sand hover:opacity-90 font-bold px-8 h-12 rounded-xl shadow-md disabled:opacity-50 min-w-[180px]">
                 {isSaving ? <RotateCw className="mr-2 animate-spin" size={16} /> : null}
                 {isSaving ? "Saving..." : "Save Empty Deck"}
              </Button>
@@ -1567,8 +1843,8 @@ function DeckDetailsView({ navigateTo, activeDeck, setIsTutorOpen }) {
   if (!activeDeck) {
     return (
        <div className="max-w-5xl mx-auto p-12 text-center">
-         <h2 className="text-xl font-bold text-umber dark:text-zinc-100">Deck Error</h2>
-         <Button onClick={() => navigateTo('decks')} className="mt-4 bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 rounded-xl h-10 px-4">Return to Library</Button>
+         <h2 className="text-xl font-bold text-umber">Deck Error</h2>
+         <Button onClick={() => navigateTo('decks')} className="mt-4 bg-umber text-sand rounded-xl h-10 px-4">Return to Library</Button>
        </div>
     );
   }
@@ -1576,75 +1852,77 @@ function DeckDetailsView({ navigateTo, activeDeck, setIsTutorOpen }) {
   const formattedDate = activeDeck.created_at ? new Date(activeDeck.created_at).toLocaleDateString() : 'Just now';
 
   return (
-    <div className="max-w-5xl mx-auto p-4 md:p-8">
+    <div className="max-w-5xl mx-auto animate-in fade-in duration-300">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 border-b border-taupe/20 dark:border-zinc-800 pb-6">
         <div>
-          <Button variant="ghost" onClick={() => navigateTo('decks')} className="-ml-4 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 font-medium mb-3">
+          <Button variant="ghost" onClick={() => navigateTo('decks')} className="-ml-4 text-taupe hover:text-umber font-medium mb-3">
             <ArrowLeft size={16} className="mr-2" /> Back to Library
           </Button>
-          <h2 className="text-2xl md:text-3xl font-bold text-umber dark:text-zinc-100 mb-2">{activeDeck.title}</h2>
-          <div className="flex flex-wrap gap-3 text-xs md:text-sm font-medium text-taupe dark:text-zinc-500 items-center">
-            <Badge variant="secondary" className="bg-sand dark:bg-zinc-800 text-umber dark:text-zinc-300 hover:bg-sand dark:hover:bg-zinc-800 rounded font-medium border-none">{activeDeck.cards?.length || 0} Cards</Badge>
+          <h2 className="text-2xl md:text-3xl font-bold text-umber mb-2">{activeDeck.title}</h2>
+          <div className="flex flex-wrap gap-3 text-xs md:text-sm font-medium text-taupe items-center">
+            <Badge variant="secondary" className="bg-sand text-umber hover:bg-sand rounded font-medium border-none">{activeDeck.cards?.length || 0} Cards</Badge>
             <span>Created {formattedDate}</span>
             <span className="flex items-center gap-1"><BookOpen size={14} /> {activeDeck.visibility || 'Private'}</span>
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="ghost" size="icon" className="text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 hover:bg-greige/20 dark:hover:bg-zinc-800"><Edit3 size={20} /></Button>
-          <Button variant="ghost" size="icon" className="text-taupe dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30"><Trash2 size={20} /></Button>
+          <Button variant="ghost" size="icon" aria-label="Edit deck"><Edit3 size={18} /></Button>
+          <Button variant="ghost" size="icon" aria-label="Delete deck" className="text-taupe hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"><Trash2 size={18} /></Button>
         </div>
       </div>
 
-      <Card className="bg-amber-50/50 dark:bg-amber-950/30 border-amber-600/30 dark:border-amber-900 mb-8 shadow-sm rounded-2xl">
-        <CardContent className="p-5 md:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex gap-4 items-center">
-            <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/50 rounded-full flex items-center justify-center text-amber-600 dark:text-amber-500 shrink-0"><Sparkles size={24} /></div>
-            <div><h3 className="font-bold text-base md:text-lg text-umber dark:text-zinc-100">Zero AI is ready</h3><p className="text-taupe dark:text-zinc-400 text-xs md:text-sm">Need a mnemonic device or a simplified breakdown before you start?</p></div>
+      <Card className="bg-paper border-line mb-8 shadow-sm rounded-xl">
+        <CardContent className="p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex gap-3 items-center min-w-0">
+            <div className="cz-icon-well"><Sparkles size={18} aria-hidden="true" /></div>
+            <div className="min-w-0">
+              <h3 className="font-semibold text-umber">Ask Zero</h3>
+              <p className="text-taupe text-sm">Mnemonics, simpler wording, or a check before you start.</p>
+            </div>
           </div>
-          <Button onClick={() => setIsTutorOpen(true)} className="bg-white dark:bg-zinc-950 border border-amber-600/50 dark:border-amber-800 text-amber-700 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 font-bold shadow-sm whitespace-nowrap rounded-xl px-4 md:px-5">Open Chat</Button>
+          <Button type="button" variant="outline" onClick={() => setIsTutorOpen(true)} className="whitespace-nowrap border-line bg-paper">Open chat</Button>
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
-        <Card onClick={() => navigateTo('flashcard-mode')} className="bg-white dark:bg-zinc-900 border-taupe/20 dark:border-zinc-800 hover:border-umber/40 dark:hover:border-zinc-600 hover:shadow-md cursor-pointer transition-all group flex flex-col justify-between rounded-2xl shadow-sm">
-          <CardContent className="p-6 pb-4">
-            <div className="w-10 h-10 bg-greige/30 dark:bg-zinc-800 text-umber dark:text-zinc-300 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><Layers size={20} /></div>
-            <h3 className="font-bold text-lg text-umber dark:text-zinc-100 mb-2">Deep Dive</h3>
-            <p className="text-taupe dark:text-zinc-500 text-xs leading-relaxed">Traditional flashcards. Self-rate confidence to train the spaced-repetition algorithm.</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-10">
+        <Card role="button" tabIndex={0} onKeyDown={activateOnEnter(() => navigateTo('flashcard-mode'))} onClick={() => navigateTo('flashcard-mode')} className="bg-paper border-line cursor-pointer flex flex-col justify-between rounded-xl">
+          <CardContent className="p-5 pb-3">
+            <div className="cz-icon-well mb-3"><Layers size={18} aria-hidden="true" /></div>
+            <h3 className="font-semibold text-umber mb-1">Flashcards</h3>
+            <p className="text-taupe text-sm leading-relaxed">Flip and rate confidence for spaced repetition.</p>
           </CardContent>
-          <CardFooter className="p-6 pt-0"><span className="text-[10px] font-bold text-umber dark:text-zinc-100 uppercase tracking-widest mt-auto">Start Review →</span></CardFooter>
+          <CardFooter className="p-5 pt-0"><span className="text-xs font-medium text-taupe">Start review →</span></CardFooter>
         </Card>
         
-        <Card onClick={() => navigateTo('quiz-setup')} className="bg-white dark:bg-zinc-900 border-taupe/20 dark:border-zinc-800 hover:border-umber/40 dark:hover:border-zinc-600 hover:shadow-md cursor-pointer transition-all group flex flex-col justify-between rounded-2xl shadow-sm">
-          <CardContent className="p-6 pb-4">
-            <div className="w-10 h-10 bg-greige/30 dark:bg-zinc-800 text-umber dark:text-zinc-300 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><CheckCircle size={20} /></div>
-            <h3 className="font-bold text-lg text-umber dark:text-zinc-100 mb-2">Knowledge Check</h3>
-            <p className="text-taupe dark:text-zinc-500 text-xs leading-relaxed">Test yourself with standard multiple-choice and identification questions.</p>
+        <Card role="button" tabIndex={0} onKeyDown={activateOnEnter(() => navigateTo('quiz-setup'))} onClick={() => navigateTo('quiz-setup')} className="bg-paper border-line cursor-pointer flex flex-col justify-between rounded-xl">
+          <CardContent className="p-5 pb-3">
+            <div className="cz-icon-well mb-3"><CheckCircle size={18} aria-hidden="true" /></div>
+            <h3 className="font-semibold text-umber mb-1">Quiz</h3>
+            <p className="text-taupe text-sm leading-relaxed">Multiple-choice from this deck’s cards.</p>
           </CardContent>
-          <CardFooter className="p-6 pt-0"><span className="text-[10px] font-bold text-umber dark:text-zinc-100 uppercase tracking-widest mt-auto">Configure Quiz →</span></CardFooter>
+          <CardFooter className="p-5 pt-0"><span className="text-xs font-medium text-taupe">Configure →</span></CardFooter>
         </Card>
 
-        <Card onClick={() => navigateTo('mock-exam-setup')} className="bg-rose-600 dark:bg-rose-900/80 border-rose-700 dark:border-rose-800 shadow-md hover:bg-rose-700 dark:hover:bg-rose-800 hover:shadow-lg cursor-pointer transition-all group flex flex-col justify-between relative overflow-hidden rounded-2xl">
-          <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none"><Timer size={100} className="text-white"/></div>
-          <CardContent className="p-6 pb-4 relative z-10 text-white">
-            <div className="w-10 h-10 bg-white/20 text-white rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><Timer size={20} /></div>
-            <h3 className="font-bold text-lg mb-2 text-white">AI Mock Exam</h3>
-            <p className="text-white/80 text-xs leading-relaxed">High-stakes simulation. AI generates complex trick scenarios based on your cards.</p>
+        <Card role="button" tabIndex={0} onKeyDown={activateOnEnter(() => navigateTo('mock-exam-setup'))} onClick={() => navigateTo('mock-exam-setup')} className="bg-paper border-line cursor-pointer flex flex-col justify-between rounded-xl">
+          <CardContent className="p-5 pb-3">
+            <div className="cz-icon-well mb-3"><Timer size={18} aria-hidden="true" /></div>
+            <h3 className="font-semibold text-umber mb-1">Mock exam</h3>
+            <p className="text-taupe text-sm leading-relaxed">Timed run with scenario-style questions.</p>
           </CardContent>
-          <CardFooter className="p-6 pt-0 relative z-10"><span className="text-[10px] font-bold text-white uppercase tracking-widest mt-auto">Start Simulator →</span></CardFooter>
+          <CardFooter className="p-5 pt-0"><span className="text-xs font-medium text-taupe">Set up →</span></CardFooter>
         </Card>
       </div>
 
       <div>
-        <div className="flex justify-between items-center mb-6"><h3 className="font-bold text-base md:text-lg text-umber dark:text-zinc-100">Card Inventory</h3></div>
+        <div className="flex justify-between items-center mb-6"><h3 className="font-bold text-base md:text-lg text-umber">Card Inventory</h3></div>
         {activeDeck.cards?.length === 0 ? (
-           <Card className="text-center p-8 text-taupe dark:text-zinc-500 text-sm shadow-sm border-taupe/30 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-xl">No cards in this deck yet.</Card>
+           <Card className="text-center p-8 text-taupe text-sm shadow-sm border-line bg-paper rounded-xl">No cards in this deck yet.</Card>
         ) : (
           <div className="space-y-3">
             {activeDeck.cards?.map((card, i) => (
-              <Card key={card.id} className="p-4 flex flex-col md:flex-row gap-4 md:gap-6 hover:bg-sand/10 dark:hover:bg-zinc-800/50 transition-colors shadow-sm border-taupe/20 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-xl">
-                <div className="flex-1 md:border-r md:border-taupe/20 dark:md:border-zinc-800 md:pr-6"><p className="text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider mb-1">Term</p><p className="text-umber dark:text-zinc-100 font-medium text-sm md:text-base">{card.term}</p></div>
-                <div className="flex-[2]"><p className="text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider mb-1">Definition</p><p className="text-umber dark:text-zinc-300 text-xs md:text-sm">{card.definition}</p></div>
+              <Card key={card.id} className="p-4 flex flex-col md:flex-row gap-4 md:gap-6 hover:bg-sand/10 transition-colors shadow-sm border-line bg-paper rounded-xl">
+                <div className="flex-1 md:border-r md:border-taupe/20 md:pr-6"><p className="text-xs font-bold text-taupe uppercase tracking-wider mb-1">Term</p><p className="text-umber font-medium text-sm md:text-base">{card.term}</p></div>
+                <div className="flex-[2]"><p className="text-xs font-bold text-taupe uppercase tracking-wider mb-1">Definition</p><p className="text-umber text-xs md:text-sm">{card.definition}</p></div>
               </Card>
             ))}
           </div>
@@ -1695,47 +1973,70 @@ function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
   const handleReset = () => { setCurrentIndex(0); setIsFlipped(false); setAutoSpeed(0); setProgress(0); setCardOrder([...Array(safeDeck.cards?.length || 1).keys()]); setIsShuffled(false); };
   const toggleFullscreen = () => document.fullscreenElement ? document.exitFullscreen() : containerRef.current?.requestFullscreen().catch(e => console.log(e));
 
+  useEffect(() => {
+    const onKey = (e) => {
+      const tag = e.target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) return;
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        setIsFlipped((f) => !f);
+        setProgress(0);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setIsFlipped(false);
+        setProgress(0);
+        setCurrentIndex((idx) => Math.min(idx + 1, (safeDeck.cards?.length || 1) - 1));
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setIsFlipped(false);
+        setProgress(0);
+        setCurrentIndex((idx) => Math.max(idx - 1, 0));
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [safeDeck.cards?.length]);
+
   return (
-    <div ref={containerRef} className="max-w-4xl w-full mx-auto flex flex-col items-center animate-in fade-in duration-300 h-full min-h-[75vh] bg-white dark:bg-zinc-950 p-4 md:p-6 rounded-2xl">
-      <div className="w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b border-taupe/20 dark:border-zinc-800 pb-4">
+    <div ref={containerRef} className="max-w-4xl w-full mx-auto flex flex-col items-center animate-in fade-in duration-300 h-full min-h-[500px] bg-white dark:bg-zinc-950 p-4 md:p-6 rounded-2xl relative">
+      <div className="w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b border-taupe/20 dark:border-zinc-800 pb-4 shrink-0">
         <div className="flex flex-wrap items-center gap-2 md:gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigateTo('deck-details')} className="text-taupe dark:text-zinc-500 hover:text-umber dark:hover:text-zinc-100 hover:bg-greige/20 dark:hover:bg-zinc-800 mr-1"><ArrowLeft size={20}/></Button>
-          <div className="flex flex-wrap gap-1.5 sm:border-r sm:border-taupe/20 dark:sm:border-zinc-800 sm:pr-4">
-            <Button variant="outline" size="sm" onClick={cycleAutoSpeed} className={`h-8 text-[11px] font-bold uppercase tracking-wider border-taupe/30 dark:border-zinc-700 ${autoSpeed > 0 ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-500 border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/50' : 'text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 hover:bg-greige/20 dark:hover:bg-zinc-800 bg-transparent'}`}><Clock size={13} className="mr-1" /> {autoSpeed > 0 ? `${autoSpeed}s` : 'Auto'}</Button>
-            <Button variant="outline" size="sm" onClick={toggleShuffle} className={`h-8 text-[11px] font-bold uppercase tracking-wider border-taupe/30 dark:border-zinc-700 ${isShuffled ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-500 border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/50' : 'text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 hover:bg-greige/20 dark:hover:bg-zinc-800 bg-transparent'}`}><Shuffle size={13} className="mr-1" /> Shuffle</Button>
-            <Button variant="outline" size="sm" onClick={handleReset} className="h-8 text-[11px] font-bold uppercase tracking-wider text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 hover:bg-greige/20 dark:hover:bg-zinc-800 bg-transparent border-taupe/30 dark:border-zinc-700"><RotateCcw size={13} className="mr-1" /> Reset</Button>
-            <Button variant="outline" size="sm" onClick={toggleFullscreen} className="hidden md:flex h-8 text-[11px] font-bold uppercase tracking-wider text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 hover:bg-greige/20 dark:hover:bg-zinc-800 bg-transparent border-taupe/30 dark:border-zinc-700"><Maximize size={13} className="mr-1" /> Focus</Button>
+          <Button variant="ghost" size="icon" aria-label="Back to deck" onClick={() => navigateTo('deck-details')} className="text-taupe hover:text-umber hover:bg-greige mr-1"><ArrowLeft size={20}/></Button>
+          <div className="flex flex-wrap gap-1.5 sm:border-r sm:border-taupe/20 sm:pr-4">
+            <Button variant="outline" size="sm" onClick={cycleAutoSpeed} className={`h-8 text-[11px] font-bold uppercase tracking-wider border-line ${autoSpeed > 0 ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-500 border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/50' : 'text-taupe hover:text-umber hover:bg-greige bg-transparent'}`}><Clock size={13} className="mr-1" /> {autoSpeed > 0 ? `${autoSpeed}s` : 'Auto'}</Button>
+            <Button variant="outline" size="sm" onClick={toggleShuffle} className={`h-8 text-[11px] font-bold uppercase tracking-wider border-line ${isShuffled ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-500 border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/50' : 'text-taupe hover:text-umber hover:bg-greige bg-transparent'}`}><Shuffle size={13} className="mr-1" /> Shuffle</Button>
+            <Button variant="outline" size="sm" onClick={handleReset} className="h-8 text-[11px] font-bold uppercase tracking-wider text-taupe hover:text-umber hover:bg-greige bg-transparent border-line"><RotateCcw size={13} className="mr-1" /> Reset</Button>
+            <Button variant="outline" size="sm" onClick={toggleFullscreen} className="hidden md:flex h-8 text-[11px] font-bold uppercase tracking-wider text-taupe hover:text-umber hover:bg-greige bg-transparent border-line"><Maximize size={13} className="mr-1" /> Focus</Button>
           </div>
-          <Badge variant="secondary" className="font-bold tracking-wide rounded-lg text-xs bg-greige/20 dark:bg-zinc-800 text-umber dark:text-zinc-300 hover:bg-greige/20 dark:hover:bg-zinc-800 border-none">Card {currentIndex + 1} / {safeDeck.cards?.length || 0}</Badge>
+          <Badge variant="secondary" className="font-bold tracking-wide rounded-lg text-xs bg-greige text-umber hover:bg-greige border-none">Card {currentIndex + 1} / {safeDeck.cards?.length || 0}</Badge>
         </div>
         <div>
           <Button onClick={() => setIsTutorOpen(true)} className="h-8 bg-amber-50 dark:bg-amber-900/30 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-amber-600 dark:text-amber-500 border border-amber-200 dark:border-amber-800 text-xs font-bold shadow-sm rounded-lg"><HelpCircle size={15} className="mr-1.5" /> Ask AI</Button>
         </div>
       </div>
-      
-      {/* Original Flex Layout retained to keep bottom buttons visible without scrolling */}
-      <div onClick={() => { setIsFlipped(!isFlipped); setProgress(0); }} className="w-full max-w-2xl flex-1 bg-white dark:bg-zinc-900 border border-taupe/30 dark:border-zinc-800 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:shadow-xl hover:border-taupe/60 dark:hover:border-zinc-600 transition-all duration-300 relative group shadow-sm overflow-hidden p-6 text-center my-auto min-h-[220px]">
+      <Card onClick={() => { setIsFlipped(!isFlipped); setProgress(0); }} className="w-full max-w-2xl flex-1 flex flex-col items-center justify-center cursor-pointer hover:shadow-xl hover:border-taupe/60 dark:hover:border-zinc-600 transition-all duration-300 relative group shadow-sm overflow-hidden p-6 text-center my-auto min-h-[300px] bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 rounded-2xl mb-8">
         <span className="absolute top-4 left-4 text-[10px] md:text-xs font-bold text-taupe dark:text-zinc-500 tracking-widest uppercase">{isFlipped ? "Definition" : "Term"}</span>
         <h3 className="text-xl md:text-3xl font-medium text-umber dark:text-zinc-100 px-4 leading-relaxed">{isFlipped ? currentCard?.definition : currentCard?.term}</h3>
         {autoSpeed === 0 && <Badge className="absolute bottom-4 text-xs opacity-0 group-hover:opacity-100 transition-opacity bg-sand dark:bg-zinc-800 text-taupe dark:text-zinc-400 hover:bg-sand dark:hover:bg-zinc-800 border-none">Click to flip</Badge>}
         {autoSpeed > 0 && (
           <>
             <div className="absolute bottom-4 left-6 text-[10px] font-bold text-amber-600 dark:text-amber-500 uppercase tracking-widest flex items-center gap-2"><RotateCw size={12} className="animate-spin" style={{ animationDuration: '3s' }} />{isFlipped ? "Moving to next..." : "Auto-flipping..."}</div>
-            <div className="absolute bottom-0 left-0 w-full h-1.5 bg-greige/30 dark:bg-zinc-800"><div className="h-full bg-amber-500 dark:bg-amber-600 transition-all ease-linear" style={{ width: `${progress}%`, transitionDuration: '50ms' }}></div></div>
+            <div className="absolute bottom-0 left-0 w-full h-1.5 bg-greige"><div className="h-full bg-amber-500 dark:bg-amber-600 transition-all ease-linear" style={{ width: `${progress}%`, transitionDuration: '50ms' }}></div></div>
           </>
         )}
-      </div>
-
-      <div className="h-20 mt-6 flex items-center justify-center w-full max-w-2xl shrink-0">
+      </Card>
+      
+      {/* Sticky Bottom Navigation for Flashcards */}
+      <div className="sticky bottom-0 w-full max-w-2xl bg-white dark:bg-zinc-950 py-4 z-20 flex items-center justify-center shrink-0 border-t border-taupe/10 dark:border-zinc-800/50 mt-auto transition-colors">
         {!isFlipped ? (
-          <div className="flex gap-8 md:gap-12 text-taupe dark:text-zinc-500">
-            <button onClick={handlePrev} disabled={currentIndex === 0} className="hover:text-umber dark:hover:text-zinc-100 transition-colors disabled:opacity-30"><ChevronLeft size={30}/></button>
-            <button onClick={handleNext} disabled={currentIndex === (safeDeck.cards?.length || 1) - 1} className="hover:text-umber dark:hover:text-zinc-100 transition-colors disabled:opacity-30"><ChevronRight size={30}/></button>
+          <div className="flex gap-8 md:gap-12 text-taupe">
+            <button type="button" aria-label="Previous card" onClick={handlePrev} disabled={currentIndex === 0} className="cz-icon-btn disabled:opacity-30"><ChevronLeft size={22}/></button>
+            <button type="button" aria-label="Next card" onClick={handleNext} disabled={currentIndex === (safeDeck.cards?.length || 1) - 1} className="cz-icon-btn disabled:opacity-30"><ChevronRight size={22}/></button>
           </div>
         ) : (
           <div className="flex gap-2 md:gap-4 w-full animate-in slide-in-from-bottom-2 duration-200">
             <Button onClick={handleNext} className="flex-1 h-12 bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900 rounded-xl font-bold hover:bg-rose-100 dark:hover:bg-rose-900">Hard (1m)</Button>
-            <Button variant="outline" onClick={handleNext} className="flex-1 h-12 rounded-xl font-bold bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-700 text-umber dark:text-zinc-300 hover:bg-greige/10 dark:hover:bg-zinc-800 hover:text-umber dark:hover:text-zinc-100">Good (10m)</Button>
+            <Button variant="outline" onClick={handleNext} className="flex-1 h-12 rounded-xl font-bold bg-paper border-line text-umber hover:bg-greige hover:text-umber">Good (10m)</Button>
             <Button onClick={handleNext} className="flex-1 h-12 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900 rounded-xl font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900">Easy (4d)</Button>
           </div>
         )}
@@ -1757,22 +2058,22 @@ function QuizSetupView({ navigateTo, setExamConfig }) {
   };
 
   return (
-    <div className="max-w-3xl mx-auto animate-in fade-in duration-300 p-4 md:p-8">
-      <Button variant="ghost" onClick={() => navigateTo('study')} className="-ml-4 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 mb-6 font-medium">
-        <ArrowLeft size={16} className="mr-2" /> Back to Study View
+    <div className="max-w-3xl mx-auto animate-in fade-in duration-300">
+      <Button variant="ghost" onClick={() => navigateTo('deck-details')} className="-ml-4 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 mb-6 font-medium">
+        <ArrowLeft size={16} className="mr-2" /> Back to Deck
       </Button>
-      <h2 className="text-2xl md:text-3xl font-bold text-umber dark:text-zinc-100 mb-2">Configure Challenge</h2>
-      <p className="text-taupe dark:text-zinc-400 text-xs md:text-sm mb-6">Select the test parameters for this session.</p>
+      <h2 className="text-2xl md:text-3xl font-bold text-umber mb-2">Configure Challenge</h2>
+      <p className="text-taupe text-xs md:text-sm mb-6">Select the test parameters for this session.</p>
       
-      <Card className="p-6 shadow-sm mb-6 bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 rounded-2xl">
-        <h3 className="font-bold text-umber dark:text-zinc-100 mb-4 flex items-center gap-2"><Target size={18}/> Challenge Length</h3>
+      <Card className="p-6 shadow-sm mb-6 bg-paper border-line rounded-2xl">
+        <h3 className="font-bold text-umber mb-4 flex items-center gap-2"><Target size={18}/> Challenge Length</h3>
         <div className="flex flex-wrap sm:flex-nowrap gap-2 sm:gap-4">
           {[5, 10, 20, 30, 50].map(num => (
             <Button 
               key={num}
               variant="outline"
               onClick={() => setQCount(num)}
-              className={`flex-1 h-12 font-bold text-sm md:text-base border-2 transition-all rounded-xl ${qCount === num ? 'bg-amber-50 dark:bg-amber-900/30 border-amber-500 dark:border-amber-600 text-amber-700 dark:text-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900/50 hover:text-amber-800 dark:hover:text-amber-400 scale-[1.02]' : 'bg-greige/10 dark:bg-zinc-800 text-taupe dark:text-zinc-400 hover:bg-greige/20 dark:hover:bg-zinc-700 hover:text-umber dark:hover:text-zinc-100 border-transparent'}`}
+              className={`flex-1 h-12 font-bold text-sm md:text-base border-2 transition-all rounded-xl ${qCount === num ? 'bg-amber-50 dark:bg-amber-900/30 border-amber-500 dark:border-amber-600 text-amber-700 dark:text-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900/50 hover:text-amber-800 dark:hover:text-amber-400 scale-[1.02]' : 'bg-greige/40 text-taupe hover:bg-greige hover:text-umber border-transparent'}`}
             >
               {num} <span className="hidden sm:inline font-semibold ml-1">Qs</span>
             </Button>
@@ -1780,20 +2081,20 @@ function QuizSetupView({ navigateTo, setExamConfig }) {
         </div>
       </Card>
 
-      <Card className="p-4 md:p-6 shadow-sm space-y-4 mb-8 bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 rounded-2xl">
-        <div className="flex items-start gap-4 p-4 border border-umber dark:border-zinc-600 bg-sand/30 dark:bg-zinc-800 rounded-xl cursor-pointer">
-          <div className="mt-1"><div className="w-5 h-5 rounded border-2 border-umber dark:border-zinc-400 flex items-center justify-center"><div className="w-2.5 h-2.5 bg-umber dark:bg-zinc-400 rounded-sm"></div></div></div>
-          <div><h4 className="font-bold text-base md:text-lg mb-1 text-umber dark:text-zinc-100">Multiple Choice</h4><p className="text-xs md:text-sm text-umber/80 dark:text-zinc-400">Pick the correct answer from 4 generated options.</p></div>
+      <Card className="p-4 md:p-6 shadow-sm space-y-4 mb-8 bg-paper border-line rounded-2xl">
+        <div className="flex items-start gap-4 p-4 border border-umber bg-sand/30 rounded-xl cursor-pointer">
+          <div className="mt-1"><div className="w-5 h-5 rounded border-2 border-umber flex items-center justify-center"><div className="w-2.5 h-2.5 bg-umber rounded-sm"></div></div></div>
+          <div><h4 className="font-bold text-base md:text-lg mb-1 text-umber">Multiple Choice</h4><p className="text-xs md:text-sm text-umber/80">Pick the correct answer from 4 generated options.</p></div>
         </div>
-        <div className="flex items-start gap-4 p-4 border border-taupe/20 dark:border-zinc-800 bg-greige/5 dark:bg-zinc-950 rounded-xl cursor-not-allowed opacity-60 text-taupe dark:text-zinc-600">
-          <div className="mt-1"><div className="w-5 h-5 rounded border-2 border-taupe/40 dark:border-zinc-700"></div></div>
-          <div><h4 className="font-bold text-base md:text-lg mb-1 flex items-center gap-2">True / False <Badge variant="secondary" className="text-[10px] bg-taupe/20 dark:bg-zinc-800 text-taupe dark:text-zinc-500 hover:bg-taupe/20 dark:hover:bg-zinc-800 border-none">Needs 4+ Cards</Badge></h4><p className="text-xs md:text-sm">Evaluate whether an AI-generated statement is correct.</p></div>
+        <div className="flex items-start gap-4 p-4 border border-line bg-greige/30 rounded-xl cursor-not-allowed opacity-60 text-taupe">
+          <div className="mt-1"><div className="w-5 h-5 rounded border-2 border-taupe/40 "></div></div>
+          <div><h4 className="font-bold text-base md:text-lg mb-1 flex items-center gap-2">True / False <Badge variant="secondary" className="text-[10px] bg-taupe/20 text-taupe hover:bg-taupe/20 border-none">Needs 4+ Cards</Badge></h4><p className="text-xs md:text-sm">Evaluate whether an AI-generated statement is correct.</p></div>
         </div>
       </Card>
       
       <div className="flex flex-col sm:flex-row gap-4">
-        <Button variant="outline" onClick={() => handleStart(false)} className="flex-1 h-14 rounded-xl font-bold text-base bg-white dark:bg-zinc-900 border-2 border-taupe/30 dark:border-zinc-800 text-umber dark:text-zinc-300 hover:bg-greige/10 dark:hover:bg-zinc-800 hover:text-umber dark:hover:text-zinc-100">Sequential Order</Button>
-        <Button onClick={() => handleStart(true)} className="flex-1 bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 h-14 rounded-xl font-bold text-base shadow-md">Start Randomized</Button>
+        <Button variant="outline" onClick={() => handleStart(false)} className="flex-1 h-14 rounded-xl font-bold text-base bg-paper border-2 border-line text-umber hover:bg-greige hover:text-umber">Sequential Order</Button>
+        <Button onClick={() => handleStart(true)} className="flex-1 bg-umber text-sand hover:opacity-90 h-14 rounded-xl font-bold text-base shadow-md">Start Randomized</Button>
       </div>
     </div>
   );
@@ -1810,26 +2111,26 @@ function MockExamSetupView({ navigateTo, activeDeck, setExamConfig }) {
   };
 
   return (
-    <div className="max-w-3xl mx-auto animate-in fade-in duration-300 p-4 md:p-8">
+    <div className="max-w-3xl mx-auto animate-in fade-in duration-300">
       <Button variant="ghost" onClick={() => navigateTo('deck-details')} className="-ml-4 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 mb-6 font-medium">
         <ArrowLeft size={16} className="mr-2" /> Back to Deck
       </Button>
-      <div className="flex items-center gap-4 mb-2">
-        <div className="w-10 h-10 bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 rounded-xl flex items-center justify-center"><Timer size={20} /></div>
-        <h2 className="text-2xl md:text-3xl font-bold text-umber dark:text-zinc-100">AI Mock Exam Simulator</h2>
+      <div className="flex items-center gap-3 mb-2">
+        <div className="cz-icon-well"><Timer size={18} aria-hidden="true" /></div>
+        <h2 className="cz-title text-2xl">Mock exam</h2>
       </div>
-      <p className="text-taupe dark:text-zinc-400 text-sm mb-8 ml-14">Transform '{safeDeck.title}' into a high-stakes timed assessment.</p>
+      <p className="cz-lede text-sm mb-8">Timed run for ‘{safeDeck.title}’.</p>
 
-      <Card className="p-6 md:p-8 shadow-sm space-y-8 mb-8 bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 rounded-2xl">
+      <Card className="p-6 md:p-8 shadow-sm space-y-8 mb-8 bg-paper border-line rounded-2xl">
         <div>
-          <h4 className="font-bold text-lg text-umber dark:text-zinc-100 mb-3 flex items-center gap-2">Exam Length</h4>
+          <h4 className="font-bold text-lg text-umber mb-3 flex items-center gap-2">Exam Length</h4>
           <div className="flex flex-wrap sm:flex-nowrap gap-2 sm:gap-3">
             {[10, 25, 50, 75, 100].map(num => (
               <Button 
                 key={num}
                 variant="outline"
                 onClick={() => setQCount(num)}
-                className={`flex-1 h-12 border-2 font-bold text-sm md:text-base transition-all rounded-xl ${qCount === num ? 'bg-rose-50 dark:bg-rose-900/30 border-rose-500 dark:border-rose-600 text-rose-700 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/50 hover:text-rose-800 dark:hover:text-rose-300 scale-[1.02]' : 'bg-greige/10 dark:bg-zinc-800 text-taupe dark:text-zinc-400 hover:bg-greige/20 dark:hover:bg-zinc-700 hover:text-umber dark:hover:text-zinc-100 border-transparent'}`}
+                className={`flex-1 h-11 border font-medium text-sm md:text-base rounded-lg ${qCount === num ? 'bg-umber text-sand border-umber hover:opacity-90' : 'bg-paper text-taupe hover:bg-greige hover:text-umber border-line'}`}
               >
                 {num} <span className="text-xs md:text-sm font-semibold opacity-80 block sm:inline sm:ml-1">Items</span>
               </Button>
@@ -1837,15 +2138,15 @@ function MockExamSetupView({ navigateTo, activeDeck, setExamConfig }) {
           </div>
         </div>
 
-        <div className="pt-6 border-t border-taupe/20 dark:border-zinc-800">
-          <h4 className="font-bold text-lg text-umber dark:text-zinc-100 mb-3 flex items-center gap-2">Time Limit</h4>
+        <div className="pt-6 border-t border-line">
+          <h4 className="font-bold text-lg text-umber mb-3 flex items-center gap-2">Time Limit</h4>
           <div className="flex flex-wrap gap-3 mt-4">
             {['15 mins', '30 mins', '60 mins', 'No Limit'].map((time) => (
               <Button 
                 key={time} 
                 variant="outline" 
                 onClick={() => setTimeLimit(time)}
-                className={`h-10 rounded-xl font-bold border-2 transition-all ${timeLimit === time ? 'bg-rose-50 dark:bg-rose-900/30 border-rose-500 dark:border-rose-600 text-rose-700 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/50 hover:text-rose-800 dark:hover:text-rose-300 scale-[1.02]' : 'bg-white dark:bg-zinc-950 border-transparent text-taupe dark:text-zinc-400 hover:bg-greige/10 dark:hover:bg-zinc-800 hover:text-umber dark:hover:text-zinc-100'}`}
+                className={`h-10 rounded-lg font-medium border ${timeLimit === time ? 'bg-umber text-sand border-umber hover:opacity-90' : 'bg-paper border-line text-taupe hover:bg-greige hover:text-umber'}`}
               >
                 {time}
               </Button>
@@ -1853,19 +2154,19 @@ function MockExamSetupView({ navigateTo, activeDeck, setExamConfig }) {
           </div>
         </div>
         
-        <div className="pt-6 border-t border-taupe/20 dark:border-zinc-800">
-          <h4 className="font-bold text-lg text-umber dark:text-zinc-100 mb-1 flex items-center gap-2">AI Generation Style</h4>
+        <div className="pt-6 border-t border-line">
+          <h4 className="font-bold text-lg text-umber mb-1 flex items-center gap-2">AI Generation Style</h4>
           <div className="space-y-3 mt-4">
-            <label className="flex items-start gap-4 p-4 border-2 border-rose-400 dark:border-rose-800 bg-rose-50/30 dark:bg-rose-950/20 rounded-xl cursor-pointer shadow-sm">
-              <input type="radio" name="examStyle" defaultChecked className="mt-1 accent-rose-600 dark:accent-rose-500" />
-              <div><p className="font-bold text-rose-800 dark:text-rose-400 text-sm">Board Exam Format (Trick Questions)</p><p className="text-xs text-rose-600 dark:text-rose-500/80 mt-1">AI synthesizes multiple cards into complex scenario-based questions with plausible distractors.</p></div>
+            <label className="flex items-start gap-4 p-4 border border-line bg-sand/40 rounded-lg cursor-pointer">
+              <input type="radio" name="examStyle" defaultChecked className="mt-1 accent-umber" />
+              <div><p className="font-semibold text-umber text-sm">Board-exam format</p><p className="text-xs text-taupe mt-1">Scenario-style questions with plausible distractors, drawn from this deck.</p></div>
             </label>
           </div>
         </div>
       </Card>
       
-      <Button onClick={handleStart} className="w-full h-14 bg-rose-600 dark:bg-rose-700 text-white rounded-xl font-bold hover:bg-rose-700 dark:hover:bg-rose-600 shadow-md text-base">
-        <Play size={18} fill="currentColor" className="mr-2" /> Start {qCount}-Question Simulation
+      <Button type="button" onClick={handleStart} className="w-full h-12 bg-umber text-sand rounded-lg font-medium hover:opacity-90 text-base">
+        <Play size={16} className="mr-2" /> Start {qCount}-question simulation
       </Button>
     </div>
   );
@@ -1959,9 +2260,9 @@ function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
 
   if (questions.length === 0) {
       return (
-          <div className="max-w-4xl mx-auto p-12 text-center text-taupe dark:text-zinc-500">
+          <div className="max-w-4xl mx-auto p-12 text-center text-taupe">
              Cannot generate test. The deck is empty.
-             <Button onClick={() => navigateTo('deck-details')} className="mt-4 block mx-auto bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900">Return to Deck</Button>
+             <Button onClick={() => navigateTo('deck-details')} className="mt-4 block mx-auto bg-umber text-sand">Return to Deck</Button>
           </div>
       );
   }
@@ -1976,46 +2277,46 @@ function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
     let feedback = percentage >= 80 ? "Outstanding Mastery!" : percentage >= 60 ? "Good Effort!" : "Keep Reviewing!";
 
     return (
-      <div className="max-w-4xl mx-auto w-full flex flex-col pb-12 pt-6 px-4">
+      <div className="max-w-4xl mx-auto animate-in fade-in duration-500 w-full flex flex-col pb-12">
          <Card className="p-8 md:p-12 text-center bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 shadow-xl rounded-3xl mb-8">
             <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
                 <CheckCircle size={40} />
             </div>
-            <h2 className="text-3xl md:text-4xl font-black text-umber dark:text-zinc-100 mb-2">Assessment Complete</h2>
-            <p className="text-taupe dark:text-zinc-400 font-medium text-lg mb-8">{feedback}</p>
+            <h2 className="text-3xl md:text-4xl font-semibold text-umber mb-2">Assessment Complete</h2>
+            <p className="text-taupe font-medium text-lg mb-8">{feedback}</p>
             
-            <div className="bg-greige/10 dark:bg-zinc-950 border border-taupe/20 dark:border-zinc-800 rounded-2xl p-6 mb-10 max-w-sm mx-auto">
-              <p className="text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-widest mb-1">Final Score</p>
-              <div className="flex items-baseline justify-center gap-2 text-umber dark:text-zinc-100">
-                 <span className="text-6xl font-black">{finalScore}</span>
-                 <span className="text-2xl font-bold text-taupe dark:text-zinc-600">/ {questions.length}</span>
+            <div className="bg-greige/40 border border-line rounded-2xl p-6 mb-10 max-w-sm mx-auto">
+              <p className="text-xs font-bold text-taupe uppercase tracking-widest mb-1">Final Score</p>
+              <div className="flex items-baseline justify-center gap-2 text-umber">
+                 <span className="text-6xl font-semibold">{finalScore}</span>
+                 <span className="text-2xl font-bold text-taupe">/ {questions.length}</span>
               </div>
               <p className="font-bold text-emerald-600 dark:text-emerald-500 mt-2">{percentage}% Accuracy</p>
             </div>
             
-            <Button size="lg" onClick={() => navigateTo('deck-details')} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 font-bold rounded-xl h-14 w-full md:w-auto md:mx-auto px-12 shadow-md">
+            <Button size="lg" onClick={() => navigateTo('deck-details')} className="bg-umber text-sand hover:opacity-90 font-bold rounded-xl h-14 w-full md:w-auto md:mx-auto px-12 shadow-md">
                  Return to Deck
             </Button>
          </Card>
 
-         <h3 className="font-bold text-xl text-umber dark:text-zinc-100 mb-4 px-2">Question Review</h3>
+         <h3 className="font-bold text-xl text-umber mb-4 px-2">Question Review</h3>
          <div className="space-y-4 mb-8">
              {questions.map((q, i) => {
                  const isCorrect = answers[i] === q.answer;
                  const isSkipped = !answers[i];
                  return (
-                     <Card key={i} className={`p-6 border-l-4 ${isCorrect ? 'border-l-emerald-500' : 'border-l-rose-500'} bg-white dark:bg-zinc-900 border-t-taupe/20 border-r-taupe/20 border-b-taupe/20 dark:border-zinc-800 rounded-2xl shadow-sm`}>
+                     <Card key={i} className={`p-6 border-l-4 ${isCorrect ? 'border-l-emerald-500' : 'border-l-rose-500'} bg-paper border-t-taupe/20 border-r-taupe/20 border-b-taupe/20  rounded-2xl shadow-sm`}>
                          <div className="flex gap-4">
                            <div className="mt-1">{isCorrect ? <CheckCircle size={20} className="text-emerald-500" /> : <X size={20} className="text-rose-500" />}</div>
                            <div className="flex-1">
-                             <p className="font-bold text-umber dark:text-zinc-100 mb-3 text-sm md:text-base leading-relaxed">Q: {q.question}</p>
-                             <div className="space-y-1.5 text-xs md:text-sm bg-sand/30 dark:bg-zinc-950 p-4 rounded-xl border border-taupe/20 dark:border-zinc-800">
-                                 <p className="text-taupe dark:text-zinc-400 flex flex-col md:flex-row md:items-start gap-1 md:gap-2">
+                             <p className="font-bold text-umber mb-3 text-sm md:text-base leading-relaxed">Q: {q.question}</p>
+                             <div className="space-y-1.5 text-xs md:text-sm bg-sand p-4 rounded-xl border border-line">
+                                 <p className="text-taupe flex flex-col md:flex-row md:items-start gap-1 md:gap-2">
                                    <span className="shrink-0 font-medium">Your Answer:</span> 
                                    <span className={`font-semibold ${isCorrect ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{isSkipped ? 'Skipped' : answers[i]}</span>
                                  </p>
                                  {!isCorrect && (
-                                   <p className="text-taupe dark:text-zinc-400 flex flex-col md:flex-row md:items-start gap-1 md:gap-2 mt-2 pt-2 border-t border-taupe/20 dark:border-zinc-800">
+                                   <p className="text-taupe flex flex-col md:flex-row md:items-start gap-1 md:gap-2 mt-2 pt-2 border-t border-line">
                                      <span className="shrink-0 font-medium">Correct Answer:</span> 
                                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">{q.answer}</span>
                                    </p>
@@ -2035,60 +2336,57 @@ function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
   const answeredCurrent = answers[currentIndex] !== undefined;
 
   return (
-    <div className="max-w-4xl w-full mx-auto flex flex-col h-[calc(100vh-10rem)] relative">
-      
-      {/* Premium, Left-Aligned Sticky Header */}
-      <div className="bg-sand/90 dark:bg-zinc-950/90 backdrop-blur-md pb-4 mb-6 border-b border-taupe/20 dark:border-zinc-800 flex justify-between items-end transition-colors shrink-0 px-2 md:px-0">
+    <div className="max-w-4xl w-full mx-auto animate-in fade-in duration-300 flex flex-col h-full relative">
+      <div className="sticky top-0 z-20 bg-sand/90 dark:bg-zinc-950/90 backdrop-blur-md pt-4 pb-4 mb-6 border-b border-taupe/20 dark:border-zinc-800 flex justify-between items-end transition-colors">
         <div>
-          <p className="text-[10px] font-bold text-taupe dark:text-zinc-500 uppercase tracking-widest mb-1 flex items-center gap-2">
-            <CheckCircle size={12}/> {examConfig?.isMock ? 'Mock Exam' : 'Knowledge Check'} • Question {currentIndex + 1} of {questions.length}
+          <p className="text-[10px] font-bold text-taupe dark:text-zinc-500 uppercase tracking-widest mb-1">
+            {examConfig?.isMock ? 'Mock Exam' : 'Knowledge Check'} • Question {currentIndex + 1} of {questions.length}
           </p>
-          <h2 className="text-xl md:text-2xl font-bold text-umber dark:text-zinc-100 truncate max-w-[250px] md:max-w-md">
+          <h2 className="text-xl md:text-2xl font-bold text-umber truncate max-w-[250px] md:max-w-md">
             {safeDeck.title}
           </h2>
         </div>
         <div className="flex items-center gap-2 md:gap-4">
           {timeLeftSeconds !== null && (
-            <Badge variant="outline" className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-mono font-bold text-sm md:text-base border-taupe/30 dark:border-zinc-700 ${timeLeftSeconds < 60 ? 'text-rose-600 dark:text-rose-400 animate-pulse bg-rose-50 dark:bg-rose-900/30' : 'text-umber dark:text-zinc-100'}`}>
+            <Badge variant="outline" className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-mono font-bold text-sm md:text-base border-taupe/30 dark:border-zinc-700 ${timeLeftSeconds < 60 ? 'text-rose-600 dark:text-rose-400 animate-pulse' : 'text-umber dark:text-zinc-100'}`}>
               <Timer size={16} /> {formatTime(timeLeftSeconds)}
             </Badge>
           )}
-          <Button variant="ghost" size="icon" onClick={() => setIsFinished(true)} className="text-taupe dark:text-zinc-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 -mr-2" title="Quit Exam">
+          <Button variant="ghost" size="icon" onClick={() => setIsFinished(true)} className="text-taupe hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 -mr-2" title="Quit exam" aria-label="Quit exam">
             <X size={20} />
           </Button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto pb-6 px-2 md:px-0">
-        <Card className="rounded-3xl p-6 md:p-10 shadow-md flex flex-col mb-8 bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800">
-          <div className="mb-8">
-            <Badge className="bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-400 hover:bg-amber-100 border-none rounded text-[10px] font-bold uppercase tracking-widest mb-4">{currentQ.scenario}</Badge>
-            <h3 className="text-lg md:text-xl font-medium text-umber dark:text-zinc-100 leading-relaxed">
-              {currentQ.question}
-            </h3>
-          </div>
-          <div className="space-y-3 mt-auto">
-            {currentQ.options.map((opt, i) => {
-              const isSelected = answers[currentIndex] === opt;
-              const isCorrect = opt === currentQ.answer;
-              const showCorrect = answeredCurrent && isCorrect;
-              const showIncorrect = isSelected && !isCorrect;
+      <Card className="flex-1 rounded-3xl p-6 md:p-10 shadow-md flex flex-col mb-8 bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800">
+        <div className="mb-8">
+          <Badge className="bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-400 hover:bg-amber-100 border-none rounded text-[10px] font-bold uppercase tracking-widest mb-4">{currentQ.scenario}</Badge>
+          <h3 className="text-lg md:text-xl font-medium text-umber dark:text-zinc-100 leading-relaxed">
+            {currentQ.question}
+          </h3>
+        </div>
+        <div className="space-y-3 mt-auto">
+          {currentQ.options.map((opt, i) => {
+            const isSelected = answers[currentIndex] === opt;
+            const isCorrect = opt === currentQ.answer;
+            const showCorrect = answeredCurrent && isCorrect;
+            const showIncorrect = isSelected && !isCorrect;
 
-              let bgClass = 'bg-white dark:bg-zinc-950 border-taupe/30 dark:border-zinc-800 hover:bg-greige/10 dark:hover:bg-zinc-800 text-umber dark:text-zinc-300';
-              let circleClass = 'border-taupe/40 dark:border-zinc-600 bg-transparent';
-              let textClass = 'text-umber dark:text-zinc-300 font-medium';
+            let bgClass = 'bg-white dark:bg-zinc-950 border-taupe/30 dark:border-zinc-800 hover:bg-greige/10 dark:hover:bg-zinc-800 text-umber dark:text-zinc-300';
+            let circleClass = 'border-taupe/40 dark:border-zinc-600 bg-transparent';
+            let textClass = 'text-umber dark:text-zinc-300 font-medium';
 
-              if (showCorrect) {
-                  bgClass = 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 dark:border-emerald-600';
-                  circleClass = 'border-emerald-600 dark:border-emerald-500 bg-emerald-600 dark:bg-emerald-500';
-                  textClass = 'text-emerald-900 dark:text-emerald-400 font-bold';
-              } else if (showIncorrect) {
-                  bgClass = 'bg-rose-50 dark:bg-rose-950/40 border-rose-500 dark:border-rose-600';
-                  circleClass = 'border-rose-600 dark:border-rose-500 bg-rose-600 dark:bg-rose-500';
-                  textClass = 'text-rose-900 dark:text-rose-400 font-bold';
-              } else if (answeredCurrent) {
-                  bgClass = 'bg-white/50 dark:bg-zinc-950/50 border-taupe/20 dark:border-zinc-800/50 opacity-60';
-              }
+            if (showCorrect) {
+                bgClass = 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 dark:border-emerald-600';
+                circleClass = 'border-emerald-600 dark:border-emerald-500 bg-emerald-600 dark:bg-emerald-500';
+                textClass = 'text-emerald-900 dark:text-emerald-400 font-bold';
+            } else if (showIncorrect) {
+                bgClass = 'bg-rose-50 dark:bg-rose-950/40 border-rose-500 dark:border-rose-600';
+                circleClass = 'border-rose-600 dark:border-rose-500 bg-rose-600 dark:bg-rose-500';
+                textClass = 'text-rose-900 dark:text-rose-400 font-bold';
+            } else if (answeredCurrent) {
+                bgClass = 'bg-white/50 dark:bg-zinc-950/50 border-taupe/20 dark:border-zinc-800/50 opacity-60';
+            }
 
               return (
                 <button 
@@ -2108,11 +2406,11 @@ function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
         </Card>
       </div>
 
-      <div className="sticky bottom-0 left-0 w-full bg-sand/90 dark:bg-zinc-950/90 backdrop-blur-md py-4 z-20 flex justify-between items-center border-t border-taupe/20 dark:border-zinc-800 mt-auto transition-colors px-2 md:px-0">
+      <div className="sticky bottom-0 w-full bg-sand dark:bg-zinc-950 py-4 z-20 flex justify-between items-center border-t border-taupe/10 dark:border-zinc-800/50 mt-auto transition-colors">
         <Button variant="outline" onClick={() => setCurrentIndex(prev => prev - 1)} disabled={currentIndex === 0} className="h-12 px-6 rounded-xl font-bold bg-white dark:bg-zinc-900 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 border-taupe/30 dark:border-zinc-700 shadow-sm transition-all">
            <ChevronLeft size={18} className="mr-2" /> Previous
         </Button>
-        <Button onClick={handleNext} disabled={!answeredCurrent} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 h-12 px-8 rounded-xl font-bold shadow-md disabled:opacity-50 transition-all">
+        <Button onClick={handleNext} disabled={!answeredCurrent} className="bg-umber text-sand hover:opacity-90 h-12 px-8 rounded-xl font-bold shadow-md disabled:opacity-50 transition-all">
            {currentIndex === questions.length - 1 ? "Finish Assessment" : "Next Question"} <ChevronRight size={18} className="ml-2" />
         </Button>
       </div>
@@ -2284,14 +2582,14 @@ function MultiplayerView({ navigateTo, myDecks }) {
 
   if (view === 'select-deck') {
     return (
-      <div className="max-w-5xl mx-auto pb-12 p-4 md:p-8">
-        <Button variant="ghost" onClick={() => transitionTo('menu')} className="-ml-4 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 mb-6 font-medium">
+      <div className="max-w-5xl mx-auto animate-in fade-in duration-300 pb-12">
+        <Button variant="ghost" onClick={() => setView('menu')} className="-ml-4 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 mb-6 font-medium">
           <ArrowLeft size={16} className="mr-2" /> Back to Multiplayer
         </Button>
-        <h2 className="text-2xl font-bold text-umber dark:text-zinc-100 mb-6">Select a Deck to Host</h2>
+        <h2 className="text-2xl font-bold text-umber mb-6">Select a Deck to Host</h2>
         
         {myDecks.length === 0 ? (
-           <Card className="border-2 border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900 p-12 text-center flex flex-col items-center justify-center rounded-3xl">
+           <Card className="border-2 border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900 p-12 text-center flex flex-col items-center justify-center animate-in fade-in rounded-3xl">
               <div className="w-16 h-16 bg-greige/30 dark:bg-zinc-800 text-umber dark:text-zinc-400 rounded-full flex items-center justify-center mb-4"><Zap size={32} /></div>
               <CardTitle className="text-xl text-umber dark:text-zinc-100 mb-2">No decks available</CardTitle>
               <CardDescription className="text-taupe dark:text-zinc-500 mb-6 max-w-md mx-auto">You need to create a deck first before you can host a live multiplayer battle.</CardDescription>
@@ -2300,13 +2598,13 @@ function MultiplayerView({ navigateTo, myDecks }) {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {myDecks.map(deck => (
-              <Card key={deck.id} onClick={() => handleHostDeckSelect(deck)} className="bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 hover:shadow-md transition-shadow cursor-pointer flex flex-col justify-between h-40 relative group rounded-xl">
+              <Card key={deck.id} onClick={() => handleHostDeckSelect(deck)} className="bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 hover:shadow-md transition-shadow cursor-pointer flex flex-col justify-between h-40 relative group animate-in zoom-in duration-200 rounded-xl">
                 <CardContent className="pt-5 pb-0">
-                  <h3 className="font-semibold text-umber dark:text-zinc-100 text-lg group-hover:text-amber-700 dark:group-hover:text-amber-500 transition-colors pr-8 truncate">{deck.title}</h3>
-                  <p className="text-xs text-taupe dark:text-zinc-500 mt-1">{new Date(deck.createdAt || Date.now()).toLocaleDateString()}</p>
+                  <h3 className="font-semibold text-umber text-lg group-hover:text-amber-700 dark:group-hover:text-amber-500 transition-colors pr-8 truncate">{deck.title}</h3>
+                  <p className="text-xs text-taupe mt-1">{new Date(deck.createdAt || Date.now()).toLocaleDateString()}</p>
                 </CardContent>
                 <CardFooter className="flex items-center justify-between mt-auto pb-5">
-                  <Badge variant="secondary" className="bg-sand dark:bg-zinc-800 text-umber dark:text-zinc-300 font-bold hover:bg-sand dark:hover:bg-zinc-800 border-none">{deck.cards?.length || 0} Cards</Badge>
+                  <Badge variant="secondary" className="bg-sand text-umber font-bold hover:bg-sand border-none">{deck.cards?.length || 0} Cards</Badge>
                   <Badge className="bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900/50 font-bold gap-1 border-none"><Play size={12} fill="currentColor" /> Host</Badge>
                 </CardFooter>
               </Card>
@@ -2319,30 +2617,27 @@ function MultiplayerView({ navigateTo, myDecks }) {
 
   if (view === 'lobby') {
     return (
-      <div className="max-w-3xl mx-auto pb-12 p-4 md:p-8 text-center mt-10">
+      <div className="max-w-3xl mx-auto animate-in fade-in duration-300 pb-12 text-center mt-10">
         <h2 className="text-xl font-bold text-taupe dark:text-zinc-500 uppercase tracking-widest mb-4">Waiting for players...</h2>
-        <Card className="p-10 shadow-sm mb-10 bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 rounded-3xl relative">
+        <Card className="p-10 shadow-sm mb-10 bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 rounded-3xl">
           <p className="text-sm font-bold text-taupe dark:text-zinc-500 uppercase tracking-widest mb-2">Join at CramZero with Pin:</p>
-          <div className="flex items-center justify-center gap-4">
-             <p className="text-6xl md:text-7xl font-mono font-black text-umber dark:text-zinc-100 tracking-[0.2em]">{lobbyPin}</p>
-             <button onClick={() => { navigator.clipboard.writeText(lobbyPin); toast.success("PIN Copied!"); }} className="p-3 bg-greige/30 dark:bg-zinc-800 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 rounded-xl transition-colors"><Copy size={24}/></button>
-          </div>
+          <p className="text-6xl md:text-7xl font-mono font-black text-umber dark:text-zinc-100 tracking-[0.2em]">{lobbyPin}</p>
         </Card>
         
         <div className="flex flex-wrap justify-center gap-4 mb-12">
           {players.map((p, i) => (
             <div key={i} className="flex flex-col items-center gap-2 animate-in zoom-in duration-300">
-              <div className="w-16 h-16 rounded-full bg-sand dark:bg-zinc-800 border-2 border-umber dark:border-zinc-500 text-umber dark:text-zinc-100 flex items-center justify-center font-bold text-xl uppercase shadow-sm">
+              <div className="w-16 h-16 rounded-full bg-sand border-2 border-umber text-umber flex items-center justify-center font-bold text-xl uppercase shadow-sm">
                 {p.name.substring(0,2)}
               </div>
-              <p className="text-sm font-bold text-umber dark:text-zinc-300">{p.name}</p>
+              <p className="text-sm font-bold text-umber">{p.name}</p>
             </div>
           ))}
-          {players.length === 1 && <div className="text-taupe dark:text-zinc-500 text-sm mt-5 w-full">Waiting for others to join...</div>}
+          {players.length === 1 && <div className="text-taupe text-sm mt-5 w-full">Waiting for others to join...</div>}
         </div>
 
         {isHost ? (
-          <Button size="lg" onClick={() => { setCountdown(3); transitionTo('countdown'); }} disabled={players.length < 2} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 h-14 px-10 rounded-xl font-bold text-lg shadow-md">
+          <Button size="lg" onClick={startGame} disabled={players.length < 2} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 h-14 px-10 rounded-xl font-bold text-lg shadow-md">
             Start Live Battle
           </Button>
         ) : (
@@ -2454,103 +2749,101 @@ function MultiplayerView({ navigateTo, myDecks }) {
   if (view === 'playing') {
     const currentQ = selectedDeck?.cards[currentQIndex];
     return (
-      <div className="max-w-4xl w-full mx-auto flex flex-col h-[calc(100vh-10rem)] relative">
-        <div className="bg-sand/90 dark:bg-zinc-950/90 backdrop-blur-md pb-4 mb-6 border-b border-taupe/20 dark:border-zinc-800 flex justify-between items-end transition-colors shrink-0 px-2 md:px-0">
-          <div>
-            <p className="text-[10px] font-bold text-taupe dark:text-zinc-500 uppercase tracking-widest mb-1 flex items-center gap-2">
-              <Zap size={12}/> Live Battle • Question {currentQIndex + 1} of {selectedDeck?.cards?.length || 0}
-            </p>
-            <h2 className="text-xl md:text-2xl font-bold text-umber dark:text-zinc-100 truncate max-w-[250px] md:max-w-md">
-              {selectedDeck?.title}
-            </h2>
-          </div>
-          <div className="flex items-center gap-2 md:gap-4">
-            <Badge variant="outline" className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-mono font-bold text-sm md:text-base border-taupe/30 dark:border-zinc-700 ${timeLeft < 6 ? 'text-rose-600 dark:text-rose-400 animate-pulse bg-rose-50 dark:bg-rose-900/30' : 'text-umber dark:text-zinc-100'}`}>
-              <Timer size={16} /> {timeLeft}s
-            </Badge>
-            <Button variant="ghost" size="icon" onClick={() => transitionTo('menu')} className="text-taupe dark:text-zinc-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 -mr-2" title="Quit Match">
-              <X size={20} />
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto pb-6 px-2 md:px-0 grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 flex flex-col">
-            <Card className="rounded-3xl p-6 shadow-md flex flex-col mb-4 bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 min-h-[160px]">
-              <h3 className="text-xl md:text-2xl font-medium text-umber dark:text-zinc-100 leading-relaxed text-center my-auto">
-                What is the definition of "{currentQ?.term}"?
-              </h3>
-            </Card>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {currentQ?.options.map((opt, i) => {
-                const isSelected = selectedAnswer === opt;
-                return (
-                  <button 
-                    key={i} 
-                    disabled={selectedAnswer !== null}
-                    onClick={() => handleUserAnswer(opt)}
-                    className={`w-full p-6 rounded-2xl border-2 text-left font-medium transition-all ${
-                      isSelected 
-                        ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-500 dark:border-amber-600 text-amber-800 dark:text-amber-400 shadow-md scale-[1.02]' 
-                        : selectedAnswer !== null 
-                          ? 'bg-white/50 dark:bg-zinc-950/50 border-taupe/20 dark:border-zinc-800/50 opacity-60 text-umber dark:text-zinc-300'
-                          : 'bg-white dark:bg-zinc-950 border-taupe/30 dark:border-zinc-800 text-umber dark:text-zinc-300 hover:border-umber dark:hover:border-zinc-600 hover:bg-greige/10 dark:hover:bg-zinc-800'
-                    }`}
-                  >
-                    {opt}
-                  </button>
-                )
-              })}
+      <div className="max-w-5xl mx-auto flex flex-col lg:flex-row gap-6 animate-in fade-in duration-300 h-full relative">
+        <div className="flex-[3] flex flex-col">
+          <div className="sticky top-0 z-20 bg-sand/90 dark:bg-zinc-950/90 backdrop-blur-md pt-2 pb-4 mb-6 border-b border-taupe/20 dark:border-zinc-800 flex justify-between items-end transition-colors">
+            <div>
+              <p className="text-[10px] font-bold text-taupe dark:text-zinc-500 uppercase tracking-widest mb-1">
+                Live Battle • Question {currentQIndex + 1} of {selectedDeck?.cards?.length || 0}
+              </p>
+              <h2 className="text-xl md:text-2xl font-bold text-umber dark:text-zinc-100 truncate max-w-[200px] md:max-w-xs">
+                {selectedDeck?.title}
+              </h2>
+            </div>
+            <div className="flex items-center gap-2 md:gap-4">
+              <Badge variant="outline" className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-mono font-bold text-sm md:text-base border-taupe/30 dark:border-zinc-700 ${timeLeft < 6 ? 'text-rose-600 dark:text-rose-400 animate-pulse' : 'text-umber dark:text-zinc-100'}`}>
+                <Timer size={16} /> {timeLeft}s
+              </Badge>
+              <Button variant="ghost" size="icon" onClick={() => setView('menu')} className="text-taupe dark:text-zinc-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 -mr-2" title="Quit Exam">
+                <X size={20} />
+              </Button>
             </div>
           </div>
 
-          <Card className="lg:col-span-1 rounded-3xl p-6 shadow-sm flex flex-col h-[50vh] lg:h-full overflow-hidden bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800">
-            <h3 className="font-bold text-umber dark:text-zinc-100 mb-4 flex items-center gap-2 border-b border-taupe/20 dark:border-zinc-800 pb-4"><Target size={18}/> Status</h3>
-            <div className="flex-1 overflow-y-auto space-y-3">
-              {players.map((p, i) => {
-                const hasAnswered = answeredStatus.has(p.id);
-                return (
-                  <div key={i} className={`flex items-center justify-between p-3 rounded-xl border ${p.isMe ? 'bg-sand dark:bg-amber-950/20 border-amber-300 dark:border-amber-800' : 'bg-greige/10 dark:bg-zinc-950 border-taupe/20 dark:border-zinc-800'}`}>
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-white dark:bg-zinc-800 border border-taupe/20 dark:border-zinc-700 text-umber dark:text-zinc-100 flex items-center justify-center font-bold text-xs uppercase shadow-sm">
-                        {p.name.substring(0,2)}
-                      </div>
-                      <span className={`font-bold text-sm ${p.isMe ? 'text-amber-800 dark:text-amber-500' : 'text-umber dark:text-zinc-300'}`}>{p.name}</span>
-                    </div>
-                    {hasAnswered ? <CheckCircle size={18} className="text-emerald-500" /> : <RotateCw size={14} className="text-taupe dark:text-zinc-500 animate-spin" />}
-                  </div>
-                )
-              })}
-            </div>
+          <Card className="flex-1 rounded-3xl p-6 shadow-md flex flex-col mb-4 bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800">
+            <h3 className="text-2xl font-medium text-umber dark:text-zinc-100 leading-relaxed text-center my-auto">
+              What is the definition of "{selectedDeck?.cards[currentQIndex]?.term}"?
+            </h3>
           </Card>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[
+              selectedDeck?.cards[currentQIndex]?.definition,
+              "A generic distractor option generated by the AI.",
+              "Another plausible but incorrect definition.",
+              "A completely wrong answer to test your active recall."
+            ].map((opt, i) => (
+              <button 
+                key={i} 
+                disabled={selectedAnswer !== null}
+                onClick={() => handleAnswerSelect(i)}
+                className={`p-6 rounded-2xl border-2 text-left font-medium transition-all ${
+                  selectedAnswer === i 
+                    ? i === 0 ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 dark:border-emerald-600 text-emerald-800 dark:text-emerald-400 shadow-md' : 'bg-rose-50 dark:bg-rose-950/40 border-rose-500 dark:border-rose-600 text-rose-800 dark:text-rose-400 shadow-md'
+                    : selectedAnswer !== null && i === 0 
+                      ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 dark:border-emerald-600 text-emerald-800 dark:text-emerald-400 shadow-md'
+                      : 'bg-white dark:bg-zinc-950 border-taupe/30 dark:border-zinc-800 text-umber dark:text-zinc-300 hover:border-umber dark:hover:border-zinc-600 disabled:opacity-50'
+                }`}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
         </div>
+
+        <Card className="flex-1 rounded-3xl p-6 shadow-sm flex flex-col h-[50vh] lg:h-[80vh] overflow-hidden bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 sticky top-24">
+          <h3 className="font-bold text-umber dark:text-zinc-100 mb-4 flex items-center gap-2 border-b border-taupe/20 dark:border-zinc-800 pb-4"><Target size={18}/> Live Leaderboard</h3>
+          <div className="flex-1 overflow-y-auto space-y-3">
+            {players.map((p, i) => (
+              <div key={i} className={`flex items-center justify-between p-3 rounded-xl border ${p.isMe ? 'bg-sand dark:bg-amber-950/20 border-amber-300 dark:border-amber-800' : 'bg-greige/10 dark:bg-zinc-950 border-taupe/20 dark:border-zinc-800'}`}>
+                <div className="flex items-center gap-3">
+                  <span className="font-bold text-taupe dark:text-zinc-500 w-4">{i + 1}</span>
+                  <div className="w-8 h-8 rounded-full bg-white dark:bg-zinc-800 border border-taupe/20 dark:border-zinc-700 text-umber dark:text-zinc-100 flex items-center justify-center font-bold text-xs uppercase shadow-sm">
+                    {p.name.substring(0,2)}
+                  </div>
+                  <span className={`font-bold text-sm ${p.isMe ? 'text-amber-800 dark:text-amber-500' : 'text-umber dark:text-zinc-300'}`}>{p.name}</span>
+                </div>
+                <span className="font-mono font-bold text-umber dark:text-zinc-100">{p.score}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
       </div>
     );
   }
 
   if (view === 'results') {
     return (
-      <Card className="max-w-2xl mx-auto animate-in zoom-in duration-300 text-center mt-10 rounded-3xl p-10 shadow-xl border-taupe/30 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+      <Card className="max-w-2xl mx-auto animate-in zoom-in duration-300 text-center mt-10 rounded-xl p-10 shadow-sm border-line bg-paper">
         <div className="w-24 h-24 bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
           <Award size={48} />
         </div>
-        <h2 className="text-4xl font-black text-umber dark:text-zinc-100 mb-2">Battle Complete!</h2>
-        <p className="text-taupe dark:text-zinc-400 mb-10 text-lg">Here are the final standings.</p>
+        <h2 className="text-4xl font-semibold text-umber mb-2">Battle Complete!</h2>
+        <p className="text-taupe mb-10 text-lg">Here are the final standings.</p>
         
         <div className="space-y-4 mb-10">
           {players.map((p, i) => (
-            <div key={i} className={`flex items-center justify-between p-5 rounded-2xl border ${i === 0 ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-400 dark:border-amber-600 scale-105 shadow-md' : p.isMe ? 'bg-sand dark:bg-zinc-800/80 border-amber-200 dark:border-amber-800/50' : 'bg-greige/10 dark:bg-zinc-950 border-taupe/20 dark:border-zinc-800'}`}>
+            <div key={i} className={`flex items-center justify-between p-5 rounded-2xl border ${i === 0 ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-400 dark:border-amber-600 scale-105 shadow-md' : p.isMe ? 'bg-sand  border-amber-200 dark:border-amber-800/50' : 'bg-greige/40 border-line'}`}>
               <div className="flex items-center gap-4">
-                <span className={`font-black text-xl w-6 ${i === 0 ? 'text-amber-600 dark:text-amber-500' : 'text-taupe dark:text-zinc-600'}`}>{i + 1}</span>
-                <span className={`font-bold text-lg ${p.isMe ? 'text-amber-800 dark:text-amber-400' : 'text-umber dark:text-zinc-300'}`}>{p.name} {p.isMe && '(You)'}</span>
+                <span className={`font-semibold text-xl w-6 ${i === 0 ? 'text-amber-600 dark:text-amber-500' : 'text-taupe'}`}>{i + 1}</span>
+                <span className={`font-bold text-lg ${p.isMe ? 'text-amber-800 dark:text-amber-400' : 'text-umber'}`}>{p.name} {p.isMe && '(You)'}</span>
               </div>
-              <span className="font-mono font-bold text-xl text-umber dark:text-zinc-100">{p.score}</span>
+              <span className="font-mono font-bold text-xl text-umber">{p.score}</span>
             </div>
           ))}
         </div>
 
-        <Button size="lg" onClick={() => transitionTo('menu')} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 h-14 rounded-xl font-bold w-full shadow-md">
+        <Button size="lg" onClick={() => setView('menu')} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 h-14 rounded-xl font-bold w-full shadow-md">
           Back to Multiplayer Menu
         </Button>
       </Card>
@@ -2558,7 +2851,7 @@ function MultiplayerView({ navigateTo, myDecks }) {
   }
 
   return (
-    <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 items-center pb-12 p-4 md:p-8 animate-in fade-in duration-300">
+    <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 animate-in fade-in duration-300 items-center pb-12">
       <Card className="p-6 md:p-8 rounded-2xl shadow-sm text-center bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800">
         <div className="w-16 h-16 bg-greige/30 dark:bg-zinc-800 text-umber dark:text-zinc-300 rounded-full flex items-center justify-center mx-auto mb-6"><Users size={32}/></div>
         <h2 className="text-xl md:text-2xl font-bold text-umber dark:text-zinc-100 mb-2">Join a Lobby</h2>
@@ -2568,9 +2861,9 @@ function MultiplayerView({ navigateTo, myDecks }) {
           placeholder="e.g. 123456" 
           value={pinInput}
           onChange={(e) => setPinInput(e.target.value)}
-          className="w-full text-center text-xl md:text-2xl tracking-[0.5em] font-mono h-16 bg-sand/30 dark:bg-zinc-950 border-taupe/40 dark:border-zinc-800 focus-visible:ring-umber dark:focus-visible:ring-zinc-600 rounded-xl mb-4 text-umber dark:text-zinc-100" 
+          className="w-full text-center text-xl md:text-2xl tracking-[0.5em] font-mono h-16 bg-sand border-line focus-visible:ring-accent rounded-xl mb-4 text-umber" 
         />
-        <Button size="lg" onClick={handleJoin} className="w-full bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 h-12 rounded-xl font-medium">
+        <Button size="lg" onClick={handleJoin} className="w-full bg-umber text-sand hover:opacity-90 h-12 rounded-xl font-medium">
           Join Session
         </Button>
       </Card>
@@ -2578,7 +2871,7 @@ function MultiplayerView({ navigateTo, myDecks }) {
       <Card className="bg-sand/40 dark:bg-zinc-900/40 p-6 md:p-8 rounded-2xl shadow-sm text-center h-full flex flex-col justify-center border-taupe/30 dark:border-zinc-800">
         <h2 className="text-xl md:text-2xl font-bold text-umber dark:text-zinc-100 mb-2">Host a Lobby</h2>
         <p className="text-taupe dark:text-zinc-400 text-xs md:text-sm mb-6">Select one of your existing decks and challenge your friends in real-time.</p>
-        <Button variant="outline" size="lg" onClick={() => transitionTo('select-deck')} className="w-full h-12 rounded-xl font-medium border-2 border-umber dark:border-zinc-500 text-umber dark:text-zinc-300 hover:bg-umber/5 dark:hover:bg-zinc-800 hover:text-umber dark:hover:text-zinc-100 bg-transparent">
+        <Button variant="outline" size="lg" onClick={() => setView('select-deck')} className="w-full h-12 rounded-xl font-medium border-2 border-umber dark:border-zinc-500 text-umber dark:text-zinc-300 hover:bg-umber/5 dark:hover:bg-zinc-800 hover:text-umber dark:hover:text-zinc-100 bg-transparent">
           Select Deck to Host
         </Button>
       </Card>
