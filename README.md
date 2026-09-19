@@ -73,3 +73,4 @@ uvicorn main:app --reload
 
 ---
 *Designed and developed to push the boundaries of accessible ed-tech.*
+*@CramZero 2026*
