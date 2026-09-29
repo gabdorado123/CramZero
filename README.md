@@ -88,3 +88,4 @@ Run `npm run dev` on the host computer, find its local IPv4 address with `ipconf
 
 ---
 *Designed and developed to push the boundaries of accessible ed-tech.*
+*@CramZero 2026*
