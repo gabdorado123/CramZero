@@ -63,6 +63,21 @@ pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
+### 3. Multiplayer Realtime Server
+
+The normal development command starts both Vite and the multiplayer server:
+
+```bash
+npm run dev
+```
+
+To run them separately, use `npm run dev:frontend` and `npm run multiplayer`.
+
+The multiplayer server listens on `ws://localhost:8787`. To use another host or port, set `VITE_MULTIPLAYER_WS_URL` for the frontend and `MULTIPLAYER_PORT` for the server.
+
+### LAN Testing
+
+Run `npm run dev` on the host computer, find its local IPv4 address with `ipconfig`, then open `http://YOUR-LAN-IP:5173` on another device connected to the same network. Allow Node.js through the Windows Firewall when prompted. Multiplayer WebSocket traffic uses port `8787`; the frontend uses port `5173`.
 ## 📁 Architecture Flow
 1. **Upload:** User drops a PDF into the React UI; a unique Deck UUID is generated.
 2. **Store & Parse:** The file is sent to FastAPI, temporarily saved in Supabase Storage, and parsed for text.
