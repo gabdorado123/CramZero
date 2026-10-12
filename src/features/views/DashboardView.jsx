@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { flushSync } from 'react-dom';
 import {
   BookOpen, Clock, FileText, Send, ChevronLeft, ChevronRight, RotateCw, Menu, X,
@@ -22,14 +22,18 @@ import { Bubble, BubbleContent, BubbleGroup, BubbleReactions } from '@/component
 import { Marker, MarkerContent } from '@/components/ui/marker';
 import { Message, MessageAvatar, MessageContent, MessageFooter } from '@/components/ui/message';
 import ReactMarkdown from 'react-markdown';
+import { getAnalyticsEvents, subscribeToAnalytics } from '@/lib/analytics';
 
 export function DashboardView({ navigateTo, setHasActiveDeck, myDecks }) {
+  const [events, setEvents] = useState(() => getAnalyticsEvents());
   const handleStartStudying = () => { setHasActiveDeck(true); navigateTo('study'); };
+
+  useEffect(() => subscribeToAnalytics(setEvents), []);
   
   if (myDecks.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-[70vh] max-w-6xl mx-auto">
-        <Card className="max-w-lg w-full p-12 text-center border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-transparent">
+      <div className="flex h-[70vh] max-w-6xl flex-col items-center justify-center p-4 md:p-8">
+        <Card data-tour="dashboard-welcome" className="max-w-lg w-full p-12 text-center border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-transparent">
           <div className="w-20 h-20 bg-greige/30 dark:bg-zinc-900 text-umber dark:text-zinc-100 rounded-full flex items-center justify-center mx-auto mb-6"><Inbox size={40} /></div>
           <CardTitle className="text-2xl mb-2 text-umber dark:text-zinc-100">Welcome to CramZero!</CardTitle>
           <CardDescription className="text-base mb-8 text-taupe dark:text-zinc-400">Your workspace is currently empty. Create your first deck to unlock insights and begin studying.</CardDescription>
@@ -41,9 +45,22 @@ export function DashboardView({ navigateTo, setHasActiveDeck, myDecks }) {
     );
   }
 
+  const reviewEvents = events.filter(event => event.type === 'flashcard_rating' || event.type === 'quiz_answer');
+  const masteryScores = reviewEvents.map(event => {
+    if (event.type === 'quiz_answer') return event.correct ? 100 : 0;
+    return { hard: 33, good: 67, easy: 100 }[event.rating] || 0;
+  });
+  const globalMastery = masteryScores.length
+    ? Math.round(masteryScores.reduce((total, score) => total + score, 0) / masteryScores.length)
+    : 0;
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const activeDays = new Set(reviewEvents.filter(event => event.recordedAt?.startsWith(currentMonth)).map(event => event.recordedAt.slice(0, 10))).size;
+  const cardsConquered = events.filter(event => (event.type === 'flashcard_rating' && event.rating === 'easy') || (event.type === 'quiz_answer' && event.correct)).length;
+  const aiInteractions = events.filter(event => event.type === 'ai_question').length;
+
   return (
-    <div className="space-y-8 pb-12 max-w-6xl mx-auto">
-      <Card className="bg-sand/40 dark:bg-zinc-900/40 border-taupe/30 dark:border-zinc-800 shadow-sm">
+    <div className="mx-auto max-w-6xl space-y-8 p-4 pb-12 md:p-8">
+      <Card data-tour="dashboard-welcome" className="bg-sand/40 dark:bg-zinc-900/40 border-taupe/30 dark:border-zinc-800 shadow-sm">
         <CardContent className="p-6 md:p-8 flex flex-col md:flex-row justify-between items-center gap-6">
           <div>
             <h2 className="text-2xl md:text-3xl font-bold text-umber dark:text-zinc-100 mb-2">Welcome back!</h2>
@@ -57,10 +74,10 @@ export function DashboardView({ navigateTo, setHasActiveDeck, myDecks }) {
       
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {[
-          { title: 'Global Mastery', icon: Brain, val: '0%', sub: 'Avg. confidence rating', color: 'text-emerald-600 dark:text-emerald-500' },
-          { title: 'Study Momentum', icon: Zap, val: '0', sub: 'Active days this month', color: 'text-amber-600 dark:text-amber-500' },
-          { title: 'Cards Conquered', icon: Target, val: '0', sub: 'Total successful flips', color: 'text-umber dark:text-zinc-100' },
-          { title: 'AI Interactions', icon: MessageSquare, val: '0', sub: 'Questions answered by Tutor', color: 'text-blue-600 dark:text-blue-400' },
+          { title: 'Global Mastery', icon: Brain, val: `${globalMastery}%`, sub: 'Avg. confidence rating', color: 'text-emerald-600 dark:text-emerald-500' },
+          { title: 'Study Momentum', icon: Zap, val: `${activeDays}`, sub: 'Active days this month', color: 'text-amber-600 dark:text-amber-500' },
+          { title: 'Cards Conquered', icon: Target, val: `${cardsConquered}`, sub: 'Successful reviews', color: 'text-umber dark:text-zinc-100' },
+          { title: 'AI Interactions', icon: MessageSquare, val: `${aiInteractions}`, sub: 'Questions asked to Zero', color: 'text-blue-600 dark:text-blue-400' },
         ].map((stat, i) => (
           <Card key={i} className="hover:-translate-y-1 transition-transform cursor-default shadow-sm border-taupe/20 dark:border-zinc-800 bg-white dark:bg-zinc-900">
             <CardContent className="p-5 flex flex-col justify-between h-full">

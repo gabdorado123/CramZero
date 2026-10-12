@@ -43,27 +43,26 @@ cd CramZero
 
 ### 2. Frontend Setup (React)
 ```bash
-cd frontend
+# Run from the repository root
 npm install
-# Create a .env file with VITE_API_URL and Supabase public keys
+# Create a .env file with VITE_API_URL, Supabase public keys, and your ElevenLabs key:
+# VITE_ELEVENLABS_API_KEY=your_elevenlabs_api_key
 npm run dev
 ```
 
 ### 3. Backend Setup (FastAPI)
 ```bash
-cd backend
-python -m venv venv
+cd cramzero-backend
+# Windows:
+venv\Scripts\activate
 # Mac/Linux:
 source venv/bin/activate
-# Windows:
-# venv\Scripts\activate
 
-pip install -r requirements.txt
 # Create a .env file with your GEMINI_API_KEY and Supabase service role keys
 uvicorn main:app --reload
 ```
 
-### 3. Multiplayer Realtime Server
+### 4. Multiplayer Realtime Server
 
 The normal development command starts both Vite and the multiplayer server:
 

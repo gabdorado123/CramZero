@@ -23,34 +23,92 @@ import { Marker, MarkerContent } from '@/components/ui/marker';
 import { Message, MessageAvatar, MessageContent, MessageFooter } from '@/components/ui/message';
 import ReactMarkdown from 'react-markdown';
 
-export function CreateHubView({ navigateTo, myHubs, setMyHubs, setIsActionLoading, setActionMessage }) {
+export function CreateHubView({ navigateTo, myHubs, setMyHubs, myDecks, setMyDecks, userId, displayName, setIsActionLoading, setActionMessage }) {
   const [selectedDeckOption, setSelectedDeckOption] = useState(null);
+  const [generationMode, setGenerationMode] = useState('file');
+  const [selectedDeckId, setSelectedDeckId] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [aiTopic, setAiTopic] = useState('');
   const [hubName, setHubName] = useState('');
   const [hubDesc, setHubDesc] = useState('');
+  const [allowMemberUploads, setAllowMemberUploads] = useState(true);
+  const fileInputRef = useRef(null);
 
-  const handleCreate = () => {
-    if(!hubName.trim()) return;
+  const handleCreate = async () => {
+    if (!hubName.trim()) return;
+
+    const selectedDeck = selectedDeckOption === 'existing'
+      ? myDecks.find(deck => String(deck.id) === selectedDeckId)
+      : null;
+
+    if (selectedDeckOption === 'existing' && !selectedDeck) {
+      toast.error('Choose an existing deck', { description: 'Select a deck before creating the hub.' });
+      return;
+    }
+    if (selectedDeckOption === 'generate' && generationMode === 'file' && !selectedFile) {
+      toast.error('Choose a file', { description: 'Select a PDF, PPTX, or TXT file before creating the hub.' });
+      return;
+    }
+    if (selectedDeckOption === 'generate' && generationMode === 'prompt' && !aiTopic.trim()) {
+      toast.error('Enter a study topic', { description: 'Tell Zero AI what the first shared deck should cover.' });
+      return;
+    }
     
     setIsActionLoading(true);
-    setActionMessage('Setting up your collaborative space...');
-    
-    setTimeout(() => {
-      const newHub = {
-        id: `hub-${Date.now()}`,
-        name: hubName,
-        description: hubDesc || 'No description provided.',
-        role: 'Admin',
-        members: 1,
-        decks: 0,
-        inviteCode: Math.floor(100000 + Math.random() * 900000).toString()
-      };
-      setMyHubs([newHub, ...myHubs]);
+    setActionMessage(selectedDeckOption === 'generate' ? 'Generating and attaching your first deck...' : 'Setting up your collaborative space...');
+
+    try {
+      let initialSharedDeck = selectedDeck;
+      if (selectedDeckOption === 'generate') {
+        let generatedResponse;
+        if (generationMode === 'file') {
+          const formData = new FormData();
+          formData.append('file', selectedFile);
+          formData.append('card_count', '10');
+          generatedResponse = await fetch('http://127.0.0.1:8000/api/generate-deck-from-file/', { method: 'POST', body: formData });
+        } else {
+          generatedResponse = await fetch('http://127.0.0.1:8000/api/generate-deck/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ topic: aiTopic.trim(), card_count: 10 }),
+          });
+        }
+        if (!generatedResponse.ok) throw new Error(generationMode === 'file' ? 'The file could not be processed.' : 'The study topic could not be generated.');
+        const generatedDeck = await generatedResponse.json();
+        const savedResponse = await fetch('http://127.0.0.1:8000/api/decks/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(generatedDeck),
+        });
+        if (!savedResponse.ok) throw new Error('The generated deck could not be saved.');
+        initialSharedDeck = await savedResponse.json();
+        setMyDecks(currentDecks => [initialSharedDeck, ...currentDecks]);
+      }
+
+      const hubResponse = await fetch('http://127.0.0.1:8000/api/study-hubs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: hubName.trim(),
+          description: hubDesc.trim() || 'No description provided.',
+          owner_id: userId,
+          owner_name: displayName,
+          allow_member_uploads: allowMemberUploads,
+          initial_deck_id: initialSharedDeck?.id || null,
+        }),
+      });
+      const newHub = await hubResponse.json();
+      if (!hubResponse.ok) throw new Error(newHub.detail || 'The hub could not be saved.');
+      setMyHubs(currentHubs => [newHub, ...currentHubs]);
       setIsActionLoading(false);
       toast.success("Study Hub created!", {
         description: `${hubName} is now ready for collaboration.`
       });
       navigateTo('hubs');
-    }, 1200);
+    } catch (error) {
+      setIsActionLoading(false);
+      toast.error('Could not create hub', { description: error.message });
+    }
   };
 
   return (
@@ -75,7 +133,7 @@ export function CreateHubView({ navigateTo, myHubs, setMyHubs, setIsActionLoadin
           <div className="bg-greige/10 dark:bg-zinc-950 p-5 rounded-xl border border-taupe/20 dark:border-zinc-800 space-y-4 mt-6">
             <h4 className="font-bold text-sm text-umber dark:text-zinc-100">Hub Permissions</h4>
             <label className="flex items-start gap-3 cursor-pointer">
-              <input type="checkbox" defaultChecked className="mt-1" />
+              <input type="checkbox" checked={allowMemberUploads} onChange={(event) => setAllowMemberUploads(event.target.checked)} className="mt-1" />
               <div><p className="text-sm font-bold text-umber dark:text-zinc-100">Allow members to upload decks</p><p className="text-xs text-taupe dark:text-zinc-500 mt-0.5">If unchecked, only Admins can add new material.</p></div>
             </label>
           </div>
@@ -89,6 +147,32 @@ export function CreateHubView({ navigateTo, myHubs, setMyHubs, setIsActionLoadin
                 <div className="flex items-center gap-2 text-amber-700 dark:text-amber-500 font-bold"><UploadCloud size={18} /> Generate via File</div><span className="text-xs text-taupe dark:text-zinc-500">Upload .PDF, .PPTX, or .TXT to build</span>
               </button>
             </div>
+            {selectedDeckOption === 'existing' && (
+              <div className="mt-4 rounded-xl border border-taupe/20 bg-sand/20 p-4 dark:border-zinc-800 dark:bg-zinc-950">
+                <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-taupe dark:text-zinc-500">Choose a deck</label>
+                <select value={selectedDeckId} onChange={(event) => setSelectedDeckId(event.target.value)} className="h-11 w-full rounded-lg border border-taupe/30 bg-white px-3 text-sm text-umber dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100">
+                  <option value="">Select from your library...</option>
+                  {myDecks.map(deck => <option key={deck.id} value={deck.id}>{deck.title} ({deck.cards?.length || 0} cards)</option>)}
+                </select>
+              </div>
+            )}
+            {selectedDeckOption === 'generate' && (
+              <div className="mt-4 rounded-xl border border-amber-600/20 bg-amber-50/50 p-4 dark:border-amber-900/50 dark:bg-amber-950/20">
+                <div className="mb-4 flex rounded-lg border border-amber-600/20 bg-white/60 p-1 dark:border-amber-900/50 dark:bg-zinc-950/50">
+                  <button type="button" onClick={() => setGenerationMode('file')} className={`flex-1 rounded-md px-3 py-2 text-xs font-bold transition-colors ${generationMode === 'file' ? 'bg-amber-600 text-white' : 'text-amber-800 dark:text-amber-400'}`}><UploadCloud size={14} className="mr-1 inline" /> Upload file</button>
+                  <button type="button" onClick={() => setGenerationMode('prompt')} className={`flex-1 rounded-md px-3 py-2 text-xs font-bold transition-colors ${generationMode === 'prompt' ? 'bg-amber-600 text-white' : 'text-amber-800 dark:text-amber-400'}`}><Sparkles size={14} className="mr-1 inline" /> Use a prompt</button>
+                </div>
+                {generationMode === 'file' ? (
+                  <>
+                    <input ref={fileInputRef} type="file" accept=".pdf,.pptx,.txt" onChange={(event) => setSelectedFile(event.target.files?.[0] || null)} className="hidden" />
+                    <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className="h-11 rounded-lg border-amber-600/40 text-amber-800 dark:border-amber-700 dark:text-amber-400">{selectedFile ? 'Choose another file' : 'Choose file'}</Button>
+                    <p className="mt-2 truncate text-xs text-amber-800/70 dark:text-amber-400/70">{selectedFile?.name || 'No file selected yet.'}</p>
+                  </>
+                ) : (
+                  <Input value={aiTopic} onChange={(event) => setAiTopic(event.target.value)} placeholder="e.g. Windows command line basics" className="h-11 rounded-lg border-amber-600/30 bg-white text-sm text-umber dark:border-amber-900 dark:bg-zinc-950 dark:text-zinc-100" />
+                )}
+              </div>
+            )}
           </div>
           <div className="pt-6 border-t border-taupe/20 dark:border-zinc-800 flex justify-end gap-3">
             <Button variant="ghost" type="button" onClick={() => navigateTo('hubs')} className="px-6 h-12 rounded-xl font-bold text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 hover:bg-greige/20 dark:hover:bg-zinc-800">Cancel</Button>

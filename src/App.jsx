@@ -43,6 +43,9 @@ import { QuizSetupView } from '@/features/views/QuizSetupView';
 import { MockExamSetupView } from '@/features/views/MockExamSetupView';
 import { MockExamActiveView } from '@/features/views/MockExamActiveView';
 import { MultiplayerView } from '@/features/views/MultiplayerView';
+import { OnboardingTour } from '@/components/OnboardingTour';
+import { speakWithElevenLabs } from '@/lib/elevenlabs';
+import { recordAnalyticsEvent } from '@/lib/analytics';
 
 // --- MOCK DATA FOR HUBS AND COMMUNITY ---
 const communityDatabase = [
@@ -61,6 +64,9 @@ export default function App() {
     if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('room')) {
       return 'multiplayer';
     }
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('hub')) {
+      return 'hubs';
+    }
     return 'landing';
   });
   
@@ -68,9 +74,17 @@ export default function App() {
   const [isBooting, setIsBooting] = useState(true); 
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState('');
+  const [userId] = useState(() => {
+    const savedId = localStorage.getItem('cramzero-user-id');
+    if (savedId) return savedId;
+    const nextId = crypto.randomUUID ? crypto.randomUUID() : `student-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem('cramzero-user-id', nextId);
+    return nextId;
+  });
+  const [displayName] = useState(() => localStorage.getItem('cramzero-display-name') || 'Student');
   
   const [myDecks, setMyDecks] = useState([]);
-  const [myHubs, setMyHubs] = useState(mockHubs);
+  const [myHubs, setMyHubs] = useState([]);
   const [activeDeck, setActiveDeck] = useState(null);
   const [activeHub, setActiveHub] = useState(null);
   const [hasActiveDeck, setHasActiveDeck] = useState(false);
@@ -118,6 +132,7 @@ export default function App() {
     setChatMessages(prev => [...prev, userMsg]);
     setChatInput('');
     setIsChatLoading(true);
+    recordAnalyticsEvent({ type: 'ai_question', deckTitle: activeDeck?.title || 'General tutor' });
     
     const contextStr = activeDeck && activeDeck.cards && activeDeck.cards.length > 0 
       ? activeDeck.cards.map((c, i) => `Card ${i + 1} -> Term: "${c.term}" | Definition: "${c.definition}"`).join('\n') 
@@ -144,19 +159,55 @@ export default function App() {
   };
   
   useEffect(() => {
-    fetch('http://127.0.0.1:8000/api/decks/')
-      .then(res => res.json())
-      .then(data => {
-        setMyDecks(data.reverse());
-        setTimeout(() => setIsBooting(false), 800);
-      })
+    const hubCode = new URLSearchParams(window.location.search).get('hub');
+    const loadWorkspace = async () => {
+      const [decksResponse, hubsResponse] = await Promise.all([
+        fetch('http://127.0.0.1:8000/api/decks/'),
+        hubCode
+          ? fetch('http://127.0.0.1:8000/api/study-hubs/join', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ invite_code: hubCode, user_id: userId, display_name: displayName }),
+            })
+          : fetch(`http://127.0.0.1:8000/api/study-hubs?user_id=${encodeURIComponent(userId)}`),
+      ]);
+      const decks = await decksResponse.json();
+      const hubData = await hubsResponse.json();
+      if (!decksResponse.ok) throw new Error('Could not load decks.');
+      if (!hubsResponse.ok) throw new Error(hubData.detail || 'Could not load study hubs.');
+      setMyDecks(decks.reverse());
+      const hubs = hubCode ? [hubData] : hubData;
+      setMyHubs(hubs);
+      if (hubCode) {
+        setActiveHub(hubData);
+        setCurrentView('hub-details');
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+      setTimeout(() => setIsBooting(false), 800);
+    };
+
+    loadWorkspace()
       .catch(err => {
         console.error("Backend offline or error:", err);
         setTimeout(() => setIsBooting(false), 800);
       });
-  }, []);
+  }, [userId, displayName]);
 
-  const handleSpeak = (text) => {
+  const handleSpeak = async (text) => {
+    try {
+      if (await speakWithElevenLabs(text)) return;
+    } catch (error) {
+      console.error('ElevenLabs text-to-speech failed:', error);
+      if (error.message.includes('VITE_ELEVENLABS_API_KEY')) {
+        toast.error('Add VITE_ELEVENLABS_API_KEY to .env and restart the dev server.');
+      } else if (error.message.includes('402')) {
+        toast.error('ElevenLabs has no remaining credits for this account.');
+      } else {
+        toast.error('ElevenLabs could not generate audio. Check the browser console.');
+      }
+      return;
+    }
+
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
@@ -201,8 +252,8 @@ export default function App() {
           <div className="fixed inset-0 z-[100] bg-sand dark:bg-zinc-950 flex flex-col items-center justify-center animate-in fade-in duration-200">
             <div className="relative mb-6">
               <div className="absolute inset-0 bg-amber-200 dark:bg-amber-900 blur-xl rounded-full animate-pulse"></div>
-              <div className="w-20 h-20 bg-white dark:bg-zinc-900 border border-taupe/20 dark:border-zinc-800 rounded-3xl shadow-xl flex items-center justify-center relative z-10 animate-bounce">
-                <BookOpen size={40} className="text-umber dark:text-zinc-100" />
+              <div className="w-20 h-20 bg-white dark:bg-zinc-900 border border-taupe/20 dark:border-zinc-800 rounded-3xl shadow-xl flex items-center justify-center relative z-10 animate-bounce p-3">
+                <img src="/cramzero-logo.svg" alt="CramZero" className="w-full h-full" />
               </div>
               <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center shadow-lg z-20">
                 <RotateCw size={16} className="text-white animate-spin" />
@@ -224,26 +275,25 @@ export default function App() {
         theme={isDarkMode ? 'dark' : 'light'}
         toastOptions={{
           classNames: {
-            toast: "group flex w-full items-start gap-4 rounded-3xl border border-taupe/30 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6 shadow-2xl max-w-md mx-auto animate-in slide-in-from-top-4",
-            title: "text-lg font-black text-umber dark:text-zinc-100",
-            description: "text-sm font-medium text-taupe dark:text-zinc-400 mt-1 leading-relaxed",
-            icon: "mt-0.5 w-6 h-6 group-data-[type=error]:text-rose-500 group-data-[type=success]:text-emerald-500 group-data-[type=info]:text-amber-500",
+            toast: "group flex w-full items-start gap-3 rounded-xl border border-taupe/25 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4 shadow-lg max-w-sm mx-auto animate-in slide-in-from-top-4",
+            title: "text-sm font-bold text-umber dark:text-zinc-100",
+            description: "text-xs font-medium text-taupe dark:text-zinc-400 mt-1 leading-relaxed",
+            icon: "mt-0.5 w-5 h-5 group-data-[type=error]:text-rose-500 group-data-[type=success]:text-emerald-500 group-data-[type=info]:text-amber-500",
           },
         }}
       />
+      <OnboardingTour currentView={currentView} navigateTo={handleNavigate} />
 
       <main className="flex-1 flex flex-col relative overflow-hidden"> 
-        <header className="px-4 md:px-6 py-3 border-b border-taupe/20 dark:border-zinc-800 bg-white dark:bg-zinc-950 sticky top-0 z-20 transition-colors shrink-0">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-4 md:gap-6 min-w-0">
+        <header className="px-4 md:px-6 py-2.5 border-b border-taupe/20 dark:border-zinc-800 bg-white dark:bg-zinc-950 sticky top-0 z-20 transition-colors shrink-0">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3 md:gap-5">
               <div className="flex items-center gap-2 cursor-pointer group" onClick={() => handleNavigate('landing')}>
-                <div className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-950 p-1.5 rounded-xl group-hover:scale-105 transition-transform">
-                  <BookOpen size={20} fill="currentColor" />
-                </div>
+                <img src="/cramzero-logo.svg" alt="CramZero" className="w-9 h-9 rounded-xl group-hover:scale-105 transition-transform" />
                 <h1 className="text-xl font-bold text-umber dark:text-zinc-100 hidden sm:block tracking-tight">CramZero</h1>
               </div>
               <div className="h-6 w-px bg-taupe/30 dark:bg-zinc-800 hidden sm:block"></div>
-              <h2 className="text-lg md:text-xl font-bold text-umber dark:text-zinc-100 capitalize truncate">
+              <h2 className="max-w-[42vw] truncate text-base font-bold capitalize text-umber dark:text-zinc-100 md:text-lg">
                 {currentView === 'new-deck' ? 'Create New Deck' : currentView.replace('-', ' ')}
               </h2>
             </div>
@@ -256,7 +306,7 @@ export default function App() {
                 <Switch checked={isDarkMode} onCheckedChange={setIsDarkMode} className="data-[state=checked]:bg-indigo-500" />
                 <Moon size={14} className="text-taupe dark:text-indigo-400" />
               </div>
-              <Button variant="ghost" size="sm" onClick={() => handleNavigate('landing')} className="text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 font-bold hidden sm:flex">
+              <Button variant="ghost" size="sm" onClick={() => handleNavigate('landing')} className="hidden font-bold text-taupe hover:text-umber dark:text-zinc-400 dark:hover:text-zinc-100 lg:flex">
                 Exit Workspace
               </Button>
             </div>
@@ -264,20 +314,20 @@ export default function App() {
 
         </header>
 
-        <div key={currentView} className={`flex-1 overflow-y-auto p-4 md:p-8 w-full animate-in fade-in duration-500 ${!showNavDock ? 'pb-0 md:pb-0 p-0 md:p-0' : ''}`}>
+        <div key={currentView} className="flex-1 w-full overflow-y-auto flex flex-col animate-in fade-in duration-500">
           {/* Main Views */}
           {currentView === 'dashboard' && <DashboardView navigateTo={handleNavigate} setHasActiveDeck={setHasActiveDeck} myDecks={myDecks} />}
           {currentView === 'study' && <StudyView navigateTo={handleNavigate} hasActiveDeck={hasActiveDeck} setHasActiveDeck={setHasActiveDeck} setActiveDeck={setActiveDeck} myDecks={myDecks} />}
           {currentView === 'decks' && <DecksView navigateTo={handleNavigate} setActiveDeck={setActiveDeck} myDecks={myDecks} setMyDecks={setMyDecks} />}
-          {currentView === 'hubs' && <StudyHubsView navigateTo={handleNavigate} setActiveHub={setActiveHub} myHubs={myHubs} />}
+          {currentView === 'hubs' && <StudyHubsView navigateTo={handleNavigate} setActiveHub={setActiveHub} myHubs={myHubs} userId={userId} displayName={displayName} />}
           {currentView === 'analytics' && <AnalyticsView myDecks={myDecks} />}
           {currentView === 'new-deck' && <NewDeckView navigateTo={handleNavigate} myDecks={myDecks} setMyDecks={setMyDecks} setIsActionLoading={setIsActionLoading} setActionMessage={setActionMessage} />}
           {currentView === 'multiplayer' && <MultiplayerView navigateTo={handleNavigate} myDecks={myDecks} />}
           {currentView === 'codespace' && <CodeSpaceView navigateTo={handleNavigate} />}
           
           {/* Sub Views */}
-          {currentView === 'create-hub' && <CreateHubView navigateTo={handleNavigate} myHubs={myHubs} setMyHubs={setMyHubs} setIsActionLoading={setIsActionLoading} setActionMessage={setActionMessage} />}
-          {currentView === 'hub-details' && <HubDetailsView navigateTo={handleNavigate} activeHub={activeHub} setActiveDeck={setActiveDeck} />}
+          {currentView === 'create-hub' && <CreateHubView navigateTo={handleNavigate} myHubs={myHubs} setMyHubs={setMyHubs} myDecks={myDecks} setMyDecks={setMyDecks} userId={userId} displayName={displayName} setIsActionLoading={setIsActionLoading} setActionMessage={setActionMessage} />}
+          {currentView === 'hub-details' && <HubDetailsView navigateTo={handleNavigate} activeHub={activeHub} setActiveHub={setActiveHub} setMyHubs={setMyHubs} myDecks={myDecks} setMyDecks={setMyDecks} setActiveDeck={setActiveDeck} userId={userId} />}
           {currentView === 'deck-details' && <DeckDetailsView navigateTo={handleNavigate} activeDeck={activeDeck} setIsTutorOpen={setIsTutorOpen} />}
           {currentView === 'flashcard-mode' && <FlashcardModeView navigateTo={handleNavigate} activeDeck={activeDeck} setIsTutorOpen={setIsTutorOpen} />}
           
@@ -291,17 +341,16 @@ export default function App() {
       {/* Action Overlays for major creations */}
       {(isBooting || isActionLoading) && (
         <div className="fixed inset-0 z-[100] bg-background/60 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in duration-300">
-          <div className="relative mb-8">
-            <div className="absolute inset-0 bg-amber-500/20 blur-2xl rounded-full animate-pulse"></div>
-            <Card className="w-24 h-24 border-taupe/20 dark:border-zinc-800 shadow-2xl flex items-center justify-center relative z-10 animate-bounce bg-background rounded-3xl">
-              <BookOpen size={48} className="text-umber dark:text-zinc-100" />
+          <div className="relative mb-6">
+            <Card className="w-20 h-20 border-taupe/20 dark:border-zinc-800 shadow-lg flex items-center justify-center relative z-10 bg-background rounded-2xl p-4">
+              <img src="/cramzero-logo.svg" alt="CramZero" className="w-full h-full" />
             </Card>
-            <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center shadow-lg z-20">
-              <RotateCw size={20} className="text-white animate-spin" />
+            <div className="absolute -bottom-1.5 -right-1.5 w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center shadow-md z-20">
+              <RotateCw size={16} className="text-white animate-spin" />
             </div>
           </div>
-          <h2 className="text-3xl md:text-4xl font-black text-foreground mb-3 tracking-tight">CramZero is cooking... 🍳</h2>
-          <p className="text-muted-foreground text-base font-medium animate-pulse">{actionMessage || 'Organizing your workspace'}</p>
+          <h2 className="text-xl md:text-2xl font-bold text-foreground mb-2 tracking-tight">Preparing your workspace</h2>
+          <p className="text-muted-foreground text-sm font-medium animate-pulse">{actionMessage || 'Organizing your workspace'}</p>
         </div>
       )}
 
@@ -339,7 +388,7 @@ export default function App() {
                     <MessageAvatar className="shrink-0 mt-auto">
                       <Avatar className="w-8 h-8 md:w-9 md:h-9 shadow-sm border border-taupe/20 dark:border-zinc-700">
                         <AvatarFallback className={`w-full h-full flex items-center justify-center font-bold text-[10px] md:text-xs rounded-full ${msg.role === 'ai' ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-500' : 'bg-umber dark:bg-zinc-200 text-sand dark:text-zinc-900'}`}>
-                          {msg.role === 'user' ? 'ME' : 'AI'}
+                          {msg.role === 'ai' ? <img src="/zero-ai-logo.svg" alt="Zero AI" className="w-full h-full" /> : 'ME'}
                         </AvatarFallback>
                       </Avatar>
                     </MessageAvatar>
@@ -378,9 +427,10 @@ export default function App() {
                 ))}
 
                 {isChatLoading && (
-                  <Marker role="status" className="mt-2">
-                    <MarkerContent className="shimmer text-xs dark:text-zinc-400">
-                      <span className="font-medium text-amber-600 dark:text-amber-500">Zero AI</span> is thinking...
+                  <Marker role="status" className="mt-2 gap-2 px-1">
+                    <MarkerContent className="flex items-center gap-2 text-xs text-taupe dark:text-zinc-400">
+                      <img src="/zero-ai-message-badge.svg" alt="Zero AI message" className="h-9 w-auto shrink-0 opacity-90" />
+                      <span className="shimmer"><span className="font-medium text-amber-600 dark:text-amber-500">Zero AI</span> is thinking...</span>
                     </MarkerContent>
                   </Marker>
                 )}

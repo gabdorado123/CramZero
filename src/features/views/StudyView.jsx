@@ -37,6 +37,9 @@ export function StudyView({ navigateTo, setHasActiveDeck, setActiveDeck, myDecks
     setEnrolledIds(prev => prev.includes(id) ? prev.filter(eId => eId !== id) : [...prev, id]);
   };
 
+  const selectAllDecks = () => setEnrolledIds(myDecks.map(deck => deck.id));
+  const clearAllDecks = () => setEnrolledIds([]);
+
   const startCombinedSession = (mode) => {
     const decksToCombine = activeTab === 'Review' ? myDecks.filter(d => enrolledIds.includes(d.id)) : myDecks;
     const combinedCards = decksToCombine.flatMap(d => d.cards || []);
@@ -71,7 +74,11 @@ export function StudyView({ navigateTo, setHasActiveDeck, setActiveDeck, myDecks
     );
   }
 
-  const dueCount = enrolledIds.length * 12;
+  const enrolledDecks = myDecks.filter(deck => enrolledIds.includes(deck.id));
+  const dueCount = enrolledDecks.reduce((total, deck) => total + (deck.cards?.length || 0), 0);
+  const totalCards = myDecks.reduce((total, deck) => total + (deck.cards?.length || 0), 0);
+  const enrolledCardCount = enrolledDecks.reduce((total, deck) => total + (deck.cards?.length || 0), 0);
+  const enrollmentPercent = totalCards === 0 ? 0 : Math.round((enrolledCardCount / totalCards) * 100);
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8">
@@ -92,32 +99,56 @@ export function StudyView({ navigateTo, setHasActiveDeck, setActiveDeck, myDecks
         {activeTab === 'Review' && (
           <div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <Card className="md:col-span-2 p-6 md:p-8 bg-umber dark:bg-zinc-200 text-sand dark:text-zinc-900 rounded-3xl shadow-xl flex flex-col justify-center border-none">
-                <h3 className="text-3xl md:text-4xl font-black mb-2">{dueCount} Cards Due</h3>
-                <p className="text-sand/80 dark:text-zinc-700 font-medium mb-6">Across {enrolledIds.length} enrolled decks for today's spaced repetition session.</p>
+              <Card data-tour="study-review" className="md:col-span-2 p-6 md:p-8 bg-umber dark:bg-zinc-200 text-sand dark:text-zinc-900 rounded-3xl shadow-xl flex flex-col justify-center border-none">
+                <div className="flex items-start justify-between gap-4 mb-2">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-sand/70 dark:text-zinc-700">Today's review</p>
+                    <h3 className="text-3xl md:text-4xl font-black mt-1">{dueCount} Cards</h3>
+                  </div>
+                  <Badge className="bg-white/15 text-sand border-sand/20 dark:bg-zinc-900/15 dark:text-zinc-900 dark:border-zinc-900/20">{enrolledDecks.length} {enrolledDecks.length === 1 ? 'deck' : 'decks'}</Badge>
+                </div>
+                <p className="text-sand/80 dark:text-zinc-700 font-medium mb-6">Review only the decks you include below. You can change this selection anytime.</p>
                 <Button onClick={() => startCombinedSession('flashcard-mode')} disabled={dueCount === 0} className="w-max bg-white dark:bg-zinc-900 text-umber dark:text-zinc-100 hover:bg-greige/20 dark:hover:bg-zinc-800 font-bold px-8 h-12 rounded-xl shadow-md border-none">
                    Start Daily Review <Play size={16} className="ml-2"/>
                 </Button>
               </Card>
-              <Card className="p-6 rounded-3xl border-taupe/20 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col items-center justify-center text-center shadow-sm">
-                 <div className="w-14 h-14 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-500 rounded-full flex items-center justify-center mb-4"><TrendingUp size={28}/></div>
-                 <h4 className="font-bold text-xl text-umber dark:text-zinc-100">86% Retention</h4>
-                 <p className="text-xs text-taupe dark:text-zinc-500 mt-1">Based on last 7 days</p>
+              <Card className="p-6 rounded-3xl border-taupe/20 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col justify-center shadow-sm">
+                 <div className="flex items-center justify-between mb-4">
+                   <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-500 rounded-2xl flex items-center justify-center"><TrendingUp size={24}/></div>
+                   <span className="text-2xl font-black text-umber dark:text-zinc-100">{enrollmentPercent}%</span>
+                 </div>
+                 <h4 className="font-bold text-lg text-umber dark:text-zinc-100">Library included</h4>
+                 <div className="h-2 bg-greige/20 dark:bg-zinc-800 rounded-full overflow-hidden mt-3"><div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${enrollmentPercent}%` }} /></div>
+                 <p className="text-xs text-taupe dark:text-zinc-500 mt-2">{enrolledCardCount} of {totalCards} cards selected</p>
               </Card>
             </div>
 
-            <p className="text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider mb-4">Spaced Repetition Enrollment</p>
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-4">
+              <div>
+                <p className="text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider">Choose your review set</p>
+                <p className="text-sm text-taupe dark:text-zinc-400 mt-1">Select the decks to include in spaced repetition.</p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={selectAllDecks} disabled={enrolledIds.length === myDecks.length} className="h-9 rounded-lg border-taupe/25 px-3 text-xs font-bold text-umber dark:border-zinc-700 dark:text-zinc-200">Select all</Button>
+                <Button variant="ghost" onClick={clearAllDecks} disabled={enrolledIds.length === 0} className="h-9 rounded-lg px-3 text-xs font-bold text-taupe dark:text-zinc-400">Clear</Button>
+              </div>
+            </div>
             <div className="space-y-3">
                {myDecks.map(deck => {
                  const isEnrolled = enrolledIds.includes(deck.id);
                  return (
-                   <Card key={deck.id} className="shadow-sm border-taupe/30 dark:border-zinc-800 bg-white dark:bg-zinc-900 transition-colors">
-                     <CardContent className="flex justify-between items-center p-4 md:p-5">
-                       <div>
-                         <span className="font-bold text-umber dark:text-zinc-100 block text-sm md:text-base">{deck.title}</span>
-                         <span className="text-xs text-taupe dark:text-zinc-500">{deck.cards?.length || 0} total cards</span>
+                   <Card key={deck.id} className={`shadow-sm bg-white dark:bg-zinc-900 transition-colors ${isEnrolled ? 'border-emerald-500/50 dark:border-emerald-500/50' : 'border-taupe/20 dark:border-zinc-800'}`}>
+                     <CardContent className="flex items-center justify-between gap-4 p-4 md:p-5">
+                       <div className="flex min-w-0 items-center gap-3">
+                         <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${isEnrolled ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-greige/20 text-taupe dark:bg-zinc-800 dark:text-zinc-500'}`}>
+                           {isEnrolled ? <Check size={17} /> : <Layers size={17} />}
+                         </div>
+                         <div className="min-w-0">
+                           <span className="block truncate font-bold text-sm md:text-base text-umber dark:text-zinc-100">{deck.title}</span>
+                           <span className="text-xs text-taupe dark:text-zinc-500">{deck.cards?.length || 0} cards · {isEnrolled ? 'Included in review' : 'Not included'}</span>
+                         </div>
                        </div>
-                       <Switch checked={isEnrolled} onCheckedChange={() => toggleEnrollment(deck.id)} className="data-[state=checked]:bg-emerald-500" />
+                       <Switch aria-label={`${isEnrolled ? 'Remove' : 'Add'} ${deck.title} ${isEnrolled ? 'from' : 'to'} spaced repetition`} checked={isEnrolled} onCheckedChange={() => toggleEnrollment(deck.id)} className="data-[state=checked]:bg-emerald-500" />
                      </CardContent>
                    </Card>
                  );

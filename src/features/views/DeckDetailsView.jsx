@@ -24,6 +24,37 @@ import { Message, MessageAvatar, MessageContent, MessageFooter } from '@/compone
 import ReactMarkdown from 'react-markdown';
 
 export function DeckDetailsView({ navigateTo, activeDeck, setIsTutorOpen }) {
+  const [isGeneratingReadout, setIsGeneratingReadout] = useState(false);
+
+  const handleDownloadReadout = async () => {
+    setIsGeneratingReadout(true);
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/decks/${activeDeck.id}/readout`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.detail || 'The reading guide could not be generated.');
+      }
+
+      const pdfBlob = await response.blob();
+      const downloadUrl = URL.createObjectURL(pdfBlob);
+      const downloadLink = document.createElement('a');
+      downloadLink.href = downloadUrl;
+      downloadLink.download = `${activeDeck.title.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'cramzero'}-reading-guide.pdf`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      downloadLink.remove();
+      URL.revokeObjectURL(downloadUrl);
+      toast.success('Reading guide downloaded', { description: 'Zero AI created a PDF from this deck.' });
+    } catch (error) {
+      toast.error('Could not create reading guide', { description: error.message });
+    } finally {
+      setIsGeneratingReadout(false);
+    }
+  };
+
   if (!activeDeck) {
     return (
        <div className="max-w-5xl mx-auto p-12 text-center">
@@ -58,14 +89,14 @@ export function DeckDetailsView({ navigateTo, activeDeck, setIsTutorOpen }) {
       <Card className="bg-amber-50/50 dark:bg-amber-950/30 border-amber-600/30 dark:border-amber-900 mb-8 shadow-sm rounded-2xl">
         <CardContent className="p-5 md:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex gap-4 items-center">
-            <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/50 rounded-full flex items-center justify-center text-amber-600 dark:text-amber-500 shrink-0"><Sparkles size={24} /></div>
+            <img src="/zero-ai-logo.svg" alt="Zero AI" className="w-12 h-12 rounded-full shrink-0" />
             <div><h3 className="font-bold text-base md:text-lg text-umber dark:text-zinc-100">Zero AI is ready</h3><p className="text-taupe dark:text-zinc-400 text-xs md:text-sm">Need a mnemonic device or a simplified breakdown before you start?</p></div>
           </div>
           <Button onClick={() => setIsTutorOpen(true)} className="bg-white dark:bg-zinc-950 border border-amber-600/50 dark:border-amber-800 text-amber-700 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 font-bold shadow-sm whitespace-nowrap rounded-xl px-4 md:px-5">Open Chat</Button>
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
+      <div className="grid grid-cols-1 gap-6 mb-12 lg:grid-cols-2 xl:grid-cols-4">
         <Card onClick={() => navigateTo('flashcard-mode')} className="bg-white dark:bg-zinc-900 border-taupe/20 dark:border-zinc-800 hover:border-umber/40 dark:hover:border-zinc-600 hover:shadow-md cursor-pointer transition-all group flex flex-col justify-between rounded-2xl shadow-sm">
           <CardContent className="p-6 pb-4">
             <div className="w-10 h-10 bg-greige/30 dark:bg-zinc-800 text-umber dark:text-zinc-300 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><Layers size={20} /></div>
@@ -92,6 +123,20 @@ export function DeckDetailsView({ navigateTo, activeDeck, setIsTutorOpen }) {
             <p className="text-white/80 text-xs leading-relaxed">High-stakes simulation. AI generates complex trick scenarios based on your cards.</p>
           </CardContent>
           <CardFooter className="p-6 pt-0 relative z-10"><span className="text-[10px] font-bold text-white uppercase tracking-widest mt-auto">Start Simulator →</span></CardFooter>
+        </Card>
+
+        <Card className="bg-white dark:bg-zinc-900 border-taupe/20 dark:border-zinc-800 shadow-sm rounded-2xl flex flex-col justify-between">
+          <CardContent className="p-6 pb-4">
+            <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 rounded-lg flex items-center justify-center mb-4"><FileText size={20} /></div>
+            <h3 className="font-bold text-lg text-umber dark:text-zinc-100 mb-2">Reading Material</h3>
+            <p className="text-taupe dark:text-zinc-500 text-xs leading-relaxed">Turn this deck into a structured AI study guide and download it as a PDF.</p>
+          </CardContent>
+          <CardFooter className="p-6 pt-0">
+            <Button onClick={handleDownloadReadout} disabled={isGeneratingReadout} className="w-full rounded-xl bg-umber text-sand hover:bg-umber/90 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300">
+              {isGeneratingReadout ? <RotateCw size={16} className="mr-2 animate-spin" /> : <Download size={16} className="mr-2" />}
+              {isGeneratingReadout ? 'Generating...' : 'Download PDF'}
+            </Button>
+          </CardFooter>
         </Card>
       </div>
 
