@@ -1,0 +1,86 @@
+from pydantic import BaseModel
+from typing import List, Optional
+from datetime import datetime
+from pydantic import BaseModel
+from typing import List, Optional
+from datetime import datetime
+
+# ... (keep all your existing schemas) ...
+
+class GenerateRequest(BaseModel):
+    topic: str
+
+# --- CARD SCHEMAS ---
+class CardBase(BaseModel):
+    term: str
+    definition: str
+
+class CardCreate(CardBase):
+    pass
+
+class CardResponse(CardBase):
+    id: int
+    deck_id: int
+
+    class Config:
+        from_attributes = True
+
+# --- DECK SCHEMAS ---
+class DeckBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+    visibility: str = "Private"
+
+class DeckCreate(DeckBase):
+    # A new deck will include a list of cards to create simultaneously
+    cards: List[CardCreate] = []
+
+class DeckResponse(DeckBase):
+    id: int
+    created_at: datetime
+    cards: List[CardResponse] = []
+
+    class Config:
+        from_attributes = True
+
+class GenerateRequest(BaseModel):
+    topic: str
+    card_count: int = 10
+
+class ChatRequest(BaseModel):
+    message: str
+    context: str
+
+
+class StudyHubCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    owner_id: str
+    owner_name: str = "Student"
+    allow_member_uploads: bool = True
+    initial_deck_id: Optional[int] = None
+
+
+class StudyHubJoin(BaseModel):
+    invite_code: str
+    user_id: str
+    display_name: str = "Student"
+
+
+class StudyHubDeckShare(BaseModel):
+    deck_id: int
+    user_id: str
+
+
+class StudyHubMemberRoleUpdate(BaseModel):
+    actor_id: str
+    role: str
+
+
+class StudyHubMemberAction(BaseModel):
+    actor_id: str
+
+
+class StudyHubPermissionUpdate(BaseModel):
+    user_id: str
+    allow_member_uploads: bool
