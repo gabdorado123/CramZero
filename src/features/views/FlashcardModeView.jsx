@@ -76,7 +76,8 @@ export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
   const toggleFullscreen = () => document.fullscreenElement ? document.exitFullscreen() : containerRef.current?.requestFullscreen().catch(e => console.log(e));
 
   return (
-    <div ref={containerRef} className="max-w-4xl w-full mx-auto flex flex-col items-center animate-in fade-in duration-300 h-full min-h-[75vh] bg-white dark:bg-zinc-950 p-4 md:p-6 rounded-2xl">
+    <div className="min-h-full flex-1 w-full flex flex-col items-center justify-center p-4 md:p-8">
+      <div ref={containerRef} className="max-w-3xl w-full mx-auto my-auto flex flex-col items-center animate-in fade-in duration-300 bg-white dark:bg-zinc-950 p-4 md:p-6 rounded-2xl border border-taupe/20 dark:border-zinc-800 shadow-sm">
       <div className="w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b border-taupe/20 dark:border-zinc-800 pb-4">
         <div className="flex flex-wrap items-center gap-2 md:gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigateTo('deck-details')} className="text-taupe dark:text-zinc-500 hover:text-umber dark:hover:text-zinc-100 hover:bg-greige/20 dark:hover:bg-zinc-800 mr-1"><ArrowLeft size={20}/></Button>
@@ -93,7 +94,7 @@ export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
         </div>
       </div>
       
-      <div className="card-scene w-full max-w-2xl flex-1 my-auto min-h-[220px]" onClick={() => { setIsFlipped(!isFlipped); setProgress(0); }}>
+      <div className="card-scene w-full max-w-xl h-[clamp(280px,48vh,420px)] shrink-0" onClick={() => { setIsFlipped(!isFlipped); setProgress(0); }}>
         <div className={`card-flipper ${isFlipped ? 'is-flipped' : ''}`}>
           <div className="card-face card-front group bg-white dark:bg-zinc-900 border border-taupe/30 dark:border-zinc-800 p-6 text-center">
             <span className="absolute top-4 left-4 text-[10px] md:text-xs font-bold text-taupe dark:text-zinc-500 tracking-widest uppercase">Term</span>
@@ -109,7 +110,7 @@ export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
         {autoSpeed > 0 && <div className="relative -mt-6 z-10 px-6 pb-1 text-[10px] font-bold text-amber-600 dark:text-amber-500 uppercase tracking-widest flex items-center gap-2 pointer-events-none"><RotateCw size={12} className="animate-spin" style={{ animationDuration: '3s' }} />{isFlipped ? "Moving to next..." : "Auto-flipping..."}</div>}
       </div>
 
-      <div className="h-20 mt-6 flex items-center justify-center w-full max-w-2xl shrink-0">
+      <div className="h-16 mt-4 flex items-center justify-center w-full max-w-xl shrink-0">
         {!isFlipped ? (
           <div className="flex gap-8 md:gap-12 text-taupe dark:text-zinc-500">
             <button onClick={handlePrev} disabled={currentIndex === 0} className="hover:text-umber dark:hover:text-zinc-100 transition-colors disabled:opacity-30"><ChevronLeft size={30}/></button>
@@ -122,6 +123,7 @@ export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
             <Button onClick={() => handleRate('easy')} className="flex-1 h-12 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900 rounded-xl font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900">Easy (4d)</Button>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

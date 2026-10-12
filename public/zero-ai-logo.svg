@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Zero AI</title>
+  <desc id="desc">A Zero AI speech bubble with a Z and sparkle.</desc>
+  <path fill="#211C18" d="M64 8c31 0 56 22 56 50 0 12-5 23-13 31l8 19-21-9c-9 6-19 9-30 9-31 0-56-22-56-50S33 8 64 8z"/>
+  <path fill="#F4B183" d="M38 35h49v10L52 78h36v15H36V82l35-37H38z"/>
+  <path fill="#F5B51B" d="m94 40 3 7 7 3-7 3-3 7-3-7-7-3 7-3z"/>
+</svg>

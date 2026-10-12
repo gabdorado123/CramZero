@@ -17,18 +17,22 @@ html {
 }
 
 body {
-  @apply bg-sand text-umber antialiased;
+  @apply antialiased;
   overflow-x: hidden;
 }
 
 button,
 a {
+  transition: box-shadow 180ms ease, opacity 180ms ease,
+    background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+}
+
+.btn-lift {
   transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease,
     background-color 180ms ease, border-color 180ms ease, color 180ms ease;
 }
 
-button:hover,
-a:hover {
+.btn-lift:hover {
   transform: translateY(-1px);
 }
 
@@ -201,8 +205,8 @@ a:hover {
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --background: oklch(0.91 0.04 70);
+  --foreground: oklch(0.38 0.06 55);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);

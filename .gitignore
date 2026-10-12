@@ -11,6 +11,9 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
+.env.*
+!.env.example
 
 # Editor directories and files
 .vscode/*
@@ -22,3 +25,15 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+.multiplayer-server.lock
+
+# Exclude backend dependencies and environment files
+cramzero-backend/venv/
+cramzero-backend/.venv/
+cramzero-backend/env/
+cramzero-backend/node_modules/
+cramzero-backend/.env
+cramzero-backend/__pycache__/
+cramzero-backend/*.pyc
+

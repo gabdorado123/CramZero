@@ -55,9 +55,7 @@ export function LandingPageView({ navigateTo, isDarkMode, setIsDarkMode }) {
       <header className="px-4 md:px-8 py-5 flex justify-between items-center w-full border-b border-taupe/20 dark:border-zinc-800 bg-white dark:bg-zinc-950 transition-colors">
         <div className="max-w-7xl mx-auto w-full flex justify-between items-center">
           <div className="flex items-center gap-2 text-xl md:text-2xl font-black tracking-tight cursor-pointer group" onClick={() => navigateTo('landing')}>
-            <div className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 p-1.5 rounded-xl group-hover:scale-105 transition-transform">
-              <BookOpen size={20} fill="currentColor" />
-            </div>
+            <img src="/cramzero-logo.svg" alt="CramZero" className="w-9 h-9 rounded-xl group-hover:scale-105 transition-transform" />
             CramZero
           </div>
           <nav className="hidden md:flex items-center gap-8 font-medium text-umber/80 dark:text-zinc-300 text-sm">
@@ -72,7 +70,7 @@ export function LandingPageView({ navigateTo, isDarkMode, setIsDarkMode }) {
               <Moon size={14} className="text-taupe dark:text-indigo-400" />
             </div>
             <Button variant="ghost" onClick={() => navigateTo('dashboard')} className="font-semibold text-umber/90 dark:text-zinc-300 hover:text-umber dark:hover:text-zinc-100 hidden sm:inline-flex hover:bg-taupe/10 dark:hover:bg-zinc-800">Sign in</Button>
-            <Button onClick={() => navigateTo('dashboard')} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 rounded-full font-bold hover:bg-umber/90 dark:hover:bg-zinc-300 shadow-sm hover:scale-105">Launch App →</Button>
+            <Button data-tour="launch-app" onClick={() => navigateTo('dashboard')} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 rounded-full font-bold hover:bg-umber/90 dark:hover:bg-zinc-300 shadow-sm hover:scale-105">Launch App →</Button>
           </div>
         </div>
       </header>
@@ -95,7 +93,7 @@ export function LandingPageView({ navigateTo, isDarkMode, setIsDarkMode }) {
           </div>
         </div>
 
-        <Card className="lg:col-span-6 rounded-3xl p-6 pt-16 shadow-2xl relative overflow-hidden border-taupe/30 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+          <Card data-tour="live-synthesis" className="lg:col-span-6 rounded-3xl p-6 pt-16 shadow-2xl relative overflow-hidden border-taupe/30 dark:border-zinc-800 bg-white dark:bg-zinc-900">
           <Badge className="absolute top-5 right-6 bg-amber-500 hover:bg-amber-500 text-umber dark:text-amber-950 text-[10px] font-black px-3.5 py-1 rounded-full uppercase tracking-widest shadow-sm z-10">Live AI Synthesis</Badge>
           <div className="mb-6">
             <span className="text-xs font-bold text-taupe dark:text-zinc-400 uppercase tracking-wider block mb-2">GENERATE : PHARMACOLOGY</span>
@@ -118,7 +116,7 @@ export function LandingPageView({ navigateTo, isDarkMode, setIsDarkMode }) {
         </Card>
       </section>
 
-      <section id="study-ways" className="px-4 md:px-8 py-16 md:py-20 max-w-6xl mx-auto w-full">
+      <section id="study-ways" data-tour="study-modes" className="px-4 md:px-8 py-16 md:py-20 max-w-6xl mx-auto w-full">
         <div className="mb-10 text-center md:text-left">
           <span className="text-xs font-bold text-taupe dark:text-zinc-400 uppercase tracking-widest">See it in action</span>
           <h2 className="text-3xl md:text-4xl font-black text-umber dark:text-zinc-100 mt-2">Study your way.</h2>
@@ -185,7 +183,7 @@ export function LandingPageView({ navigateTo, isDarkMode, setIsDarkMode }) {
         </div>
       </section>
 
-      <section id="architecture" className="px-4 md:px-8 py-16 md:py-20 max-w-6xl mx-auto w-full">
+      <section id="architecture" data-tour="ecosystem" className="px-4 md:px-8 py-16 md:py-20 max-w-6xl mx-auto w-full">
         <div className="mb-12 text-center max-w-2xl mx-auto">
           <h2 className="text-3xl md:text-4xl font-black text-umber dark:text-zinc-100">Engineered for absolute retention.</h2>
           <p className="text-taupe dark:text-zinc-400 mt-2 text-sm md:text-base">An entire ecosystem built to eliminate student friction.</p>
@@ -272,7 +270,7 @@ export function LandingPageView({ navigateTo, isDarkMode, setIsDarkMode }) {
       <footer className="bg-umber dark:bg-zinc-900 text-sand dark:text-zinc-100 py-12 md:py-16 px-8 text-center mt-auto border-t border-taupe/20 dark:border-zinc-800">
         <div className="max-w-4xl mx-auto space-y-4 md:space-y-6">
           <div className="flex items-center justify-center gap-2 text-2xl font-black">
-            <div className="bg-sand dark:bg-zinc-100 text-umber dark:text-zinc-900 p-1.5 rounded-xl"><BookOpen size={20} fill="currentColor" /></div>
+            <img src="/cramzero-logo.svg" alt="CramZero" className="w-9 h-9 rounded-xl" />
             CramZero
           </div>
           <p className="text-sand/70 dark:text-zinc-400 text-xs md:text-sm max-w-md mx-auto">The high-performance study platform built for students who value speed, accuracy, and zero friction.</p>

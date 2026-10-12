@@ -38,7 +38,7 @@ export function DecksView({ navigateTo, setActiveDeck, myDecks, setMyDecks }) {
   return (
     <div className="max-w-5xl mx-auto pb-12 p-4 md:p-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h2 className="text-2xl font-bold text-umber dark:text-zinc-100">Your Saved Decks</h2>
+        <h2 data-tour="deck-library" className="text-2xl font-bold text-umber dark:text-zinc-100">Your Saved Decks</h2>
         <Button onClick={() => navigateTo('new-deck')} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 font-medium rounded-lg h-10 px-4 shadow-sm">
           <Plus size={18} className="mr-2" /> New Deck
         </Button>
