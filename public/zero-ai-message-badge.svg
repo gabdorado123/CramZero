@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 112" role="img" aria-labelledby="title desc">
+  <title id="title">Zero AI message</title>
+  <desc id="desc">A chat message badge with a Z avatar and message lines.</desc>
+  <path fill="#9B8F86" d="M16 8h208c9 0 16 7 16 16v58c0 9-7 16-16 16H92l-20 14 3-14H16c-9 0-16-7-16-16V24C0 15 7 8 16 8z"/>
+  <circle cx="53" cy="53" r="29" fill="#211C18"/>
+  <path fill="#F4B183" d="M35 35h36v8L45 65h27v11H34v-8l25-26H35z"/>
+  <path fill="#FFFDF8" stroke="#FFFDF8" stroke-linecap="round" stroke-width="6" d="M104 43h105M104 68h76"/>
+</svg>

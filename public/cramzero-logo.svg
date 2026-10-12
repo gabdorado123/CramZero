@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">CramZero</title>
+  <desc id="desc">An open book with a zero and lightning bolt.</desc>
+  <path fill="#B8AAA0" d="M8 24h18c18 0 30 8 38 20v62c-10-11-22-16-38-16H8z"/>
+  <path fill="#211C18" d="M120 24h-18c-18 0-30 8-38 20v62c10-11 22-16 38-16h18z"/>
+  <path fill="#FFFDF8" d="M64 31c-16 0-29 13-29 29v22c0 16 13 29 29 29s29-13 29-29V60c0-16-13-29-29-29zm0 9c11 0 20 9 20 20v22c0 11-9 20-20 20s-20-9-20-20V60c0-11 9-20 20-20z"/>
+  <path fill="#F5B51B" d="M70 37 48 69h14l-5 30 23-38H66z"/>
+  <path fill="#B8AAA0" d="M8 100c20-2 39 2 56 16v7c-17-12-36-17-56-14z"/>
+  <path fill="#211C18" d="M120 100c-20-2-39 2-56 16v7c17-12 36-17 56-14z"/>
+</svg>
