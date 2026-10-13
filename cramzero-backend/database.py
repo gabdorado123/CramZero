@@ -1,19 +1,14 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-# Connects to your local XAMPP MySQL
-SQLALCHEMY_DATABASE_URL = "mysql+pymysql://root:@localhost:8111/cramzero_db"
+# This pulls the Neon URL when on Render, and falls back to SQLite for local dev
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./cramzero.db")
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+# SQLAlchemy requires "postgresql://" instead of "postgres://"
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# THIS IS THE VARIABLE PYTHON IS LOOKING FOR:
 Base = declarative_base()
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
