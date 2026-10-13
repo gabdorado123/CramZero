@@ -29,7 +29,7 @@ export function StudyHubsView({ navigateTo, setActiveHub, myHubs, userId, displa
   const handleJoin = async (event) => {
     event.preventDefault();
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/study-hubs/join', {
+      const response = await fetch('https://cramzero-backend.onrender.com/api/study-hubs/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ invite_code: inviteCode.trim(), user_id: userId, display_name: displayName }),

@@ -37,7 +37,7 @@ export function HubDetailsView({ navigateTo, activeHub, setActiveHub, setMyHubs,
     let isCurrent = true;
     const refreshHub = async () => {
       try {
-        const response = await fetch(`http://127.0.0.1:8000/api/study-hubs/${activeHub.id}?user_id=${encodeURIComponent(userId)}`);
+        const response = await fetch(`https://cramzero-backend.onrender.com/api/study-hubs/${activeHub.id}?user_id=${encodeURIComponent(userId)}`);
         if (!response.ok) return;
         const nextHub = await response.json();
         if (!isCurrent) return;
@@ -71,7 +71,7 @@ export function HubDetailsView({ navigateTo, activeHub, setActiveHub, setMyHubs,
   const handleUploadPermissionChange = async (allowMemberUploads) => {
     setIsUpdatingPermission(true);
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/study-hubs/${activeHub.id}/settings`, {
+      const response = await fetch(`https://cramzero-backend.onrender.com/api/study-hubs/${activeHub.id}/settings`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId, allow_member_uploads: allowMemberUploads }),
@@ -92,12 +92,12 @@ export function HubDetailsView({ navigateTo, activeHub, setActiveHub, setMyHubs,
     setMemberActionId(member.id);
     try {
       const response = action === 'remove'
-        ? await fetch(`http://127.0.0.1:8000/api/study-hubs/${activeHub.id}/members/${member.id}/remove`, {
+        ? await fetch(`https://cramzero-backend.onrender.com/api/study-hubs/${activeHub.id}/members/${member.id}/remove`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ actor_id: userId }),
           })
-        : await fetch(`http://127.0.0.1:8000/api/study-hubs/${activeHub.id}/members/${member.id}/role`, {
+        : await fetch(`https://cramzero-backend.onrender.com/api/study-hubs/${activeHub.id}/members/${member.id}/role`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ actor_id: userId, role: action }),
@@ -116,7 +116,7 @@ export function HubDetailsView({ navigateTo, activeHub, setActiveHub, setMyHubs,
   };
 
   const shareDeckToHub = async (deckId) => {
-    const response = await fetch(`http://127.0.0.1:8000/api/study-hubs/${activeHub.id}/decks`, {
+    const response = await fetch(`https://cramzero-backend.onrender.com/api/study-hubs/${activeHub.id}/decks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ deck_id: deckId, user_id: userId }),
@@ -155,14 +155,14 @@ export function HubDetailsView({ navigateTo, activeHub, setActiveHub, setMyHubs,
       const formData = new FormData();
       formData.append('file', file);
       formData.append('card_count', '10');
-      const generatedResponse = await fetch('http://127.0.0.1:8000/api/generate-deck-from-file/', {
+      const generatedResponse = await fetch('https://cramzero-backend.onrender.com/api/generate-deck-from-file/', {
         method: 'POST',
         body: formData,
       });
       if (!generatedResponse.ok) throw new Error('The file could not be processed.');
 
       const generatedDeck = await generatedResponse.json();
-      const savedResponse = await fetch('http://127.0.0.1:8000/api/decks/', {
+      const savedResponse = await fetch('https://cramzero-backend.onrender.com/api/decks/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(generatedDeck),

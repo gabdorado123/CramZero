@@ -65,9 +65,9 @@ export function CreateHubView({ navigateTo, myHubs, setMyHubs, myDecks, setMyDec
           const formData = new FormData();
           formData.append('file', selectedFile);
           formData.append('card_count', '10');
-          generatedResponse = await fetch('http://127.0.0.1:8000/api/generate-deck-from-file/', { method: 'POST', body: formData });
+          generatedResponse = await fetch('https://cramzero-backend.onrender.com/api/generate-deck-from-file/', { method: 'POST', body: formData });
         } else {
-          generatedResponse = await fetch('http://127.0.0.1:8000/api/generate-deck/', {
+          generatedResponse = await fetch('https://cramzero-backend.onrender.com/api/generate-deck/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ topic: aiTopic.trim(), card_count: 10 }),
@@ -75,7 +75,7 @@ export function CreateHubView({ navigateTo, myHubs, setMyHubs, myDecks, setMyDec
         }
         if (!generatedResponse.ok) throw new Error(generationMode === 'file' ? 'The file could not be processed.' : 'The study topic could not be generated.');
         const generatedDeck = await generatedResponse.json();
-        const savedResponse = await fetch('http://127.0.0.1:8000/api/decks/', {
+        const savedResponse = await fetch('https://cramzero-backend.onrender.com/api/decks/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(generatedDeck),
@@ -85,7 +85,7 @@ export function CreateHubView({ navigateTo, myHubs, setMyHubs, myDecks, setMyDec
         setMyDecks(currentDecks => [initialSharedDeck, ...currentDecks]);
       }
 
-      const hubResponse = await fetch('http://127.0.0.1:8000/api/study-hubs', {
+      const hubResponse = await fetch('https://cramzero-backend.onrender.com/api/study-hubs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

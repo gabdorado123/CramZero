@@ -29,7 +29,7 @@ export function DeckDetailsView({ navigateTo, activeDeck, setIsTutorOpen }) {
   const handleDownloadReadout = async () => {
     setIsGeneratingReadout(true);
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/decks/${activeDeck.id}/readout`, {
+      const response = await fetch(`https://cramzero-backend.onrender.com/api/decks/${activeDeck.id}/readout`, {
         method: 'POST',
       });
 
