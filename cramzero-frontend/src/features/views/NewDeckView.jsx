@@ -39,7 +39,7 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, setIsActionLoadin
   const handleSaveToDatabase = async (deckPayload) => {
      setIsSaving(true);
      try {
-       const response = await fetch(`${API_BASE}/api/generate-deck/`, {
+       const response = await fetch(`${API_BASE}/api/decks/`, {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
          body: JSON.stringify(deckPayload)
@@ -79,7 +79,7 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, setIsActionLoadin
     }, 500);
     
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/generate-deck/', {
+      const response = await fetch(`${API_BASE}/api/generate-deck/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ topic: aiTopic, card_count: cardCount })
@@ -124,7 +124,7 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, setIsActionLoadin
     formData.append("card_count", cardCount);
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/generate-deck-from-file/', {
+      const response = await fetch(`${API_BASE}/api/generate-deck-from-file/`, {
         method: 'POST',
         body: formData 
       });
