@@ -268,11 +268,11 @@ export function MultiplayerView({ navigateTo, myDecks }) {
         )}
         
           {hostableDecks.length === 0 ? (
-           <Card className="border-2 border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900 p-12 text-center flex flex-col items-center justify-center rounded-3xl">
+           <Card className="border-2 border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900 p-10 text-center flex flex-col items-center justify-center rounded-2xl">
               <div className="w-16 h-16 bg-greige/30 dark:bg-zinc-800 text-umber dark:text-zinc-400 rounded-full flex items-center justify-center mb-4"><Zap size={32} /></div>
               <CardTitle className="text-xl text-umber dark:text-zinc-100 mb-2">No playable decks</CardTitle>
               <CardDescription className="text-taupe dark:text-zinc-500 mb-6 max-w-md mx-auto">Create a deck with at least one card before hosting a live multiplayer battle.</CardDescription>
-              <Button onClick={() => navigateTo('new-deck')} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 font-bold rounded-xl h-12">Create a Deck</Button>
+              <Button onClick={() => navigateTo('new-deck')} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 font-bold rounded-xl h-11">Create a Deck</Button>
            </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -301,10 +301,10 @@ export function MultiplayerView({ navigateTo, myDecks }) {
           <h2 className="text-left text-xl font-bold text-taupe dark:text-zinc-500 uppercase tracking-widest">Waiting for players...</h2>
           <Badge className="shrink-0 gap-2 rounded-full border-none bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"><span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" /> Live room</Badge>
         </div>
-        <Card className="p-6 md:p-10 shadow-sm mb-10 bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 rounded-3xl relative animate-in slide-in-from-bottom-2 duration-300">
+        <Card className="p-6 md:p-10 shadow-sm mb-10 bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 rounded-2xl relative animate-in slide-in-from-bottom-2 duration-300">
           <p className="text-sm font-bold text-taupe dark:text-zinc-500 uppercase tracking-widest mb-2">Join at CramZero with Pin:</p>
           <div className="flex items-center justify-center gap-4">
-             <p className="text-6xl md:text-7xl font-mono font-black text-umber dark:text-zinc-100 tracking-[0.2em]">{lobbyPin}</p>
+             <p className="text-5xl md:text-6xl font-mono font-bold text-umber dark:text-zinc-100 tracking-[0.2em]">{lobbyPin}</p>
              <button onClick={() => { navigator.clipboard.writeText(lobbyPin); toast.success("PIN Copied!"); }} className="p-3 bg-greige/30 dark:bg-zinc-800 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 rounded-xl transition-colors"><Copy size={24}/></button>
           </div>
           <Button onClick={shareRoom} variant="outline" className="mt-5 border-umber dark:border-zinc-600 text-umber dark:text-zinc-300 hover:bg-greige/20 dark:hover:bg-zinc-800 rounded-xl font-bold">
@@ -325,7 +325,7 @@ export function MultiplayerView({ navigateTo, myDecks }) {
         </div>
 
         {isHost ? (
-          <Button size="lg" onClick={() => sendMessage({ type: 'start' })} disabled={players.length < 2 || connectionStatus !== 'connected'} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 h-14 px-10 rounded-xl font-bold text-lg shadow-md">
+          <Button size="lg" onClick={() => sendMessage({ type: 'start' })} disabled={players.length < 2 || connectionStatus !== 'connected'} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 h-11 px-10 rounded-xl font-bold text-lg shadow-md">
             Start Live Battle
           </Button>
         ) : (
@@ -345,7 +345,7 @@ export function MultiplayerView({ navigateTo, myDecks }) {
     return (
       <div className="flex h-[70vh] flex-col items-center justify-center animate-in fade-in duration-300">
          <p className="mb-4 text-xs font-bold uppercase tracking-[0.25em] text-taupe dark:text-zinc-500">Get ready</p>
-         <div key={countdown} className="text-[12rem] font-black text-umber dark:text-zinc-100 animate-in zoom-in duration-300">
+         <div key={countdown} className="text-[10rem] font-bold text-umber dark:text-zinc-100 animate-in zoom-in duration-300">
             {countdown}
          </div>
       </div>
@@ -354,20 +354,20 @@ export function MultiplayerView({ navigateTo, myDecks }) {
 
   if (view === 'cancelled') {
     return (
-      <Card className="mx-auto mt-12 max-w-xl rounded-3xl border-taupe/30 bg-white p-8 text-center shadow-xl dark:border-zinc-800 dark:bg-zinc-900 animate-in zoom-in-95 duration-300">
+      <Card className="mx-auto mt-12 max-w-xl rounded-2xl border-taupe/30 bg-white p-8 text-center shadow-xl dark:border-zinc-800 dark:bg-zinc-900 animate-in zoom-in-95 duration-300">
         <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"><Users size={30} /></div>
-        <h2 className="text-2xl font-black text-umber dark:text-zinc-100">Battle discontinued</h2>
+        <h2 className="text-2xl font-bold text-umber dark:text-zinc-100">Battle discontinued</h2>
         <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-taupe dark:text-zinc-400">{selectedDeck?.title ? `The battle for ${selectedDeck.title} ended because there was no longer another player in the room.` : 'The battle ended because there was no longer another player in the room.'}</p>
-        <Button onClick={() => transitionTo('menu')} className="mt-7 h-12 rounded-xl bg-umber px-6 font-bold text-sand hover:bg-umber/90 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300">Back to Multiplayer</Button>
+        <Button onClick={() => transitionTo('menu')} className="mt-7 h-11 rounded-xl bg-umber px-6 font-bold text-sand hover:bg-umber/90 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300">Back to Multiplayer</Button>
       </Card>
     );
   }
 
   if (['countdown', 'playing', 'round-result'].includes(view) && !selectedDeck?.cards?.length) {
     return (
-      <Card className="mx-auto mt-12 max-w-xl rounded-3xl border-taupe/30 bg-white p-8 text-center shadow-xl dark:border-zinc-800 dark:bg-zinc-900 animate-in fade-in duration-300">
+      <Card className="mx-auto mt-12 max-w-xl rounded-2xl border-taupe/30 bg-white p-8 text-center shadow-xl dark:border-zinc-800 dark:bg-zinc-900 animate-in fade-in duration-300">
         <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"><RotateCw size={26} className="animate-spin" /></div>
-        <h2 className="text-xl font-black text-umber dark:text-zinc-100">Restoring battle</h2>
+        <h2 className="text-xl font-bold text-umber dark:text-zinc-100">Restoring battle</h2>
         <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-taupe dark:text-zinc-400">The live room is still syncing. You can return to Multiplayer if the session is no longer available.</p>
         <Button onClick={confirmExit} className="mt-6 h-11 rounded-xl bg-umber px-6 font-bold text-sand hover:bg-umber/90 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300">Return to Multiplayer</Button>
       </Card>
