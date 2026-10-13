@@ -3,7 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 # This pulls the Neon URL when on Render, and falls back to SQLite for local dev
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./cramzero.db")
+DATABASE_URL = os.getenv("https://cramzero-backend.onrender.com", "sqlite:///./cramzero.db")
 
 # SQLAlchemy requires "postgresql://" instead of "postgres://"
 if DATABASE_URL.startswith("postgres://"):
