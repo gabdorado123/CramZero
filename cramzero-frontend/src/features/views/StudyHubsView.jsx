@@ -22,6 +22,7 @@ import { Bubble, BubbleContent, BubbleGroup, BubbleReactions } from '@/component
 import { Marker, MarkerContent } from '@/components/ui/marker';
 import { Message, MessageAvatar, MessageContent, MessageFooter } from '@/components/ui/message';
 import ReactMarkdown from 'react-markdown';
+import { API_BASE } from '@/lib/api';
 
 export function StudyHubsView({ navigateTo, setActiveHub, myHubs, userId, displayName }) {
   const [inviteCode, setInviteCode] = useState('');
@@ -29,7 +30,7 @@ export function StudyHubsView({ navigateTo, setActiveHub, myHubs, userId, displa
   const handleJoin = async (event) => {
     event.preventDefault();
     try {
-      const response = await fetch('https://cramzero-backend.onrender.com/api/study-hubs/join', {
+      const response = await fetch(`${API_BASE}/api/study-hubs/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ invite_code: inviteCode.trim(), user_id: userId, display_name: displayName }),

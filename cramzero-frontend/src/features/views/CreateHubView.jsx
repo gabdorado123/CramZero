@@ -22,6 +22,7 @@ import { Bubble, BubbleContent, BubbleGroup, BubbleReactions } from '@/component
 import { Marker, MarkerContent } from '@/components/ui/marker';
 import { Message, MessageAvatar, MessageContent, MessageFooter } from '@/components/ui/message';
 import ReactMarkdown from 'react-markdown';
+import { API_BASE } from '@/lib/api';
 
 export function CreateHubView({ navigateTo, myHubs, setMyHubs, myDecks, setMyDecks, userId, displayName, setIsActionLoading, setActionMessage }) {
   const [selectedDeckOption, setSelectedDeckOption] = useState(null);
@@ -65,9 +66,9 @@ export function CreateHubView({ navigateTo, myHubs, setMyHubs, myDecks, setMyDec
           const formData = new FormData();
           formData.append('file', selectedFile);
           formData.append('card_count', '10');
-          generatedResponse = await fetch('https://cramzero-backend.onrender.com/api/generate-deck-from-file/', { method: 'POST', body: formData });
+          generatedResponse = await fetch(`${API_BASE}/api/generate-deck-from-file/`, { method: 'POST', body: formData });
         } else {
-          generatedResponse = await fetch('https://cramzero-backend.onrender.com/api/generate-deck/', {
+          generatedResponse = await fetch(`${API_BASE}/api/generate-deck/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ topic: aiTopic.trim(), card_count: 10 }),
@@ -75,7 +76,7 @@ export function CreateHubView({ navigateTo, myHubs, setMyHubs, myDecks, setMyDec
         }
         if (!generatedResponse.ok) throw new Error(generationMode === 'file' ? 'The file could not be processed.' : 'The study topic could not be generated.');
         const generatedDeck = await generatedResponse.json();
-        const savedResponse = await fetch('https://cramzero-backend.onrender.com/api/decks/', {
+        const savedResponse = await fetch(`${API_BASE}/api/decks/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(generatedDeck),
@@ -85,7 +86,7 @@ export function CreateHubView({ navigateTo, myHubs, setMyHubs, myDecks, setMyDec
         setMyDecks(currentDecks => [initialSharedDeck, ...currentDecks]);
       }
 
-      const hubResponse = await fetch('https://cramzero-backend.onrender.com/api/study-hubs', {
+      const hubResponse = await fetch(`${API_BASE}/api/study-hubs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

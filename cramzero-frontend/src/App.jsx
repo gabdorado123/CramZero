@@ -46,6 +46,7 @@ import { MultiplayerView } from '@/features/views/MultiplayerView';
 import { OnboardingTour } from '@/components/OnboardingTour';
 import { speakWithElevenLabs } from '@/lib/elevenlabs';
 import { recordAnalyticsEvent } from '@/lib/analytics';
+import { API_BASE } from '@/lib/api';
 
 // --- MOCK DATA FOR HUBS AND COMMUNITY ---
 const communityDatabase = [
@@ -53,9 +54,6 @@ const communityDatabase = [
   { id: 'comm-2', title: 'NCLEX Pharmacology Master', createdAt: '1 month ago', visibility: 'Community', type: 'saved', author: 'NurseRatched', cards: Array(120).fill({ term: 'Medication', definition: 'Community generated definition.' }) },
   { id: 'comm-3', title: 'JLPT N1 Vocabulary', createdAt: '2 days ago', visibility: 'Community', type: 'saved', author: 'TokyoStudent', cards: Array(85).fill({ term: 'Kanji', definition: 'Community generated definition.' }) }
 ];
-
-const API_BASE = import.meta.env.VITE_API_URL || 'https://cramzero-backend.onrender.com';
-// Use `${API_BASE}/api/...` for all your fetch requests.
 
 const mockHubs = [
   { id: 'hub-1', name: 'BSIT 3A Core Subjects', description: 'Information Technology Section 3A Shared Resources', role: 'Admin', members: 38, decks: 14, inviteCode: 'BSIT-3A-26' },
@@ -142,7 +140,7 @@ export default function App() {
       : "No specific deck currently open.";
 
     try {
-      const res = await fetch('https://cramzero-backend.onrender.com/api/chat/', {
+      const res = await fetch(`${API_BASE}/api/chat/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMsg.content, context: contextStr })
@@ -165,14 +163,14 @@ export default function App() {
     const hubCode = new URLSearchParams(window.location.search).get('hub');
     const loadWorkspace = async () => {
       const [decksResponse, hubsResponse] = await Promise.all([
-        fetch('https://cramzero-backend.onrender.com/api/decks/'),
+        fetch(`${API_BASE}/api/decks/`),
         hubCode
-          ? fetch('https://cramzero-backend.onrender.com/api/study-hubs/join', {
+          ? fetch(`${API_BASE}/api/study-hubs/join`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ invite_code: hubCode, user_id: userId, display_name: displayName }),
             })
-          : fetch(`https://cramzero-backend.onrender.com/api/study-hubs?user_id=${encodeURIComponent(userId)}`),
+          : fetch(`${API_BASE}/api/study-hubs?user_id=${encodeURIComponent(userId)}`),
       ]);
       const decks = await decksResponse.json();
       const hubData = await hubsResponse.json();

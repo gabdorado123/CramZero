@@ -22,6 +22,7 @@ import { Bubble, BubbleContent, BubbleGroup, BubbleReactions } from '@/component
 import { Marker, MarkerContent } from '@/components/ui/marker';
 import { Message, MessageAvatar, MessageContent, MessageFooter } from '@/components/ui/message';
 import ReactMarkdown from 'react-markdown';
+import { API_BASE } from '@/lib/api';
 
 export function NewDeckView({ navigateTo, myDecks, setMyDecks, setIsActionLoading, setActionMessage }) {
   const [deckName, setDeckName] = useState('');
@@ -39,18 +40,18 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, setIsActionLoadin
   const handleSaveToDatabase = async (deckPayload) => {
      setIsSaving(true);
      try {
-       const response = await fetch(`${API_BASE}/api/decks/`, {
-         method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify(deckPayload)
-       });
-       if (response.ok) {
-         const savedDeck = await response.json();
-         setMyDecks([savedDeck, ...myDecks]);
-         toast.success("Deck Saved", { description: `"${deckPayload.title || 'New Deck'}" has been added to your library.` });
-         navigateTo('decks');
-       }
-     } catch (error) {
+         const response = await fetch(`${API_BASE}/api/decks/`, {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify(deckPayload)
+         });
+         if (response.ok) {
+             const savedDeck = await response.json();
+             setMyDecks([savedDeck, ...myDecks]);
+             toast.success("Deck Saved", { description: `"${deckPayload.title || 'New Deck'}" has been added to your library.` });
+             navigateTo('decks');
+           }
+         } catch (error) {
        toast.error("Failed to save deck", { description: "Please check your connection and try again." });
      } finally {
        setIsSaving(false);

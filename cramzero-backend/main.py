@@ -26,25 +26,60 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 load_dotenv()
 
 # --- INITIALIZE BOTH AI ENGINES ---
+gemini_api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
 try:
-    ai_client = genai.Client()
+    if gemini_api_key:
+        ai_client = genai.Client(api_key=gemini_api_key)
+    else:
+        ai_client = genai.Client()
 except Exception as e:
     print(f"Warning: Gemini Client failed to initialize. {e}")
     ai_client = None
 
 try:
-    groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+    groq_api_key = os.environ.get("GROQ_API_KEY")
+    groq_client = Groq(api_key=groq_api_key) if groq_api_key else None
 except Exception as e:
     print(f"Warning: Groq Client failed to initialize. {e}")
     groq_client = None
+
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
+FALLBACK_GEMINI_MODELS = ["gemini-2.0-flash", "gemini-1.5-flash"]
+
+
+def extract_json_data(text: str):
+    if not text:
+        raise ValueError("Empty response from AI")
+    cleaned = text.strip()
+    match = re.search(r"(\[[\s\S]*\]|\{[\s\S]*\})", cleaned)
+    if match:
+        return json.loads(match.group(1))
+    return json.loads(cleaned)
 
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="CramZero API")
 
+# Configure CORS origins - allow Vercel deployments, custom domains, and local dev
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS") or os.getenv("FRONTEND_URL")
+allowed_origins = [
+    "https://cram-zero.vercel.app",
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://localhost:4173",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
+]
+if allowed_origins_env:
+    for origin in allowed_origins_env.split(","):
+        cleaned = origin.strip().rstrip("/")
+        if cleaned and cleaned not in allowed_origins:
+            allowed_origins.append(cleaned)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://cram-zero.vercel.app"], 
+    allow_origins=allowed_origins,
+    allow_origin_regex=r"^https:\/\/.*\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -286,13 +321,13 @@ def generate_deck_with_ai(request: schemas.GenerateRequest):
     
     raw_text = None
 
-    # 1. Try Groq First (OpenAI GPT-OSS 120B)
+    # 1. Try Groq First
     if groq_client:
         try:
-            print("Attempting generation with Groq (OpenAI GPT-OSS 120B)...")
+            print(f"Attempting generation with Groq ({GROQ_MODEL})...")
             chat_completion = groq_client.chat.completions.create(
                 messages=[{"role": "user", "content": prompt}],
-                model="openai/gpt-oss-120b",
+                model=GROQ_MODEL,
                 temperature=0.3,
             )
             raw_text = chat_completion.choices[0].message.content
@@ -302,8 +337,7 @@ def generate_deck_with_ai(request: schemas.GenerateRequest):
 
     # 2. Fallback to Gemini if Groq fails or is not configured
     if not raw_text and ai_client:
-        fallback_models = ['gemini-3.7-flash', 'gemini-2.0-flash']
-        for model_name in fallback_models:
+        for model_name in FALLBACK_GEMINI_MODELS:
             try:
                 print(f"Attempting generation with {model_name}...")
                 response = ai_client.models.generate_content(
@@ -322,13 +356,9 @@ def generate_deck_with_ai(request: schemas.GenerateRequest):
          raise HTTPException(status_code=503, detail="All AI engines (Groq and Gemini) are currently unavailable.")
          
     try:
-        raw_text = raw_text.strip()
-        if raw_text.startswith("```json"):
-            raw_text = raw_text[7:-3].strip()
-        elif raw_text.startswith("```"):
-            raw_text = raw_text[3:-3].strip()
-            
-        flashcards_data = json.loads(raw_text)
+        flashcards_data = extract_json_data(raw_text)
+        if not isinstance(flashcards_data, list):
+            raise ValueError("Expected list of cards")
         
         return {
             "title": request.topic.title(),
@@ -337,8 +367,8 @@ def generate_deck_with_ai(request: schemas.GenerateRequest):
             "cards": flashcards_data
         }
         
-    except json.JSONDecodeError:
-         raise HTTPException(status_code=500, detail="AI returned invalid JSON format.")
+    except Exception as e:
+         raise HTTPException(status_code=500, detail=f"AI returned invalid JSON format: {e}")
 
 
 # --- FILE GENERATOR: GEMINI ONLY (Groq doesn't natively parse PDFs/PPTXs yet) ---
@@ -370,9 +400,7 @@ async def generate_deck_from_file(file: UploadFile = File(...), card_count: int 
         """
         
         response = None
-        fallback_models = ['gemini-3.7-flash', 'gemini-2.0-flash']
-        
-        for model_name in fallback_models:
+        for model_name in FALLBACK_GEMINI_MODELS:
             try:
                 print(f"Attempting file extraction with {model_name}...")
                 response = ai_client.models.generate_content(
@@ -394,13 +422,9 @@ async def generate_deck_from_file(file: UploadFile = File(...), card_count: int 
         if not response:
              raise HTTPException(status_code=503, detail="Gemini models are currently at maximum capacity.")
              
-        raw_text = response.text.strip()
-        if raw_text.startswith("```json"):
-            raw_text = raw_text[7:-3].strip()
-        elif raw_text.startswith("```"):
-            raw_text = raw_text[3:-3].strip()
-            
-        flashcards_data = json.loads(raw_text)
+        flashcards_data = extract_json_data(response.text)
+        if not isinstance(flashcards_data, list):
+            raise ValueError("Expected list of cards")
         clean_title = file.filename.replace(ext, "").replace("-", " ").replace("_", " ").title()
         
         return {
@@ -410,10 +434,8 @@ async def generate_deck_from_file(file: UploadFile = File(...), card_count: int 
             "cards": flashcards_data
         }
         
-    except json.JSONDecodeError:
-         raise HTTPException(status_code=500, detail="AI returned invalid JSON format.")
     except Exception as e:
-         raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"File processing failed: {e}")
     finally:
         if os.path.exists(temp_file_path):
             os.remove(temp_file_path)
@@ -456,10 +478,9 @@ def generate_deck_readout(deck_id: int, db: Session = Depends(get_db)):
     raw_text = None
     if groq_client:
         try:
-            
             response = groq_client.chat.completions.create(
                 messages=[{"role": "user", "content": prompt}],
-                model="openai/gpt-oss-120b",
+                model=GROQ_MODEL,
                 temperature=0.3,
             )
             raw_text = response.choices[0].message.content
@@ -467,7 +488,7 @@ def generate_deck_readout(deck_id: int, db: Session = Depends(get_db)):
             print(f"Groq readout generation failed: {error}. Falling back to Gemini...")
 
     if not raw_text and ai_client:
-        for model_name in ['gemini-3.7-flash', 'gemini-2.0-flash']:
+        for model_name in FALLBACK_GEMINI_MODELS:
             try:
                 response = ai_client.models.generate_content(
                     model=model_name,
@@ -483,13 +504,8 @@ def generate_deck_readout(deck_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=503, detail="AI services are currently unavailable.")
 
     try:
-        clean_text = raw_text.strip()
-        if clean_text.startswith("```json"):
-            clean_text = clean_text[7:-3].strip()
-        elif clean_text.startswith("```"):
-            clean_text = clean_text[3:-3].strip()
-        readout = json.loads(clean_text)
-    except (json.JSONDecodeError, TypeError):
+        readout = extract_json_data(raw_text)
+    except Exception:
         raise HTTPException(status_code=502, detail="AI returned an invalid reading guide.")
 
     styles = getSampleStyleSheet()
@@ -617,7 +633,7 @@ def ai_tutor_chat(request: schemas.ChatRequest):
         try:
             chat_completion = groq_client.chat.completions.create(
                 messages=[{"role": "user", "content": prompt}],
-                model="openai/gpt-oss-120b",
+                model=GROQ_MODEL,
                 temperature=0.4,
             )
             reply_text = chat_completion.choices[0].message.content
@@ -626,8 +642,7 @@ def ai_tutor_chat(request: schemas.ChatRequest):
             
     # 2. Fallback to Gemini Matrix
     if not reply_text and ai_client:
-        fallback_models = ['gemini-3.7-flash', 'gemini-2.0-flash']
-        for model_name in fallback_models:
+        for model_name in FALLBACK_GEMINI_MODELS:
             try:
                 response = ai_client.models.generate_content(
                     model=model_name,

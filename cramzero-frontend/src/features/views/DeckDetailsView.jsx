@@ -22,6 +22,7 @@ import { Bubble, BubbleContent, BubbleGroup, BubbleReactions } from '@/component
 import { Marker, MarkerContent } from '@/components/ui/marker';
 import { Message, MessageAvatar, MessageContent, MessageFooter } from '@/components/ui/message';
 import ReactMarkdown from 'react-markdown';
+import { API_BASE } from '@/lib/api';
 
 export function DeckDetailsView({ navigateTo, activeDeck, setIsTutorOpen }) {
   const [isGeneratingReadout, setIsGeneratingReadout] = useState(false);
@@ -29,7 +30,7 @@ export function DeckDetailsView({ navigateTo, activeDeck, setIsTutorOpen }) {
   const handleDownloadReadout = async () => {
     setIsGeneratingReadout(true);
     try {
-      const response = await fetch(`https://cramzero-backend.onrender.com/api/decks/${activeDeck.id}/readout`, {
+      const response = await fetch(`${API_BASE}/api/decks/${activeDeck.id}/readout`, {
         method: 'POST',
       });
 
