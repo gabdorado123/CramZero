@@ -142,7 +142,7 @@ export default function App() {
       : "No specific deck currently open.";
 
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/chat/', {
+      const res = await fetch('https://cramzero-backend.onrender.com/api/chat/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMsg.content, context: contextStr })
@@ -165,14 +165,14 @@ export default function App() {
     const hubCode = new URLSearchParams(window.location.search).get('hub');
     const loadWorkspace = async () => {
       const [decksResponse, hubsResponse] = await Promise.all([
-        fetch('http://127.0.0.1:8000/api/decks/'),
+        fetch('https://cramzero-backend.onrender.com/api/decks/'),
         hubCode
-          ? fetch('http://127.0.0.1:8000/api/study-hubs/join', {
+          ? fetch('https://cramzero-backend.onrender.com/api/study-hubs/join', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ invite_code: hubCode, user_id: userId, display_name: displayName }),
             })
-          : fetch(`http://127.0.0.1:8000/api/study-hubs?user_id=${encodeURIComponent(userId)}`),
+          : fetch(`https://cramzero-backend.onrender.com/api/study-hubs?user_id=${encodeURIComponent(userId)}`),
       ]);
       const decks = await decksResponse.json();
       const hubData = await hubsResponse.json();
