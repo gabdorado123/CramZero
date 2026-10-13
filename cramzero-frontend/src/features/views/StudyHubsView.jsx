@@ -66,13 +66,13 @@ export function StudyHubsView({ navigateTo, setActiveHub, myHubs, userId, displa
           </div>
           <form onSubmit={handleJoin} className="flex w-full md:w-auto gap-2">
             <Input value={inviteCode} onChange={(event) => setInviteCode(event.target.value)} type="text" placeholder="e.g. BSIT-3A-26" aria-label="Hub invite code" className="flex-1 md:w-48 bg-white dark:bg-zinc-950 border-taupe/30 dark:border-zinc-800 h-12 rounded-xl text-umber dark:text-zinc-100 focus-visible:ring-blue-400" />
-            <Button type="submit" variant="outline" disabled={!inviteCode.trim()} className="h-12 px-6 rounded-xl font-bold text-umber dark:text-zinc-100 bg-white dark:bg-zinc-900 hover:bg-greige/10 dark:hover:bg-zinc-800 border-taupe/30 dark:border-zinc-700 shadow-sm">Join</Button>
+            <Button type="submit" variant="outline" disabled={!inviteCode.trim()} className="h-10 px-6 rounded-xl font-bold text-umber dark:text-zinc-100 bg-white dark:bg-zinc-900 hover:bg-greige/10 dark:hover:bg-zinc-800 border-taupe/30 dark:border-zinc-700 shadow-sm">Join</Button>
           </form>
         </CardContent>
       </Card>
 
       {myHubs.length === 0 ? (
-        <Card className="border-2 border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900 p-12 text-center flex flex-col items-center justify-center rounded-3xl">
+        <Card className="border-2 border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900 p-10 text-center flex flex-col items-center justify-center rounded-2xl">
             <div className="w-16 h-16 bg-greige/30 dark:bg-zinc-800 text-umber dark:text-zinc-400 rounded-full flex items-center justify-center mb-4"><Users size={32} /></div>
             <CardTitle className="text-xl text-umber dark:text-zinc-100 mb-2">No active hubs</CardTitle>
             <CardDescription className="text-taupe dark:text-zinc-400 mb-6 max-w-md mx-auto">Create a new hub to invite classmates or enter an access code above to join an existing one.</CardDescription>
@@ -82,7 +82,7 @@ export function StudyHubsView({ navigateTo, setActiveHub, myHubs, userId, displa
           <p className="text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider mb-4">Your Active Hubs ({myHubs.length})</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {myHubs.map(hub => (
-              <Card key={hub.id} onClick={() => { setActiveHub(hub); navigateTo('hub-details'); }} className="bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all cursor-pointer relative group flex flex-col justify-between min-h-[180px] rounded-2xl">
+              <Card key={hub.id} onClick={() => { setActiveHub(hub); navigateTo('hub-details'); }} className="bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all cursor-pointer relative group flex flex-col justify-between min-h-[180px] rounded-xl">
                 <CardContent className="pt-6">
                   <div className="flex justify-between items-start mb-3">
                     <h3 className="font-bold text-xl text-umber dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors pr-4">{hub.name}</h3>

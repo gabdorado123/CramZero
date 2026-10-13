@@ -116,10 +116,10 @@ export function CreateHubView({ navigateTo, myHubs, setMyHubs, myDecks, setMyDec
       <Button variant="ghost" onClick={() => navigateTo('hubs')} className="mb-6 -ml-4 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100">
         <ArrowLeft size={18} className="mr-2" /> Back to Hubs
       </Button>
-      <Card className="p-8 md:p-10 shadow-sm border-taupe/30 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-3xl">
+      <Card className="p-6 md:p-8 shadow-sm border-taupe/30 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-2xl">
         <div className="flex items-center gap-4 mb-8 border-b border-taupe/20 dark:border-zinc-800 pb-6">
           <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center shrink-0"><Users size={24} /></div>
-          <div><h2 className="text-2xl font-bold text-umber dark:text-zinc-100">Create a Study Hub</h2><p className="text-taupe dark:text-zinc-400 text-sm">Set up a collaborative space for your class or study group.</p></div>
+          <div><h2 className="text-xl font-bold text-umber dark:text-zinc-100">Create a Study Hub</h2><p className="text-taupe dark:text-zinc-400 text-sm">Set up a collaborative space for your class or study group.</p></div>
         </div>
         <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleCreate(); }}>
           <div>
@@ -175,8 +175,8 @@ export function CreateHubView({ navigateTo, myHubs, setMyHubs, myDecks, setMyDec
             )}
           </div>
           <div className="pt-6 border-t border-taupe/20 dark:border-zinc-800 flex justify-end gap-3">
-            <Button variant="ghost" type="button" onClick={() => navigateTo('hubs')} className="px-6 h-12 rounded-xl font-bold text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 hover:bg-greige/20 dark:hover:bg-zinc-800">Cancel</Button>
-            <Button type="submit" disabled={!hubName.trim()} className="bg-blue-600 hover:bg-blue-700 text-white px-8 h-12 rounded-xl font-bold shadow-sm disabled:opacity-50">Create Hub</Button>
+            <Button variant="ghost" type="button" onClick={() => navigateTo('hubs')} className="px-6 h-10 rounded-xl font-bold text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 hover:bg-greige/20 dark:hover:bg-zinc-800">Cancel</Button>
+            <Button type="submit" disabled={!hubName.trim()} className="bg-blue-600 hover:bg-blue-700 text-white px-8 h-11 rounded-xl font-bold shadow-sm disabled:opacity-50">Create Hub</Button>
           </div>
         </form>
       </Card>

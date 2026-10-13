@@ -1,0 +1,11 @@
+cramzero-backend/venv/
+cramzero-backend/.venv/
+cramzero-backend/env/
+cramzero-backend/node_modules/
+cramzero-backend/.env
+cramzero-backend/__pycache__/
+cramzero-backend/*.pyc
+
+.env
+.env.*
+!.env.example

@@ -193,7 +193,7 @@ export function HubDetailsView({ navigateTo, activeHub, setActiveHub, setMyHubs,
         <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
             <Badge className="bg-blue-50 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/50 text-[10px] font-bold uppercase tracking-widest mb-3 border-none">{activeHub.role}</Badge>
-            <h2 className="text-3xl md:text-4xl font-black text-umber dark:text-zinc-100 mb-2">{activeHub.name}</h2>
+            <h2 className="text-2xl md:text-3xl font-bold text-umber dark:text-zinc-100 mb-2">{activeHub.name}</h2>
             <p className="text-taupe dark:text-zinc-400 text-sm md:text-base max-w-xl">{activeHub.description}</p>
           </div>
           <div className="bg-sand/40 dark:bg-zinc-950 border border-taupe/30 dark:border-zinc-800 p-4 rounded-xl flex flex-col items-center min-w-[160px]">
@@ -264,7 +264,7 @@ export function HubDetailsView({ navigateTo, activeHub, setActiveHub, setMyHubs,
       </div>
 
       {sharedDecks.length === 0 ? (
-        <Card className="border-2 border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900 p-12 text-center flex flex-col items-center justify-center rounded-3xl">
+        <Card className="border-2 border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900 p-10 text-center flex flex-col items-center justify-center rounded-2xl">
           <div className="w-16 h-16 bg-greige/30 dark:bg-zinc-800 text-umber dark:text-zinc-400 rounded-full flex items-center justify-center mb-4"><Library size={32} /></div>
           <CardTitle className="text-xl text-umber dark:text-zinc-100 mb-2">No decks shared yet</CardTitle>
           <CardDescription className="text-taupe dark:text-zinc-400 mb-6 max-w-md mx-auto">Be the first to upload study material to this classroom.</CardDescription>
@@ -288,7 +288,7 @@ export function HubDetailsView({ navigateTo, activeHub, setActiveHub, setMyHubs,
 
       {showUploadModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <Card className="rounded-3xl p-6 md:p-8 max-w-md w-full shadow-md relative animate-in zoom-in-95 duration-200 bg-white dark:bg-zinc-900 border-taupe/20 dark:border-zinc-800">
+          <Card className="rounded-2xl p-6 md:p-8 max-w-md w-full shadow-md relative animate-in zoom-in-95 duration-200 bg-white dark:bg-zinc-900 border-taupe/20 dark:border-zinc-800">
             <button onClick={() => setShowUploadModal(false)} className="absolute top-6 right-6 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100"><X size={20} /></button>
             <h3 className="text-xl font-bold text-umber dark:text-zinc-100 mb-2">Share Deck to Hub</h3>
             <p className="text-taupe dark:text-zinc-400 text-sm mb-6">Choose how you want to add study material to {activeHub.name}.</p>

@@ -1,0 +1,39 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+.env
+.env.*
+!.env.example
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+.multiplayer-server.lock
+
+# Exclude backend dependencies and environment files
+cramzero-backend/venv/
+cramzero-backend/.venv/
+cramzero-backend/env/
+cramzero-backend/node_modules/
+cramzero-backend/.env
+cramzero-backend/__pycache__/
+cramzero-backend/*.pyc
+
