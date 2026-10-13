@@ -54,7 +54,7 @@ const communityDatabase = [
   { id: 'comm-3', title: 'JLPT N1 Vocabulary', createdAt: '2 days ago', visibility: 'Community', type: 'saved', author: 'TokyoStudent', cards: Array(85).fill({ term: 'Kanji', definition: 'Community generated definition.' }) }
 ];
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+const API_BASE = import.meta.env.VITE_API_URL || 'https://cramzero-backend.onrender.com';
 // Use `${API_BASE}/api/...` for all your fetch requests.
 
 const mockHubs = [
