@@ -34,8 +34,8 @@ export function DashboardView({ navigateTo, setHasActiveDeck, myDecks }) {
     return (
       <div className="flex-1 w-full min-h-[70vh] flex flex-col items-center justify-center p-4 md:p-8 my-auto">
         <Card data-tour="dashboard-welcome" className="max-w-lg w-full p-8 md:p-12 text-center border-dashed border-stone-300 dark:border-zinc-800 shadow-none bg-transparent mx-auto">
-          <div className="w-20 h-20 bg-stone-200/50 dark:bg-zinc-800/60 text-umber dark:text-zinc-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Inbox size={40} />
+          <div className="w-20 h-20 bg-amber-500/10 dark:bg-amber-500/20 rounded-3xl p-3 flex items-center justify-center mx-auto mb-6 shadow-xs">
+            <img src="/cramzero-logo.svg" alt="CramZero Logo" className="w-full h-full object-contain" />
           </div>
           <CardTitle className="text-2xl md:text-3xl font-extrabold mb-2 text-umber dark:text-zinc-100 tracking-tight">
             Welcome to CramZero!

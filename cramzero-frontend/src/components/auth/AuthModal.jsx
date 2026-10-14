@@ -10,12 +10,23 @@ import { toast } from 'sonner';
 import { API_BASE } from '@/lib/api';
 
 export const PRESET_AVATARS = [
-  { id: 'avatar-1', label: 'Scholar', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Felix&backgroundColor=e5ddd3' },
-  { id: 'avatar-2', label: 'Creative', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Aneka&backgroundColor=fce8d5' },
-  { id: 'avatar-3', label: 'Tech Pro', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Milo&backgroundColor=e0f2fe' },
-  { id: 'avatar-4', label: 'Thinker', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Zoe&backgroundColor=fef3c7' },
-  { id: 'avatar-5', label: 'Scientist', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Leo&backgroundColor=dcfce7' },
-  { id: 'avatar-6', label: 'Explorer', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Maya&backgroundColor=ede9fe' },
+  // Female Avatars
+  { id: 'avatar-f-1', label: 'Luna', style: 'Waves', category: 'female', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Luna&hair=variant48&beardProbability=0&backgroundColor=fce8d5' },
+  { id: 'avatar-f-2', label: 'Chloe', style: 'Long Hair', category: 'female', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Chloe&hair=variant14&beardProbability=0&backgroundColor=fef3c7' },
+  { id: 'avatar-f-3', label: 'Sara', style: 'Side Part', category: 'female', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Sara&hair=variant08&beardProbability=0&backgroundColor=dcfce7' },
+  { id: 'avatar-f-4', label: 'Elena', style: 'Top Bun', category: 'female', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Elena&hair=variant20&beardProbability=0&backgroundColor=ede9fe' },
+  { id: 'avatar-f-5', label: 'Amira', style: 'Chic Bob', category: 'female', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Amira&hair=variant62&beardProbability=0&backgroundColor=ffe4e6' },
+  { id: 'avatar-f-6', label: 'Aria', style: 'Braids', category: 'female', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Aria&hair=variant61&beardProbability=0&backgroundColor=e0f2fe' },
+  { id: 'avatar-f-7', label: 'Maya', style: 'Curly', category: 'female', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Maya&hair=variant46&beardProbability=0&backgroundColor=fce8d5' },
+  { id: 'avatar-f-8', label: 'Sophia', style: 'Ponytail', category: 'female', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Sophia&hair=variant63&beardProbability=0&backgroundColor=fef3c7' },
+
+  // Male / Neutral Avatars
+  { id: 'avatar-m-1', label: 'Felix', style: 'Scholar', category: 'male', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Felix&backgroundColor=e5ddd3' },
+  { id: 'avatar-m-2', label: 'Milo', style: 'Tech Pro', category: 'male', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Milo&backgroundColor=e0f2fe' },
+  { id: 'avatar-m-3', label: 'Leo', style: 'Scientist', category: 'male', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Leo&backgroundColor=dcfce7' },
+  { id: 'avatar-m-4', label: 'Oliver', style: 'Creative', category: 'male', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Oliver&backgroundColor=fef3c7' },
+  { id: 'avatar-m-5', label: 'Noah', style: 'Explorer', category: 'male', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Noah&backgroundColor=ede9fe' },
+  { id: 'avatar-m-6', label: 'Ethan', style: 'Thinker', category: 'male', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Ethan&backgroundColor=fce8d5' },
 ];
 
 export function AuthModal({ 
@@ -29,6 +40,7 @@ export function AuthModal({
   const [mode, setMode] = useState(initialMode); // 'prompt' | 'register' | 'guest' | 'login'
   const [displayName, setDisplayName] = useState(() => localStorage.getItem('cramzero-display-name') || 'Student');
   const [selectedAvatar, setSelectedAvatar] = useState(() => localStorage.getItem('cramzero-avatar-url') || PRESET_AVATARS[0].url);
+  const [avatarCategory, setAvatarCategory] = useState('all'); // 'all' | 'female' | 'male'
   const [customAvatarUrl, setCustomAvatarUrl] = useState('');
   const [showCustomAvatar, setShowCustomAvatar] = useState(false);
   
@@ -40,6 +52,10 @@ export function AuthModal({
   if (!isOpen) return null;
 
   const currentAvatar = showCustomAvatar && customAvatarUrl.trim() ? customAvatarUrl.trim() : selectedAvatar;
+
+  const filteredAvatars = avatarCategory === 'all' 
+    ? PRESET_AVATARS 
+    : PRESET_AVATARS.filter((av) => av.category === avatarCategory);
 
   // Handle registration
   const handleRegister = async (e) => {
@@ -187,22 +203,34 @@ export function AuthModal({
     <div className="fixed inset-0 z-[120] bg-black/50 dark:bg-black/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
       <div className="bg-white dark:bg-zinc-900 border border-stone-200/90 dark:border-zinc-800 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative my-auto animate-in zoom-in-95 duration-200">
         
-        {/* Dismiss Button (only if canDismiss is true) */}
-        {canDismiss && (
-          <button 
-            onClick={onClose}
-            className="absolute top-5 right-5 text-stone-400 hover:text-stone-700 dark:hover:text-zinc-200 p-1.5 rounded-full hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors"
-          >
-            <X size={18} />
-          </button>
-        )}
+        {/* Close / Dismiss Button (Always accessible so users never get trapped) */}
+        <button 
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="absolute top-5 right-5 text-stone-400 hover:text-stone-700 dark:hover:text-zinc-200 p-2 rounded-full hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors z-20"
+        >
+          <X size={18} />
+        </button>
 
         {/* STEP 1: INITIAL PROMPT (Create Account vs Skip/Guest) */}
         {mode === 'prompt' && (
           <div className="space-y-6">
-            <div className="text-center space-y-2">
-              <div className="w-14 h-14 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 mx-auto flex items-center justify-center shadow-xs">
-                <Sparkles size={28} />
+            <div className="flex items-center justify-between border-b border-stone-100 dark:border-zinc-800 pb-3">
+              <button 
+                type="button" 
+                onClick={onClose}
+                className="flex items-center gap-1.5 text-xs font-semibold text-stone-500 hover:text-stone-900 dark:hover:text-zinc-100 transition-colors"
+              >
+                <ArrowLeft size={14} /> Back to App
+              </button>
+              <span className="text-xs font-bold text-stone-400 dark:text-zinc-500 uppercase tracking-widest">Get Started</span>
+              <div className="w-8"></div>
+            </div>
+
+            <div className="text-center space-y-3 pt-1">
+              <div className="w-16 h-16 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 p-2.5 mx-auto flex items-center justify-center shadow-xs">
+                <img src="/cramzero-logo.svg" alt="CramZero Logo" className="w-full h-full object-contain" />
               </div>
               <h2 className="text-2xl font-black text-stone-900 dark:text-zinc-100 tracking-tight">
                 Welcome to CramZero
@@ -273,15 +301,6 @@ export function AuthModal({
                 </div>
               </Card>
             </div>
-
-            <div className="text-center pt-2 border-t border-stone-100 dark:border-zinc-800">
-              <button 
-                onClick={() => setMode('login')}
-                className="text-xs font-semibold text-stone-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
-              >
-                Already have an account? <span className="font-bold underline">Sign In</span>
-              </button>
-            </div>
           </div>
         )}
 
@@ -302,25 +321,65 @@ export function AuthModal({
 
             {/* Avatar Selector */}
             <div>
-              <label className="block text-xs font-bold text-stone-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
-                Choose Your Avatar / PFP
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-xs font-bold text-stone-500 dark:text-zinc-400 uppercase tracking-wider">
+                  Choose Your Avatar / PFP
+                </label>
+                <div className="flex items-center gap-1 bg-stone-100 dark:bg-zinc-800 p-0.5 rounded-lg border border-stone-200/60 dark:border-zinc-700/60">
+                  <button
+                    type="button"
+                    onClick={() => setAvatarCategory('all')}
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all ${
+                      avatarCategory === 'all'
+                        ? 'bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 shadow-2xs'
+                        : 'text-stone-500 hover:text-stone-800 dark:text-zinc-400'
+                    }`}
+                  >
+                    All ({PRESET_AVATARS.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAvatarCategory('female')}
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all ${
+                      avatarCategory === 'female'
+                        ? 'bg-amber-500 text-white shadow-2xs'
+                        : 'text-stone-500 hover:text-stone-800 dark:text-zinc-400'
+                    }`}
+                  >
+                    Female (8)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAvatarCategory('male')}
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all ${
+                      avatarCategory === 'male'
+                        ? 'bg-stone-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-2xs'
+                        : 'text-stone-500 hover:text-stone-800 dark:text-zinc-400'
+                    }`}
+                  >
+                    Male (6)
+                  </button>
+                </div>
+              </div>
               <div className="flex items-center gap-3">
-                <img 
-                  src={currentAvatar} 
-                  alt="Profile Preview" 
-                  className="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-zinc-800 border-2 border-amber-500/50 shadow-sm shrink-0 object-cover" 
-                />
-                <div className="flex-1 grid grid-cols-6 gap-2">
-                  {PRESET_AVATARS.map((av) => (
+                <div className="relative shrink-0">
+                  <img 
+                    src={currentAvatar} 
+                    alt="Profile Preview" 
+                    className="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-zinc-800 border-2 border-amber-500/50 shadow-sm object-cover" 
+                  />
+                </div>
+                <div className="flex-1 grid grid-cols-4 sm:grid-cols-7 gap-1.5 max-h-28 overflow-y-auto p-1.5 rounded-xl bg-stone-50/80 dark:bg-zinc-800/40 border border-stone-200/60 dark:border-zinc-800">
+                  {filteredAvatars.map((av) => (
                     <button
                       key={av.id}
                       type="button"
+                      title={`${av.label} (${av.style})`}
                       onClick={() => { setSelectedAvatar(av.url); setShowCustomAvatar(false); }}
-                      className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl p-0.5 border-2 transition-all hover:scale-105 overflow-hidden ${
+                      className={`aspect-square rounded-xl p-0.5 border-2 transition-all hover:scale-105 overflow-hidden flex items-center justify-center ${
                         selectedAvatar === av.url && !showCustomAvatar 
-                          ? 'border-amber-500 shadow-sm scale-105 ring-2 ring-amber-500/20' 
-                          : 'border-transparent opacity-70 hover:opacity-100'
+                          ? 'border-amber-500 shadow-sm scale-105 ring-2 ring-amber-500/20 bg-amber-50 dark:bg-amber-950/30' 
+                          : 'border-transparent opacity-75 hover:opacity-100 hover:border-stone-300 dark:hover:border-zinc-700'
                       }`}
                     >
                       <img src={av.url} alt={av.label} className="w-full h-full rounded-lg object-cover" />
@@ -424,25 +483,65 @@ export function AuthModal({
 
             {/* Avatar Selector */}
             <div>
-              <label className="block text-xs font-bold text-stone-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
-                Pick Your Avatar
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-xs font-bold text-stone-500 dark:text-zinc-400 uppercase tracking-wider">
+                  Pick Your Avatar
+                </label>
+                <div className="flex items-center gap-1 bg-stone-100 dark:bg-zinc-800 p-0.5 rounded-lg border border-stone-200/60 dark:border-zinc-700/60">
+                  <button
+                    type="button"
+                    onClick={() => setAvatarCategory('all')}
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all ${
+                      avatarCategory === 'all'
+                        ? 'bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 shadow-2xs'
+                        : 'text-stone-500 hover:text-stone-800 dark:text-zinc-400'
+                    }`}
+                  >
+                    All ({PRESET_AVATARS.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAvatarCategory('female')}
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all ${
+                      avatarCategory === 'female'
+                        ? 'bg-amber-500 text-white shadow-2xs'
+                        : 'text-stone-500 hover:text-stone-800 dark:text-zinc-400'
+                    }`}
+                  >
+                    Female (8)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAvatarCategory('male')}
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all ${
+                      avatarCategory === 'male'
+                        ? 'bg-stone-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-2xs'
+                        : 'text-stone-500 hover:text-stone-800 dark:text-zinc-400'
+                    }`}
+                  >
+                    Male (6)
+                  </button>
+                </div>
+              </div>
               <div className="flex items-center gap-3">
-                <img 
-                  src={currentAvatar} 
-                  alt="Profile Preview" 
-                  className="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-zinc-800 border-2 border-amber-500/50 shadow-sm shrink-0 object-cover" 
-                />
-                <div className="flex-1 grid grid-cols-6 gap-2">
-                  {PRESET_AVATARS.map((av) => (
+                <div className="relative shrink-0">
+                  <img 
+                    src={currentAvatar} 
+                    alt="Profile Preview" 
+                    className="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-zinc-800 border-2 border-amber-500/50 shadow-sm object-cover" 
+                  />
+                </div>
+                <div className="flex-1 grid grid-cols-4 sm:grid-cols-7 gap-1.5 max-h-28 overflow-y-auto p-1.5 rounded-xl bg-stone-50/80 dark:bg-zinc-800/40 border border-stone-200/60 dark:border-zinc-800">
+                  {filteredAvatars.map((av) => (
                     <button
                       key={av.id}
                       type="button"
+                      title={`${av.label} (${av.style})`}
                       onClick={() => { setSelectedAvatar(av.url); setShowCustomAvatar(false); }}
-                      className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl p-0.5 border-2 transition-all hover:scale-105 overflow-hidden ${
+                      className={`aspect-square rounded-xl p-0.5 border-2 transition-all hover:scale-105 overflow-hidden flex items-center justify-center ${
                         selectedAvatar === av.url && !showCustomAvatar 
-                          ? 'border-amber-500 shadow-sm scale-105 ring-2 ring-amber-500/20' 
-                          : 'border-transparent opacity-70 hover:opacity-100'
+                          ? 'border-amber-500 shadow-sm scale-105 ring-2 ring-amber-500/20 bg-amber-50 dark:bg-amber-950/30' 
+                          : 'border-transparent opacity-75 hover:opacity-100 hover:border-stone-300 dark:hover:border-zinc-700'
                       }`}
                     >
                       <img src={av.url} alt={av.label} className="w-full h-full rounded-lg object-cover" />
@@ -500,9 +599,15 @@ export function AuthModal({
               <div className="w-10"></div>
             </div>
 
-            <p className="text-xs text-stone-500 dark:text-zinc-400 leading-relaxed">
-              Sign in with your email and password to sync your decks and study hubs to this device.
-            </p>
+            <div className="text-center space-y-2 mb-1">
+              <div className="w-14 h-14 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 p-2 mx-auto flex items-center justify-center shadow-xs">
+                <img src="/cramzero-logo.svg" alt="CramZero Logo" className="w-full h-full object-contain" />
+              </div>
+              <h3 className="font-extrabold text-lg text-stone-900 dark:text-zinc-100">Welcome Back</h3>
+              <p className="text-xs text-stone-500 dark:text-zinc-400 max-w-xs mx-auto leading-relaxed">
+                Sign in with your email and password to sync your decks and hubs to this device.
+              </p>
+            </div>
 
             {/* Email Input */}
             <div>
@@ -556,13 +661,20 @@ export function AuthModal({
               {isLoading ? 'Signing In...' : 'Sign In & Sync Decks'}
             </Button>
 
-            <div className="text-center pt-2">
+            <div className="text-center pt-2 space-y-2">
               <button 
                 type="button"
                 onClick={() => setMode('register')}
-                className="text-xs font-semibold text-stone-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400"
+                className="text-xs font-semibold text-stone-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 block mx-auto"
               >
-                Don't have an account yet? <span className="font-bold underline">Create one</span>
+                Don't have an account yet? <span className="font-bold underline">Create Free Account</span>
+              </button>
+              <button 
+                type="button"
+                onClick={() => setMode('guest')}
+                className="text-xs text-stone-400 hover:text-stone-700 dark:hover:text-zinc-300 block mx-auto"
+              >
+                Or continue as <span className="underline">Guest</span>
               </button>
             </div>
           </form>

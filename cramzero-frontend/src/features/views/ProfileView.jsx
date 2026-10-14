@@ -30,7 +30,12 @@ export function ProfileView({
 }) {
   const [nameInput, setNameInput] = useState(displayName || '');
   const [selectedAvatar, setSelectedAvatar] = useState(avatarUrl || PRESET_AVATARS[0].url);
+  const [avatarCategory, setAvatarCategory] = useState('all'); // 'all' | 'female' | 'male'
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  const filteredAvatars = avatarCategory === 'all' 
+    ? PRESET_AVATARS 
+    : PRESET_AVATARS.filter((av) => av.category === avatarCategory);
 
   // Upgrade form state
   const [upgradeEmail, setUpgradeEmail] = useState('');
@@ -295,23 +300,73 @@ export function ProfileView({
         <form onSubmit={handleSaveProfile} className="space-y-6">
           {/* Avatar Grid */}
           <div>
-            <label className="block text-xs font-bold text-stone-500 dark:text-zinc-400 uppercase tracking-wider mb-2.5">
-              Choose Profile Picture (PFP)
-            </label>
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-              {PRESET_AVATARS.map((av) => (
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <div>
+                <label className="block text-xs font-bold text-stone-500 dark:text-zinc-400 uppercase tracking-wider">
+                  Choose Profile Picture (PFP)
+                </label>
+                <p className="text-xs text-stone-400 dark:text-zinc-500 mt-0.5">
+                  Select a female or male/neutral Notion-style avatar
+                </p>
+              </div>
+
+              {/* Filter Pills */}
+              <div className="flex items-center gap-1 p-1 rounded-xl bg-stone-100 dark:bg-zinc-800 border border-stone-200/80 dark:border-zinc-700/80">
+                <button
+                  type="button"
+                  onClick={() => setAvatarCategory('all')}
+                  className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+                    avatarCategory === 'all'
+                      ? 'bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 shadow-2xs'
+                      : 'text-stone-500 hover:text-stone-900 dark:text-zinc-400 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  All ({PRESET_AVATARS.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAvatarCategory('female')}
+                  className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+                    avatarCategory === 'female'
+                      ? 'bg-amber-500 text-white shadow-2xs'
+                      : 'text-stone-500 hover:text-stone-900 dark:text-zinc-400 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  Female (8)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAvatarCategory('male')}
+                  className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+                    avatarCategory === 'male'
+                      ? 'bg-stone-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-2xs'
+                      : 'text-stone-500 hover:text-stone-900 dark:text-zinc-400 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  Male (6)
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3">
+              {filteredAvatars.map((av) => (
                 <button
                   key={av.id}
                   type="button"
                   onClick={() => setSelectedAvatar(av.url)}
-                  className={`p-2 rounded-2xl border-2 flex flex-col items-center gap-1.5 transition-all hover:scale-105 ${
+                  className={`p-2.5 rounded-2xl border-2 flex flex-col items-center gap-1.5 transition-all hover:scale-105 ${
                     selectedAvatar === av.url 
-                      ? 'border-amber-500 bg-amber-50/50 dark:bg-amber-950/30 shadow-xs' 
-                      : 'border-stone-200 dark:border-zinc-800 hover:border-stone-400'
+                      ? 'border-amber-500 bg-amber-50/50 dark:bg-amber-950/30 shadow-xs ring-2 ring-amber-500/20' 
+                      : 'border-stone-200 dark:border-zinc-800 hover:border-stone-400 dark:hover:border-zinc-700 bg-white/60 dark:bg-zinc-800/40'
                   }`}
                 >
                   <img src={av.url} alt={av.label} className="w-12 h-12 rounded-xl object-cover" />
-                  <span className="text-[11px] font-semibold text-stone-700 dark:text-zinc-300">{av.label}</span>
+                  <span className="text-xs font-bold text-stone-800 dark:text-zinc-200 truncate w-full text-center">
+                    {av.label}
+                  </span>
+                  <span className="text-[10px] text-stone-400 dark:text-zinc-500 -mt-1 font-medium truncate w-full text-center">
+                    {av.style}
+                  </span>
                 </button>
               ))}
             </div>

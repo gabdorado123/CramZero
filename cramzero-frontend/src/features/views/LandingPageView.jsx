@@ -69,7 +69,6 @@ export function LandingPageView({ navigateTo, isDarkMode, setIsDarkMode, onOpenA
               <Switch checked={isDarkMode} onCheckedChange={setIsDarkMode} className="data-[state=checked]:bg-indigo-500" />
               <Moon size={14} className="text-taupe dark:text-indigo-400" />
             </div>
-            <Button variant="ghost" onClick={() => onOpenAuth ? onOpenAuth('login') : navigateTo('dashboard')} className="font-semibold text-umber/90 dark:text-zinc-300 hover:text-umber dark:hover:text-zinc-100 hidden sm:inline-flex hover:bg-taupe/10 dark:hover:bg-zinc-800">Sign in</Button>
             <Button data-tour="launch-app" onClick={() => navigateTo('dashboard')} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 rounded-full font-bold hover:bg-umber/90 dark:hover:bg-zinc-300 shadow-sm hover:scale-105">Launch App →</Button>
           </div>
         </div>

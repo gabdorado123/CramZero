@@ -97,7 +97,7 @@ export default function App() {
   const [showAuthModal, setShowAuthModal] = useState(() => {
     return localStorage.getItem('cramzero-has-profile-setup') !== 'true';
   });
-  const [authModalMode, setAuthModalMode] = useState('prompt');
+  const [authModalMode, setAuthModalMode] = useState('login');
 
   const handleAuthSuccess = (userData) => {
     if (userData.id) {
@@ -141,6 +141,10 @@ export default function App() {
     setHasProfileSetup(false);
     localStorage.removeItem('cramzero-has-profile-setup');
     toast.success('Signed out successfully');
+
+    // REAL-TIME POPUP: Immediately display AuthModal in 'login' mode on signout
+    setAuthModalMode('login');
+    setShowAuthModal(true);
     handleNavigate('landing');
   };
   
@@ -363,7 +367,7 @@ export default function App() {
         onClose={() => setShowAuthModal(false)}
         userId={userId}
         initialMode={authModalMode}
-        canDismiss={hasProfileSetup}
+        canDismiss={true}
         onAuthSuccess={handleAuthSuccess}
       />
 
