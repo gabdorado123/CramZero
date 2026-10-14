@@ -23,11 +23,19 @@ import { Marker, MarkerContent } from '@/components/ui/marker';
 import { Message, MessageAvatar, MessageContent, MessageFooter } from '@/components/ui/message';
 import ReactMarkdown from 'react-markdown';
 
-export function LandingPageView({ navigateTo, isDarkMode, setIsDarkMode, onOpenAuth }) {
+export function LandingPageView({ navigateTo, hasProfileSetup, isDarkMode, setIsDarkMode, onOpenAuth }) {
   const [typedText, setTypedText] = useState('');
   const [activeStudyTab, setActiveStudyTab] = useState(1);
   const [isBuilding, setIsBuilding] = useState(true);
   const [revealedCount, setRevealedCount] = useState(0);
+
+  const handleLaunchApp = () => {
+    if (!hasProfileSetup) {
+      if (onOpenAuth) onOpenAuth('prompt');
+    } else {
+      navigateTo('dashboard');
+    }
+  };
 
   const fullPrompt = "Cardiac medications — ACE inhibitors, beta blockers, CCBs...";
   const generatedItems = ["Generated 12 cards", "ACE inhibitors", "Beta blockers", "Calcium channel blockers"];
@@ -69,7 +77,7 @@ export function LandingPageView({ navigateTo, isDarkMode, setIsDarkMode, onOpenA
               <Switch checked={isDarkMode} onCheckedChange={setIsDarkMode} className="data-[state=checked]:bg-indigo-500" />
               <Moon size={14} className="text-taupe dark:text-indigo-400" />
             </div>
-            <Button data-tour="launch-app" onClick={() => navigateTo('dashboard')} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 rounded-full font-bold hover:bg-umber/90 dark:hover:bg-zinc-300 shadow-sm hover:scale-105">Launch App →</Button>
+            <Button data-tour="launch-app" onClick={handleLaunchApp} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 rounded-full font-bold hover:bg-umber/90 dark:hover:bg-zinc-300 shadow-sm hover:scale-105">Launch App →</Button>
           </div>
         </div>
       </header>
@@ -86,7 +94,7 @@ export function LandingPageView({ navigateTo, isDarkMode, setIsDarkMode, onOpenA
             Transform heavy PDFs, PPTX slides, and lecture notes into smart flashcards and quizzes instantly using Google Gemini AI.
           </p>
           <div className="flex items-center justify-center lg:justify-start gap-4 pt-2">
-            <Button size="lg" onClick={() => navigateTo('dashboard')} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 rounded-xl font-bold text-base hover:bg-umber/90 dark:hover:bg-zinc-300 shadow-md hover:scale-105 h-14 px-8">
+            <Button size="lg" onClick={handleLaunchApp} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 rounded-xl font-bold text-base hover:bg-umber/90 dark:hover:bg-zinc-300 shadow-md hover:scale-105 h-14 px-8">
               Start Studying Now <ArrowRight size={18} className="ml-2" />
             </Button>
           </div>

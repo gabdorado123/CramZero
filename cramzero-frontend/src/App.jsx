@@ -94,10 +94,15 @@ export default function App() {
   const [hasProfileSetup, setHasProfileSetup] = useState(() => {
     return localStorage.getItem('cramzero-has-profile-setup') === 'true' || !!localStorage.getItem('cramzero-user-email');
   });
-  const [showAuthModal, setShowAuthModal] = useState(() => {
-    return localStorage.getItem('cramzero-has-profile-setup') !== 'true';
-  });
-  const [authModalMode, setAuthModalMode] = useState('login');
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState('prompt');
+
+  const handleAuthClose = () => {
+    setShowAuthModal(false);
+    if (!hasProfileSetup) {
+      handleNavigate('landing');
+    }
+  };
 
   const handleAuthSuccess = (userData) => {
     if (userData.id) {
@@ -124,6 +129,7 @@ export default function App() {
     setHasProfileSetup(true);
     localStorage.setItem('cramzero-has-profile-setup', 'true');
     setShowAuthModal(false);
+    handleNavigate('dashboard');
   };
 
   const handleSignOut = () => {
@@ -142,10 +148,10 @@ export default function App() {
     localStorage.removeItem('cramzero-has-profile-setup');
     toast.success('Signed out successfully');
 
-    // REAL-TIME POPUP: Immediately display AuthModal in 'login' mode on signout
+    // REAL-TIME POPUP: Redirect to landing and immediately show Sign In modal
+    handleNavigate('landing');
     setAuthModalMode('login');
     setShowAuthModal(true);
-    handleNavigate('landing');
   };
   
   const [myDecks, setMyDecks] = useState([]);
@@ -291,6 +297,11 @@ export default function App() {
   };
   
   const handleNavigate = (view) => {
+    if (view !== 'landing' && !hasProfileSetup) {
+      setAuthModalMode('prompt');
+      setShowAuthModal(true);
+      return;
+    }
     if (!document.startViewTransition) {
       setCurrentView(view);
     } else {
@@ -315,37 +326,8 @@ export default function App() {
   const focusViews = ['new-deck', 'deck-details', 'create-hub', 'hub-details', 'flashcard-mode', 'quiz-setup', 'mock-exam-setup', 'mock-exam-active'];
   const showNavDock = !focusViews.includes(currentView);
 
-  if (currentView === 'landing') {
-    return (
-      <>
-        <LandingPageView 
-          navigateTo={handleNavigate} 
-          isDarkMode={isDarkMode} 
-          setIsDarkMode={setIsDarkMode} 
-          onOpenAuth={(m) => { setAuthModalMode(m || 'login'); setShowAuthModal(true); }}
-        />
-        {isBooting && (
-          <div className="fixed inset-0 z-[100] bg-sand dark:bg-zinc-950 flex flex-col items-center justify-center animate-in fade-in duration-200">
-            <div className="relative mb-6">
-              <div className="absolute inset-0 bg-amber-200 dark:bg-amber-900 blur-xl rounded-full animate-pulse"></div>
-              <div className="w-20 h-20 bg-white dark:bg-zinc-900 border border-taupe/20 dark:border-zinc-800 rounded-3xl shadow-xl flex items-center justify-center relative z-10 animate-bounce p-3">
-                <img src="/cramzero-logo.svg" alt="CramZero" className="w-full h-full" />
-              </div>
-              <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center shadow-lg z-20">
-                <RotateCw size={16} className="text-white animate-spin" />
-              </div>
-            </div>
-            <h2 className="text-2xl md:text-3xl font-black text-umber dark:text-zinc-100 mb-2 tracking-tight">CramZero is cooking  🍳</h2>
-            <p className="text-taupe dark:text-zinc-400 text-sm font-medium animate-pulse">Firing up the engines</p>
-          </div>
-        )}
-      </>
-    );
-  }
-
   return (
-    <div className="flex h-screen h-[100dvh] w-full overflow-hidden font-sans bg-[#FBF9F5] dark:bg-zinc-950 text-umber dark:text-zinc-100 relative transition-colors">
-      
+    <>
       <Toaster 
         position="top-center" 
         theme={isDarkMode ? 'dark' : 'light'}
@@ -361,18 +343,31 @@ export default function App() {
           },
         }}
       />
-      <OnboardingTour currentView={currentView} navigateTo={handleNavigate} />
+
+      {/* Global Auth Modal: Can render cleanly over Landing Page or Workspace */}
       <AuthModal
         isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
+        onClose={handleAuthClose}
         userId={userId}
         initialMode={authModalMode}
         canDismiss={true}
         onAuthSuccess={handleAuthSuccess}
       />
 
-      <main className="flex-1 flex flex-col relative overflow-hidden"> 
-        <header className="px-3 sm:px-4 md:px-8 py-2 sm:py-2.5 border-b border-stone-200/70 dark:border-zinc-800/80 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md sticky top-0 z-20 transition-colors shrink-0 shadow-2xs">
+      {currentView === 'landing' ? (
+        <LandingPageView 
+          navigateTo={handleNavigate} 
+          hasProfileSetup={hasProfileSetup}
+          isDarkMode={isDarkMode} 
+          setIsDarkMode={setIsDarkMode} 
+          onOpenAuth={(m) => { setAuthModalMode(m || 'prompt'); setShowAuthModal(true); }}
+        />
+      ) : (
+        <div className="flex h-screen h-[100dvh] w-full overflow-hidden font-sans bg-[#FBF9F5] dark:bg-zinc-950 text-umber dark:text-zinc-100 relative transition-colors">
+          <OnboardingTour currentView={currentView} navigateTo={handleNavigate} />
+
+          <main className="flex-1 flex flex-col relative overflow-hidden"> 
+            <header className="px-3 sm:px-4 md:px-8 py-2 sm:py-2.5 border-b border-stone-200/70 dark:border-zinc-800/80 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md sticky top-0 z-20 transition-colors shrink-0 shadow-2xs">
           <div className="flex items-center justify-between gap-2 sm:gap-3">
             <div className="flex min-w-0 items-center gap-2 sm:gap-4 md:gap-5">
               <div className="flex items-center gap-2 cursor-pointer group shrink-0" onClick={() => handleNavigate('landing')}>
@@ -600,7 +595,25 @@ export default function App() {
           </aside>
         </>
       )}
-    </div>
+        </div>
+      )}
+
+      {isBooting && (
+        <div className="fixed inset-0 z-[100] bg-sand dark:bg-zinc-950 flex flex-col items-center justify-center animate-in fade-in duration-200">
+          <div className="relative mb-6">
+            <div className="absolute inset-0 bg-amber-200 dark:bg-amber-900 blur-xl rounded-full animate-pulse"></div>
+            <div className="w-20 h-20 bg-white dark:bg-zinc-900 border border-taupe/20 dark:border-zinc-800 rounded-3xl shadow-xl flex items-center justify-center relative z-10 animate-bounce p-3">
+              <img src="/cramzero-logo.svg" alt="CramZero" className="w-full h-full" />
+            </div>
+            <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center shadow-lg z-20">
+              <RotateCw size={16} className="text-white animate-spin" />
+            </div>
+          </div>
+          <h2 className="text-2xl md:text-3xl font-black text-umber dark:text-zinc-100 mb-2 tracking-tight">CramZero is cooking  🍳</h2>
+          <p className="text-taupe dark:text-zinc-400 text-sm font-medium animate-pulse">Firing up the engines</p>
+        </div>
+      )}
+    </>
   );
 }
 

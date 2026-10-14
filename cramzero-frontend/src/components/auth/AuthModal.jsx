@@ -222,7 +222,7 @@ export function AuthModal({
                 onClick={onClose}
                 className="flex items-center gap-1.5 text-xs font-semibold text-stone-500 hover:text-stone-900 dark:hover:text-zinc-100 transition-colors"
               >
-                <ArrowLeft size={14} /> Back to App
+                <ArrowLeft size={14} /> Back to Landing
               </button>
               <span className="text-xs font-bold text-stone-400 dark:text-zinc-500 uppercase tracking-widest">Get Started</span>
               <div className="w-8"></div>
