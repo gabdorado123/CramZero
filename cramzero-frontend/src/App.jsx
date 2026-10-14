@@ -79,14 +79,70 @@ export default function App() {
   const [isBooting, setIsBooting] = useState(true); 
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState('');
-  const [userId] = useState(() => {
+  const [userId, setUserId] = useState(() => {
     const savedId = localStorage.getItem('cramzero-user-id');
     if (savedId) return savedId;
     const nextId = crypto.randomUUID ? crypto.randomUUID() : `student-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     localStorage.setItem('cramzero-user-id', nextId);
     return nextId;
   });
-  const [displayName] = useState(() => localStorage.getItem('cramzero-display-name') || 'Student');
+  const [displayName, setDisplayName] = useState(() => localStorage.getItem('cramzero-display-name') || 'Student');
+  const [userEmail, setUserEmail] = useState(() => localStorage.getItem('cramzero-user-email') || '');
+  const [avatarUrl, setAvatarUrl] = useState(() => localStorage.getItem('cramzero-avatar-url') || 'https://api.dicebear.com/7.x/notionists/svg?seed=Felix&backgroundColor=e5ddd3');
+  const [isGuest, setIsGuest] = useState(() => localStorage.getItem('cramzero-is-guest') !== 'false');
+
+  const [hasProfileSetup, setHasProfileSetup] = useState(() => {
+    return localStorage.getItem('cramzero-has-profile-setup') === 'true' || !!localStorage.getItem('cramzero-user-email');
+  });
+  const [showAuthModal, setShowAuthModal] = useState(() => {
+    return localStorage.getItem('cramzero-has-profile-setup') !== 'true';
+  });
+  const [authModalMode, setAuthModalMode] = useState('prompt');
+
+  const handleAuthSuccess = (userData) => {
+    if (userData.id) {
+      setUserId(userData.id);
+      localStorage.setItem('cramzero-user-id', userData.id);
+    }
+    if (userData.displayName) {
+      setDisplayName(userData.displayName);
+      localStorage.setItem('cramzero-display-name', userData.displayName);
+    }
+    if (userData.avatarUrl) {
+      setAvatarUrl(userData.avatarUrl);
+      localStorage.setItem('cramzero-avatar-url', userData.avatarUrl);
+    }
+    if (userData.email) {
+      setUserEmail(userData.email);
+      localStorage.setItem('cramzero-user-email', userData.email);
+    } else {
+      setUserEmail('');
+      localStorage.removeItem('cramzero-user-email');
+    }
+    setIsGuest(!!userData.isGuest);
+    localStorage.setItem('cramzero-is-guest', userData.isGuest ? 'true' : 'false');
+    setHasProfileSetup(true);
+    localStorage.setItem('cramzero-has-profile-setup', 'true');
+    setShowAuthModal(false);
+  };
+
+  const handleSignOut = () => {
+    const nextId = crypto.randomUUID ? crypto.randomUUID() : `student-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    setUserId(nextId);
+    localStorage.setItem('cramzero-user-id', nextId);
+    setDisplayName('Student');
+    localStorage.setItem('cramzero-display-name', 'Student');
+    setUserEmail('');
+    localStorage.removeItem('cramzero-user-email');
+    setAvatarUrl('https://api.dicebear.com/7.x/notionists/svg?seed=Felix&backgroundColor=e5ddd3');
+    localStorage.setItem('cramzero-avatar-url', 'https://api.dicebear.com/7.x/notionists/svg?seed=Felix&backgroundColor=e5ddd3');
+    setIsGuest(true);
+    localStorage.setItem('cramzero-is-guest', 'true');
+    setHasProfileSetup(false);
+    localStorage.removeItem('cramzero-has-profile-setup');
+    toast.success('Signed out successfully');
+    handleNavigate('landing');
+  };
   
   const [myDecks, setMyDecks] = useState([]);
   const [myHubs, setMyHubs] = useState([]);
