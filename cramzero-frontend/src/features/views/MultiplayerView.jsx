@@ -533,8 +533,8 @@ export function MultiplayerView({ navigateTo, myDecks }) {
   if (view === 'playing') {
     const currentQ = selectedDeck?.cards[currentQIndex];
     return (
-      <div className="max-w-4xl w-full mx-auto flex flex-col h-[calc(100vh-10rem)] relative">
-        <div className="bg-sand/90 dark:bg-zinc-950/90 backdrop-blur-md pb-4 mb-6 border-b border-taupe/20 dark:border-zinc-800 flex justify-between items-end transition-colors shrink-0 px-2 md:px-0">
+      <div className="max-w-4xl w-full mx-auto flex flex-col min-h-full pb-8 px-4 sm:px-6 relative animate-in fade-in duration-200">
+        <div className="bg-sand/90 dark:bg-zinc-950/90 backdrop-blur-md pb-4 mb-6 border-b border-taupe/20 dark:border-zinc-800 flex justify-between items-end transition-colors shrink-0">
           <div>
             <p className="text-[10px] font-bold text-taupe dark:text-zinc-500 uppercase tracking-widest mb-1 flex items-center gap-2">
               <Zap size={12}/> Live Battle • Question {currentQIndex + 1} of {selectedDeck?.cards?.length || 0}
@@ -584,7 +584,7 @@ export function MultiplayerView({ navigateTo, myDecks }) {
             </div>
           </div>
 
-          <Card className="lg:col-span-1 rounded-3xl p-6 shadow-sm flex flex-col h-[50vh] lg:h-full overflow-hidden bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800">
+          <Card className="lg:col-span-1 rounded-3xl p-6 shadow-sm flex flex-col max-h-64 lg:max-h-none lg:h-full overflow-hidden bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800">
             <h3 className="font-bold text-umber dark:text-zinc-100 mb-4 flex items-center gap-2 border-b border-taupe/20 dark:border-zinc-800 pb-4"><Target size={18}/> Status</h3>
             <div className="flex-1 space-y-3">
               {players.map((p, i) => {

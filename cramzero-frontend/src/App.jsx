@@ -28,6 +28,7 @@ import { Message, MessageAvatar, MessageContent, MessageFooter } from "@/compone
 import ReactMarkdown from 'react-markdown';
 import { CodeSpaceView } from '@/features/codespace/CodeSpaceView';
 import { PrimaryNavigation } from '@/components/layout/PrimaryNavigation';
+import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { UsageTracker } from '@/components/layout/UsageTracker';
 import { LandingPageView } from '@/features/views/LandingPageView';
 import { DashboardView } from '@/features/views/DashboardView';
@@ -296,28 +297,28 @@ export default function App() {
       <OnboardingTour currentView={currentView} navigateTo={handleNavigate} />
 
       <main className="flex-1 flex flex-col relative overflow-hidden"> 
-        <header className="px-4 md:px-8 py-2.5 border-b border-stone-200/70 dark:border-zinc-800/80 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md sticky top-0 z-20 transition-colors shrink-0 shadow-2xs">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3 md:gap-5">
-              <div className="flex items-center gap-2 cursor-pointer group" onClick={() => handleNavigate('landing')}>
-                <img src="/cramzero-logo.svg" alt="CramZero" className="w-9 h-9 rounded-xl group-hover:scale-105 transition-transform" />
-                <h1 className="text-xl font-bold text-umber dark:text-zinc-100 hidden sm:block tracking-tight">CramZero</h1>
+        <header className="px-3 sm:px-4 md:px-8 py-2 sm:py-2.5 border-b border-stone-200/70 dark:border-zinc-800/80 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md sticky top-0 z-20 transition-colors shrink-0 shadow-2xs">
+          <div className="flex items-center justify-between gap-2 sm:gap-3">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-4 md:gap-5">
+              <div className="flex items-center gap-2 cursor-pointer group shrink-0" onClick={() => handleNavigate('landing')}>
+                <img src="/cramzero-logo.svg" alt="CramZero" className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl group-hover:scale-105 transition-transform" />
+                <h1 className="text-lg sm:text-xl font-bold text-umber dark:text-zinc-100 hidden sm:block tracking-tight">CramZero</h1>
               </div>
-              <div className="h-6 w-px bg-stone-200 dark:bg-zinc-800 hidden sm:block"></div>
-              <h2 className="max-w-[42vw] truncate text-base font-bold capitalize text-umber dark:text-zinc-100 md:text-lg">
+              <div className="h-5 w-px bg-stone-200 dark:bg-zinc-800 hidden sm:block"></div>
+              <h2 className="max-w-[36vw] sm:max-w-[42vw] md:max-w-none truncate text-sm sm:text-base font-bold capitalize text-umber dark:text-zinc-100 md:text-lg">
                 {currentView === 'new-deck' ? 'Create New Deck' : currentView.replace('-', ' ')}
               </h2>
             </div>
             {showNavDock && (
               <PrimaryNavigation items={navItems} currentView={currentView} onNavigate={handleNavigate} />
             )}
-            <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               <UsageTracker userId={userId} />
 
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-stone-100 dark:bg-zinc-900 border border-stone-200/80 dark:border-zinc-800 transition-colors">
-                <Sun size={14} className="text-amber-600 dark:text-zinc-500" />
-                <Switch checked={isDarkMode} onCheckedChange={setIsDarkMode} className="data-[state=checked]:bg-indigo-500" />
-                <Moon size={14} className="text-taupe dark:text-indigo-400" />
+              <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-stone-100 dark:bg-zinc-900 border border-stone-200/80 dark:border-zinc-800 transition-colors">
+                <Sun size={13} className="text-amber-600 dark:text-zinc-500" />
+                <Switch checked={isDarkMode} onCheckedChange={setIsDarkMode} className="data-[state=checked]:bg-indigo-500 scale-90 sm:scale-100" />
+                <Moon size={13} className="text-taupe dark:text-indigo-400" />
               </div>
               <Button variant="ghost" size="sm" onClick={() => handleNavigate('landing')} className="hidden font-bold text-taupe hover:text-umber dark:text-zinc-400 dark:hover:text-zinc-100 lg:flex">
                 Exit Workspace
@@ -327,7 +328,7 @@ export default function App() {
 
         </header>
 
-        <div key={currentView} className="flex-1 w-full overflow-y-auto no-scrollbar scroll-touch flex flex-col bg-gradient-to-b from-[#FBF9F5] via-[#F8F5EE] to-[#F3EFE7] dark:from-zinc-950 dark:via-zinc-950 dark:to-zinc-900 animate-in fade-in duration-300">
+        <div key={currentView} className={`flex-1 w-full overflow-y-auto no-scrollbar scroll-touch flex flex-col ${showNavDock ? 'pb-24 md:pb-6' : 'pb-6'} bg-gradient-to-b from-[#FBF9F5] via-[#F8F5EE] to-[#F3EFE7] dark:from-zinc-950 dark:via-zinc-950 dark:to-zinc-900 animate-in fade-in duration-300`}>
           {/* Main Views */}
           {currentView === 'dashboard' && <DashboardView navigateTo={handleNavigate} setHasActiveDeck={setHasActiveDeck} myDecks={myDecks} />}
           {currentView === 'study' && <StudyView navigateTo={handleNavigate} hasActiveDeck={hasActiveDeck} setHasActiveDeck={setHasActiveDeck} setActiveDeck={setActiveDeck} myDecks={myDecks} />}
@@ -349,6 +350,11 @@ export default function App() {
           {currentView === 'mock-exam-setup' && <MockExamSetupView navigateTo={handleNavigate} activeDeck={activeDeck} setExamConfig={setExamConfig} />}
           {currentView === 'mock-exam-active' && <MockExamActiveView navigateTo={handleNavigate} activeDeck={activeDeck} examConfig={examConfig} />}
         </div>
+
+        {/* Mobile Bottom Navigation Bar */}
+        {showNavDock && (
+          <MobileBottomNav items={navItems} currentView={currentView} onNavigate={handleNavigate} />
+        )}
       </main>
 
       {/* Action Overlays for major creations */}
@@ -373,7 +379,7 @@ export default function App() {
       {['flashcard-mode', 'deck-details', 'study', 'mock-exam-active'].includes(currentView) && (activeDeck || hasActiveDeck) && !isTutorOpen && (
         <button 
           onClick={() => setIsTutorOpen(true)} 
-          className="fixed bottom-5 md:bottom-8 right-5 md:right-8 h-12 px-4 rounded-full bg-stone-900/95 dark:bg-zinc-100 text-white dark:text-zinc-950 backdrop-blur-xl border border-white/20 dark:border-black/10 shadow-2xl shadow-stone-900/25 hover:scale-105 active:scale-95 transition-all z-40 flex items-center gap-2.5 animate-in zoom-in duration-300 group"
+          className={`fixed ${showNavDock ? 'bottom-20 md:bottom-8' : 'bottom-5 md:bottom-8'} right-4 md:right-8 h-12 px-4 rounded-full bg-stone-900/95 dark:bg-zinc-100 text-white dark:text-zinc-950 backdrop-blur-xl border border-white/20 dark:border-black/10 shadow-2xl shadow-stone-900/25 hover:scale-105 active:scale-95 transition-all z-40 flex items-center gap-2.5 animate-in zoom-in duration-300 group`}
         >
           <div className="relative flex items-center justify-center">
             <MessageCircle size={18} />
@@ -387,7 +393,7 @@ export default function App() {
       {['flashcard-mode', 'deck-details', 'study', 'mock-exam-active'].includes(currentView) && (activeDeck || hasActiveDeck) && isTutorOpen && (
         <>
           {isTutorExpanded && <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[55] animate-in fade-in duration-300" onClick={() => setIsTutorExpanded(false)} />}
-          <aside className={`fixed bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl border border-stone-200/90 dark:border-white/10 shadow-2xl flex flex-col z-[60] overflow-hidden transition-all duration-300 ease-in-out ${isTutorExpanded ? 'inset-3 sm:inset-4 md:inset-10 lg:inset-x-[15%] lg:inset-y-10 rounded-3xl' : 'bottom-0 left-0 right-0 max-h-[88vh] h-[520px] rounded-t-3xl md:bottom-8 md:right-8 md:left-auto md:w-[400px] md:h-[600px] md:rounded-3xl md:max-h-none animate-in slide-in-from-bottom-6'}`}>
+          <aside className={`fixed bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl border border-stone-200/90 dark:border-white/10 shadow-2xl flex flex-col z-[60] overflow-hidden transition-all duration-300 ease-in-out ${isTutorExpanded ? 'inset-2 sm:inset-4 md:inset-10 lg:inset-x-[15%] lg:inset-y-10 rounded-3xl' : 'bottom-0 left-0 right-0 max-h-[85vh] h-[520px] rounded-t-3xl md:bottom-8 md:right-8 md:left-auto md:w-[400px] md:h-[600px] md:rounded-3xl md:max-h-none animate-in slide-in-from-bottom-6'}`}>
             
             <div className="p-4 border-b border-stone-200/70 dark:border-zinc-800/80 bg-stone-50/70 dark:bg-zinc-900/80 backdrop-blur-md flex justify-between items-center shrink-0">
               <div className="flex items-center gap-2.5">
@@ -468,7 +474,7 @@ export default function App() {
               </div>
             </div>
             
-            <div className={`bg-white dark:bg-zinc-950 border-t border-taupe/20 dark:border-zinc-800 shrink-0 ${isTutorExpanded ? 'p-6' : 'p-3 md:p-4'}`}>
+            <div className={`bg-white dark:bg-zinc-950 border-t border-taupe/20 dark:border-zinc-800 shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] ${isTutorExpanded ? 'p-4 sm:p-6' : 'p-3 md:p-4'}`}>
               <div className="flex gap-2 items-end">
                 <button className={`rounded-xl transition-all flex items-center justify-center shadow-sm border bg-greige/20 dark:bg-zinc-900 text-taupe dark:text-zinc-400 border-taupe/30 dark:border-zinc-800 ${isTutorExpanded ? 'p-4' : 'p-2.5 md:p-3'}`}>
                   <MicOff size={isTutorExpanded ? 24 : 20} />

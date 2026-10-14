@@ -85,7 +85,7 @@ export function UsageTracker({ userId }) {
 
       {/* Floating Quota Popover (One UI / iOS Frosted Dialog) */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 p-5 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-2xl rounded-3xl border border-stone-200/90 dark:border-white/10 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-x-3 top-16 sm:inset-x-auto sm:absolute sm:right-0 sm:top-auto sm:mt-2 w-auto sm:w-96 max-w-[calc(100vw-1.5rem)] p-4 sm:p-5 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-2xl rounded-3xl border border-stone-200/90 dark:border-white/10 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-200">
           <div className="flex items-center justify-between pb-3 border-b border-stone-100 dark:border-zinc-800">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center">

@@ -116,21 +116,22 @@ export function OnboardingTour({ currentView, navigateTo }) {
   const step = steps[stepIndex];
   const StepIcon = step.icon;
 
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
   const cardWidth = Math.min(520, window.innerWidth - 32);
   const cardHeight = 260;
-  const viewportPadding = 24;
-  const bottomPadding = 56;
+  const viewportPadding = 20;
+  const bottomPadding = 60;
   const calloutPosition = {
     placement: 'above',
-    left: Math.max(viewportPadding, window.innerWidth - cardWidth - viewportPadding),
-    top: Math.max(viewportPadding, window.innerHeight - cardHeight - bottomPadding),
+    left: isMobile ? 12 : Math.max(viewportPadding, window.innerWidth - cardWidth - viewportPadding),
+    top: isMobile ? Math.max(16, window.innerHeight - cardHeight - bottomPadding) : Math.max(viewportPadding, window.innerHeight - cardHeight - bottomPadding),
   };
 
   return (
     <div className="pointer-events-none fixed inset-0 z-[120]" style={{ pointerEvents: 'none' }} role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
       <div className="absolute inset-0 bg-transparent" />
       {targetRect && <div className="pointer-events-none fixed rounded-2xl border-2 border-amber-400 shadow-[0_0_0_9999px_rgba(33,28,24,0.58)] transition-all duration-300" style={targetRect} />}
-      <div className="pointer-events-auto absolute w-[min(520px,calc(100vw-2rem))] rounded-2xl border border-taupe/20 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950" style={{ top: calloutPosition.top, left: calloutPosition.left, pointerEvents: 'auto' }}>
+      <div className="pointer-events-auto fixed sm:absolute inset-x-3 bottom-5 sm:inset-x-auto sm:bottom-auto w-auto sm:w-[500px] max-w-[calc(100vw-1.5rem)] rounded-3xl border border-stone-200/90 bg-white/98 shadow-2xl dark:border-zinc-800 dark:bg-zinc-950/98 backdrop-blur-2xl" style={isMobile ? undefined : { top: calloutPosition.top, left: calloutPosition.left, pointerEvents: 'auto' }}>
         <div className="flex items-center justify-between border-b border-taupe/15 px-5 py-4 dark:border-zinc-800">
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-taupe dark:text-zinc-500">
             <span>Quick tour</span>

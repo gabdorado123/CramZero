@@ -254,7 +254,7 @@ export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
                   <span className="self-start text-[11px] font-extrabold text-taupe dark:text-zinc-500 tracking-widest uppercase">
                     Term
                   </span>
-                  <h3 className="text-2xl md:text-3xl font-bold text-umber dark:text-zinc-100 px-4 leading-relaxed my-auto">
+                  <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-umber dark:text-zinc-100 px-2 sm:px-4 leading-relaxed my-auto overflow-y-auto max-h-[180px] sm:max-h-[240px] no-scrollbar">
                     {currentCard?.term}
                   </h3>
                   
@@ -284,11 +284,11 @@ export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
                   </div>
                 </div>
                 
-                <div className="card-face card-back group bg-[#FAF7F2] dark:bg-zinc-900 border border-amber-200/80 dark:border-amber-900/40 p-6 md:p-8 text-center rounded-3xl shadow-sm flex flex-col justify-between overflow-hidden relative">
+                <div className="card-face card-back group bg-[#FAF7F2] dark:bg-zinc-900 border border-amber-200/80 dark:border-amber-900/40 p-5 sm:p-6 md:p-8 text-center rounded-3xl shadow-sm flex flex-col justify-between overflow-hidden relative">
                   <span className="self-start text-[11px] font-extrabold text-amber-700 dark:text-amber-500 tracking-widest uppercase">
                     Definition
                   </span>
-                  <h3 className="text-xl md:text-2xl font-medium text-umber dark:text-zinc-200 px-4 leading-relaxed my-auto">
+                  <h3 className="text-base sm:text-xl md:text-2xl font-medium text-umber dark:text-zinc-200 px-2 sm:px-4 leading-relaxed my-auto overflow-y-auto max-h-[180px] sm:max-h-[240px] no-scrollbar">
                     {currentCard?.definition}
                   </h3>
                   
