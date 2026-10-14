@@ -32,12 +32,18 @@ export function DashboardView({ navigateTo, setHasActiveDeck, myDecks }) {
   
   if (myDecks.length === 0) {
     return (
-      <div className="flex h-[70vh] max-w-6xl flex-col items-center justify-center p-4 md:p-8">
-        <Card data-tour="dashboard-welcome" className="max-w-lg w-full p-12 text-center border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-transparent">
-          <div className="w-20 h-20 bg-greige/30 dark:bg-zinc-900 text-umber dark:text-zinc-100 rounded-full flex items-center justify-center mx-auto mb-6"><Inbox size={40} /></div>
-          <CardTitle className="text-2xl mb-2 text-umber dark:text-zinc-100">Welcome to CramZero!</CardTitle>
-          <CardDescription className="text-base mb-8 text-taupe dark:text-zinc-400">Your workspace is currently empty. Create your first deck to unlock insights and begin studying.</CardDescription>
-          <Button onClick={() => navigateTo('new-deck')} size="lg" className="bg-umber dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-200 mx-auto font-bold rounded-xl h-12 px-8 shadow-sm hover:shadow-md transition-all">
+      <div className="flex-1 w-full min-h-[70vh] flex flex-col items-center justify-center p-4 md:p-8 my-auto">
+        <Card data-tour="dashboard-welcome" className="max-w-lg w-full p-8 md:p-12 text-center border-dashed border-stone-300 dark:border-zinc-800 shadow-none bg-transparent mx-auto">
+          <div className="w-20 h-20 bg-stone-200/50 dark:bg-zinc-800/60 text-umber dark:text-zinc-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Inbox size={40} />
+          </div>
+          <CardTitle className="text-2xl md:text-3xl font-extrabold mb-2 text-umber dark:text-zinc-100 tracking-tight">
+            Welcome to CramZero!
+          </CardTitle>
+          <CardDescription className="text-sm md:text-base mb-8 text-taupe dark:text-zinc-400 max-w-md mx-auto">
+            Your workspace is currently empty. Create your first deck to unlock insights and begin studying.
+          </CardDescription>
+          <Button onClick={() => navigateTo('new-deck')} size="lg" className="bg-umber dark:bg-zinc-100 text-white dark:text-zinc-950 hover:bg-umber/90 dark:hover:bg-zinc-200 mx-auto font-bold rounded-xl h-12 px-8 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center justify-center">
             <Plus size={18} className="mr-2" /> Create First Deck
           </Button>
         </Card>

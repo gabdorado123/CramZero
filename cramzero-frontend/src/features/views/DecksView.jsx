@@ -21,10 +21,14 @@ export function DecksView({ navigateTo, setActiveDeck, myDecks, setMyDecks }) {
     setPinnedIds(prev => prev.includes(deckId) ? prev.filter(id => id !== deckId) : [...prev, deckId]);
   };
 
-  const filteredLibrary = myDecks.filter(deck => 
-    deck.title.toLowerCase().includes(searchQuery.toLowerCase()) && 
-    (activeFilter === 'all' || deck.type === activeFilter)
-  );
+  const filteredLibrary = myDecks.filter(deck => {
+    const matchesSearch = !searchQuery || deck.title?.toLowerCase().includes(searchQuery.toLowerCase());
+    if (!matchesSearch) return false;
+    if (activeFilter === 'all') return true;
+    if (activeFilter === 'saved') return deck.type === 'saved' || deck.isSaved;
+    if (activeFilter === 'created') return deck.type !== 'saved' && !deck.isSaved;
+    return true;
+  });
 
   const pinnedDecks = filteredLibrary.filter(deck => pinnedIds.includes(deck.id));
   const unpinnedDecks = filteredLibrary.filter(deck => !pinnedIds.includes(deck.id));

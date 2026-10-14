@@ -260,50 +260,100 @@ export function MultiplayerView({ navigateTo, myDecks }) {
 
   if (view === 'select-deck') {
     return (
-      <div className="max-w-5xl mx-auto pb-12 p-4 md:p-8">
-        <Button variant="ghost" onClick={() => transitionTo('menu')} className="-ml-4 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 mb-6 font-medium">
-          <ArrowLeft size={16} className="mr-2" /> Back to Multiplayer
-        </Button>
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-umber dark:text-zinc-100">Select a Deck to Host</h2>
-            <p className="text-sm text-taupe dark:text-zinc-400 mt-1">Choose the deck for your live room.</p>
-          </div>
-          <div className="w-full md:w-64">
-            <label className="block text-[10px] font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider mb-1">Your display name</label>
-            <Input value={playerName} maxLength={32} onChange={(e) => setPlayerName(e.target.value)} className="h-10 bg-white dark:bg-zinc-900 border-taupe/40 dark:border-zinc-800 text-umber dark:text-zinc-100 rounded-lg" />
+      <div className="max-w-5xl w-full mx-auto pb-16 px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-300 space-y-6">
+        <div>
+          <Button variant="ghost" size="sm" onClick={() => transitionTo('menu')} className="-ml-3 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 font-semibold mb-2">
+            <ArrowLeft size={16} className="mr-1.5" /> Back to Multiplayer
+          </Button>
+          
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-stone-200/60 dark:border-zinc-800/80">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300">
+                  <Zap size={13} /> Host Mode
+                </span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-umber dark:text-zinc-100 tracking-tight">
+                Select a Deck to Host
+              </h2>
+              <p className="text-xs sm:text-sm text-taupe dark:text-zinc-400 mt-0.5">
+                Choose any deck to launch a live room. Other players will join using your 6-digit room PIN.
+              </p>
+            </div>
+
+            {/* Display Name Box */}
+            <div className="bg-white dark:bg-zinc-900 border border-stone-200/80 dark:border-zinc-800 rounded-2xl p-3 shadow-xs min-w-[240px]">
+              <label className="block text-[10px] font-extrabold text-taupe dark:text-zinc-400 uppercase tracking-wider mb-1.5">
+                Host Display Name
+              </label>
+              <Input 
+                value={playerName} 
+                maxLength={32} 
+                onChange={(e) => setPlayerName(e.target.value)} 
+                placeholder="Enter your name"
+                className="h-10 bg-stone-50 dark:bg-zinc-950 border-stone-200 dark:border-zinc-800 text-umber dark:text-zinc-100 rounded-xl text-sm font-semibold focus-visible:ring-amber-500" 
+              />
+            </div>
           </div>
         </div>
+
         {serverError && (
-          <div className="mb-6 rounded-xl border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/30 px-4 py-3 text-sm font-medium text-rose-700 dark:text-rose-400">
+          <div className="rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/30 px-4 py-3 text-sm font-medium text-rose-700 dark:text-rose-400 animate-in fade-in">
             {serverError}
           </div>
         )}
+
         {connectionStatus === 'connecting' && (
-          <div className="mb-6 rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-sm font-medium text-amber-700 dark:text-amber-400">
-            Connecting to the live room...
+          <div className="rounded-2xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-sm font-medium text-amber-700 dark:text-amber-400 animate-pulse flex items-center gap-2">
+            <RotateCw size={15} className="animate-spin text-amber-600" /> Connecting to live battle server...
           </div>
         )}
         
-          {hostableDecks.length === 0 ? (
-           <Card className="border-2 border-dashed border-taupe/30 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900 p-10 text-center flex flex-col items-center justify-center rounded-2xl">
-              <div className="w-16 h-16 bg-greige/30 dark:bg-zinc-800 text-umber dark:text-zinc-400 rounded-full flex items-center justify-center mb-4"><Zap size={32} /></div>
-              <CardTitle className="text-xl text-umber dark:text-zinc-100 mb-2">No playable decks</CardTitle>
-              <CardDescription className="text-taupe dark:text-zinc-500 mb-6 max-w-md mx-auto">Create a deck with at least one card before hosting a live multiplayer battle.</CardDescription>
-              <Button onClick={() => navigateTo('new-deck')} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 font-bold rounded-xl h-11">Create a Deck</Button>
-           </Card>
+        {hostableDecks.length === 0 ? (
+          <Card className="border-2 border-dashed border-stone-300 dark:border-zinc-800 shadow-none bg-white/60 dark:bg-zinc-900/60 p-12 text-center flex flex-col items-center justify-center rounded-3xl">
+            <div className="w-16 h-16 bg-stone-100 dark:bg-zinc-800 text-umber dark:text-zinc-400 rounded-full flex items-center justify-center mb-4">
+              <Zap size={30} />
+            </div>
+            <CardTitle className="text-xl font-bold text-umber dark:text-zinc-100 mb-2">No Playable Decks Found</CardTitle>
+            <CardDescription className="text-taupe dark:text-zinc-400 mb-6 max-w-md mx-auto text-sm">
+              Create a deck with at least one flashcard before hosting a live multiplayer challenge.
+            </CardDescription>
+            <Button onClick={() => navigateTo('new-deck')} className="bg-umber dark:bg-zinc-100 text-white dark:text-zinc-950 hover:bg-umber/90 dark:hover:bg-zinc-200 font-bold rounded-xl h-11 px-6 shadow-xs">
+              <Plus size={16} className="mr-2" /> Create a Deck
+            </Button>
+          </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {hostableDecks.map(deck => (
-              <Card key={deck.id} onClick={() => handleHostDeckSelect(deck)} className="bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 hover:shadow-md transition-shadow cursor-pointer flex flex-col justify-between h-40 relative group rounded-xl">
-                <CardContent className="pt-5 pb-0">
-                  <h3 className="font-semibold text-umber dark:text-zinc-100 text-lg group-hover:text-amber-700 dark:group-hover:text-amber-500 transition-colors pr-8 truncate">{deck.title}</h3>
-                  <p className="text-xs text-taupe dark:text-zinc-500 mt-1">{new Date(deck.createdAt || Date.now()).toLocaleDateString()}</p>
-                </CardContent>
-                <CardFooter className="flex items-center justify-between mt-auto pb-5">
-                  <Badge variant="secondary" className="bg-sand dark:bg-zinc-800 text-umber dark:text-zinc-300 font-bold hover:bg-sand dark:hover:bg-zinc-800 border-none">{deck.cards?.length || 0} Cards</Badge>
-                  <Badge className="bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900/50 font-bold gap-1 border-none"><Play size={12} fill="currentColor" /> Host</Badge>
-                </CardFooter>
+              <Card 
+                key={deck.id} 
+                onClick={() => handleHostDeckSelect(deck)} 
+                className="group relative rounded-2xl border border-stone-200/90 dark:border-zinc-800/90 bg-white dark:bg-zinc-900 shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all duration-200 cursor-pointer flex flex-col justify-between p-5 min-h-[160px]"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <span className="text-[10px] font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider">
+                      Flashcard Deck
+                    </span>
+                    <span className="text-xs text-taupe/80 dark:text-zinc-500 font-mono">
+                      {new Date(deck.created_at || deck.createdAt || Date.now()).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <h3 className="font-bold text-umber dark:text-zinc-100 text-lg group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors line-clamp-2 leading-snug">
+                    {deck.title}
+                  </h3>
+                </div>
+
+                <div className="flex items-center justify-between pt-4 mt-2 border-t border-stone-100 dark:border-zinc-800/60">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-stone-100 dark:bg-zinc-800 text-umber dark:text-zinc-200">
+                    <Layers size={13} className="text-amber-600" />
+                    {deck.cards?.length || 0} Cards
+                  </span>
+                  
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-bold bg-amber-500 text-white group-hover:bg-amber-600 transition-all shadow-2xs group-hover:shadow-xs">
+                    <Play size={11} fill="currentColor" /> Host Room
+                  </span>
+                </div>
               </Card>
             ))}
           </div>

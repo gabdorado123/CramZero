@@ -269,17 +269,20 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden font-sans bg-[#FBF9F5] dark:bg-zinc-950 text-umber dark:text-zinc-100 relative transition-colors">
+    <div className="flex h-screen h-[100dvh] w-full overflow-hidden font-sans bg-[#FBF9F5] dark:bg-zinc-950 text-umber dark:text-zinc-100 relative transition-colors">
       
       <Toaster 
         position="top-center" 
         theme={isDarkMode ? 'dark' : 'light'}
+        richColors={false}
         toastOptions={{
           classNames: {
-            toast: "group flex w-full items-start gap-3 rounded-xl border border-taupe/25 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4 shadow-lg max-w-sm mx-auto animate-in slide-in-from-top-4",
-            title: "text-sm font-bold text-umber dark:text-zinc-100",
-            description: "text-xs font-medium text-taupe dark:text-zinc-400 mt-1 leading-relaxed",
-            icon: "mt-0.5 w-5 h-5 group-data-[type=error]:text-rose-500 group-data-[type=success]:text-emerald-500 group-data-[type=info]:text-amber-500",
+            toast: "group flex w-full items-center gap-3.5 rounded-full sm:rounded-full border border-stone-200/90 dark:border-white/15 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-2xl py-3 px-4 sm:px-5 shadow-2xl shadow-stone-900/15 dark:shadow-black/70 max-w-md mx-auto transition-all animate-in fade-in slide-in-from-top-4 duration-300",
+            title: "text-sm font-bold text-stone-900 dark:text-zinc-100 tracking-tight leading-snug",
+            description: "text-xs font-medium text-stone-600 dark:text-zinc-300 mt-0.5 leading-relaxed",
+            icon: "shrink-0 p-1.5 rounded-full flex items-center justify-center text-sm group-data-[type=error]:bg-rose-500/15 group-data-[type=error]:text-rose-600 dark:group-data-[type=error]:text-rose-400 group-data-[type=success]:bg-emerald-500/15 group-data-[type=success]:text-emerald-600 dark:group-data-[type=success]:text-emerald-400 group-data-[type=info]:bg-amber-500/15 group-data-[type=info]:text-amber-600 dark:group-data-[type=info]:text-amber-400",
+            actionButton: "rounded-full font-bold bg-amber-500 text-white text-xs px-3.5 py-1.5 hover:bg-amber-600 transition-all",
+            cancelButton: "rounded-full font-medium bg-stone-100 dark:bg-zinc-800 text-xs px-3.5 py-1.5",
           },
         }}
       />
@@ -315,7 +318,7 @@ export default function App() {
 
         </header>
 
-        <div key={currentView} className="flex-1 w-full overflow-y-auto flex flex-col bg-gradient-to-b from-[#FBF9F5] via-[#F8F5EE] to-[#F3EFE7] dark:from-zinc-950 dark:via-zinc-950 dark:to-zinc-900 animate-in fade-in duration-300">
+        <div key={currentView} className="flex-1 w-full overflow-y-auto no-scrollbar scroll-touch flex flex-col bg-gradient-to-b from-[#FBF9F5] via-[#F8F5EE] to-[#F3EFE7] dark:from-zinc-950 dark:via-zinc-950 dark:to-zinc-900 animate-in fade-in duration-300">
           {/* Main Views */}
           {currentView === 'dashboard' && <DashboardView navigateTo={handleNavigate} setHasActiveDeck={setHasActiveDeck} myDecks={myDecks} />}
           {currentView === 'study' && <StudyView navigateTo={handleNavigate} hasActiveDeck={hasActiveDeck} setHasActiveDeck={setHasActiveDeck} setActiveDeck={setActiveDeck} myDecks={myDecks} />}
@@ -341,44 +344,62 @@ export default function App() {
 
       {/* Action Overlays for major creations */}
       {(isBooting || isActionLoading) && (
-        <div className="fixed inset-0 z-[100] bg-background/60 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in duration-300">
-          <div className="relative mb-6">
-            <Card className="w-20 h-20 border-taupe/20 dark:border-zinc-800 shadow-lg flex items-center justify-center relative z-10 bg-background rounded-2xl p-4">
-              <img src="/cramzero-logo.svg" alt="CramZero" className="w-full h-full" />
-            </Card>
-            <div className="absolute -bottom-1.5 -right-1.5 w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center shadow-md z-20">
-              <RotateCw size={16} className="text-white animate-spin" />
+        <div className="fixed inset-0 z-[100] bg-black/35 dark:bg-black/65 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in duration-300 p-4">
+          <div className="bg-white/92 dark:bg-zinc-900/92 backdrop-blur-2xl border border-stone-200/90 dark:border-white/10 rounded-3xl p-8 shadow-2xl shadow-stone-900/20 max-w-sm w-full flex flex-col items-center text-center animate-in zoom-in-95 duration-200">
+            <div className="relative mb-5">
+              <div className="w-16 h-16 bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/20 rounded-2xl p-3 flex items-center justify-center">
+                <img src="/cramzero-logo.svg" alt="CramZero" className="w-full h-full" />
+              </div>
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center shadow-md">
+                <RotateCw size={12} className="text-white animate-spin" />
+              </div>
             </div>
+            <h2 className="text-lg font-bold text-stone-900 dark:text-zinc-100 mb-1 tracking-tight">Preparing your workspace</h2>
+            <p className="text-stone-500 dark:text-zinc-400 text-xs font-semibold animate-pulse leading-relaxed">{actionMessage || 'Organizing your workspace'}</p>
           </div>
-          <h2 className="text-xl md:text-2xl font-bold text-foreground mb-2 tracking-tight">Preparing your workspace</h2>
-          <p className="text-muted-foreground text-sm font-medium animate-pulse">{actionMessage || 'Organizing your workspace'}</p>
         </div>
       )}
 
       {/* Floating AI Tutor Button */}
       {['flashcard-mode', 'deck-details', 'study', 'mock-exam-active'].includes(currentView) && (activeDeck || hasActiveDeck) && !isTutorOpen && (
-        <button onClick={() => setIsTutorOpen(true)} className="fixed bottom-4 md:bottom-8 right-4 md:right-8 p-3.5 md:p-4 bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-950 rounded-full shadow-xl hover:scale-105 transition-all z-40 flex items-center justify-center animate-in zoom-in duration-300 group">
-          <MessageCircle size={26} />
-          <span className="absolute top-2 right-2 md:top-3 md:right-3 w-3 h-3 bg-emerald-500 border-2 border-umber dark:border-zinc-100 rounded-full animate-pulse"></span>
+        <button 
+          onClick={() => setIsTutorOpen(true)} 
+          className="fixed bottom-5 md:bottom-8 right-5 md:right-8 h-12 px-4 rounded-full bg-stone-900/95 dark:bg-zinc-100 text-white dark:text-zinc-950 backdrop-blur-xl border border-white/20 dark:border-black/10 shadow-2xl shadow-stone-900/25 hover:scale-105 active:scale-95 transition-all z-40 flex items-center gap-2.5 animate-in zoom-in duration-300 group"
+        >
+          <div className="relative flex items-center justify-center">
+            <MessageCircle size={18} />
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-500 border border-stone-900 dark:border-zinc-100 rounded-full animate-pulse"></span>
+          </div>
+          <span className="text-xs font-bold tracking-tight">Ask Zero</span>
         </button>
       )}
 
       {/* Professor AI Chat Window */}
       {['flashcard-mode', 'deck-details', 'study', 'mock-exam-active'].includes(currentView) && (activeDeck || hasActiveDeck) && isTutorOpen && (
         <>
-          {isTutorExpanded && <div className="fixed inset-0 bg-umber/20 dark:bg-black/50 backdrop-blur-sm z-[55] animate-in fade-in duration-300" onClick={() => setIsTutorExpanded(false)} />}
-          <aside className={`fixed bg-white dark:bg-zinc-950 border border-taupe/30 dark:border-zinc-800 shadow-2xl flex flex-col z-[60] overflow-hidden transition-all duration-300 ease-in-out ${isTutorExpanded ? 'inset-4 md:inset-10 lg:inset-x-[15%] lg:inset-y-10 rounded-3xl' : 'bottom-4 right-4 left-4 md:left-auto md:bottom-8 md:right-8 md:w-[400px] h-[500px] md:h-[600px] rounded-2xl animate-in slide-in-from-bottom-6'}`}>
+          {isTutorExpanded && <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[55] animate-in fade-in duration-300" onClick={() => setIsTutorExpanded(false)} />}
+          <aside className={`fixed bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl border border-stone-200/90 dark:border-white/10 shadow-2xl flex flex-col z-[60] overflow-hidden transition-all duration-300 ease-in-out ${isTutorExpanded ? 'inset-3 sm:inset-4 md:inset-10 lg:inset-x-[15%] lg:inset-y-10 rounded-3xl' : 'bottom-0 left-0 right-0 max-h-[88vh] h-[520px] rounded-t-3xl md:bottom-8 md:right-8 md:left-auto md:w-[400px] md:h-[600px] md:rounded-3xl md:max-h-none animate-in slide-in-from-bottom-6'}`}>
             
-            <div className="p-4 border-b border-taupe/30 dark:border-zinc-800 bg-greige/40 dark:bg-zinc-900 flex justify-between items-start shrink-0">
-              <div>
-                <h3 className="font-bold text-umber dark:text-zinc-100 flex items-center gap-2 text-base md:text-lg"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>Zero AI</h3>
-                <p className="text-xs text-taupe dark:text-zinc-400 mt-1 ml-4 font-medium">Vocal Language Partner & Tutor</p>
+            <div className="p-4 border-b border-stone-200/70 dark:border-zinc-800/80 bg-stone-50/70 dark:bg-zinc-900/80 backdrop-blur-md flex justify-between items-center shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="relative">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/15 dark:bg-amber-500/25 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                    <Sparkles size={16} />
+                  </div>
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white dark:border-zinc-900"></span>
+                </div>
+                <div>
+                  <h3 className="font-bold text-stone-900 dark:text-zinc-100 text-sm tracking-tight">Zero AI</h3>
+                  <p className="text-[11px] text-stone-500 dark:text-zinc-400 font-medium">Study Partner & Vocal Tutor</p>
+                </div>
               </div>
               <div className="flex items-center gap-1">
-                <button onClick={() => setIsTutorExpanded(!isTutorExpanded)} className="text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 transition-colors p-1.5 rounded hover:bg-taupe/20 dark:hover:bg-zinc-800">
-                  {isTutorExpanded ? <Minimize size={18} /> : <Maximize size={18} />}
+                <button onClick={() => setIsTutorExpanded(!isTutorExpanded)} className="text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 transition-colors p-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800">
+                  {isTutorExpanded ? <Minimize size={16} /> : <Maximize size={16} />}
                 </button>
-                <button onClick={() => { setIsTutorOpen(false); setIsTutorExpanded(false); }} className="text-taupe dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-500 transition-colors p-1.5 rounded hover:bg-rose-50 dark:hover:bg-rose-950/30"><X size={18} /></button>
+                <button onClick={() => { setIsTutorOpen(false); setIsTutorExpanded(false); }} className="text-stone-500 dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-500 transition-colors p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30">
+                  <X size={16} />
+                </button>
               </div>
             </div>
             

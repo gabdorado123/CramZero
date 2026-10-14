@@ -87,53 +87,83 @@ export function DeckDetailsView({ navigateTo, activeDeck, setIsTutorOpen }) {
         </div>
       </div>
 
-      <Card className="bg-amber-50/50 dark:bg-amber-950/30 border-amber-600/30 dark:border-amber-900 mb-8 shadow-sm rounded-2xl">
+      <Card className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent dark:from-amber-950/30 dark:via-zinc-900/40 dark:to-transparent border border-amber-500/25 dark:border-amber-900/50 mb-8 shadow-xs rounded-3xl overflow-hidden">
         <CardContent className="p-5 md:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex gap-4 items-center">
-            <img src="/zero-ai-logo.svg" alt="Zero AI" className="w-12 h-12 rounded-full shrink-0" />
-            <div><h3 className="font-bold text-base md:text-lg text-umber dark:text-zinc-100">Zero AI is ready</h3><p className="text-taupe dark:text-zinc-400 text-xs md:text-sm">Need a mnemonic device or a simplified breakdown before you start?</p></div>
+            <div className="relative">
+              <img src="/zero-ai-logo.svg" alt="Zero AI" className="w-12 h-12 rounded-2xl p-1 bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs shrink-0" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-zinc-900 rounded-full"></span>
+            </div>
+            <div>
+              <h3 className="font-extrabold text-base md:text-lg text-stone-900 dark:text-zinc-100 tracking-tight">Zero AI is ready to tutor</h3>
+              <p className="text-stone-600 dark:text-zinc-400 text-xs md:text-sm">Need a mnemonic device, custom analogy, or quick breakdown before starting?</p>
+            </div>
           </div>
-          <Button onClick={() => setIsTutorOpen(true)} className="bg-white dark:bg-zinc-950 border border-amber-600/50 dark:border-amber-800 text-amber-700 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 font-bold shadow-sm whitespace-nowrap rounded-xl px-4 md:px-5">Open Chat</Button>
+          <Button onClick={() => setIsTutorOpen(true)} className="bg-amber-500 hover:bg-amber-600 text-white font-bold shadow-xs whitespace-nowrap rounded-full px-5 h-10 transition-all hover:shadow-md">
+            <Sparkles size={15} className="mr-1.5" /> Open Chat
+          </Button>
         </CardContent>
       </Card>
 
       <div className="grid grid-cols-1 gap-6 mb-12 lg:grid-cols-2 xl:grid-cols-4">
-        <Card onClick={() => navigateTo('flashcard-mode')} className="bg-white dark:bg-zinc-900 border-taupe/20 dark:border-zinc-800 hover:border-umber/40 dark:hover:border-zinc-600 hover:shadow-md cursor-pointer transition-all group flex flex-col justify-between rounded-2xl shadow-sm">
+        <Card onClick={() => navigateTo('flashcard-mode')} className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-stone-200/90 dark:border-white/10 hover:border-amber-500/50 dark:hover:border-amber-400/50 hover:shadow-xl cursor-pointer transition-all duration-300 group flex flex-col justify-between rounded-3xl shadow-sm hover:-translate-y-1">
           <CardContent className="p-6 pb-4">
-            <div className="w-10 h-10 bg-greige/30 dark:bg-zinc-800 text-umber dark:text-zinc-300 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><Layers size={20} /></div>
-            <h3 className="font-bold text-lg text-umber dark:text-zinc-100 mb-2">Deep Dive</h3>
-            <p className="text-taupe dark:text-zinc-500 text-xs leading-relaxed">Traditional flashcards. Self-rate confidence to train the spaced-repetition algorithm.</p>
-          </CardContent>
-          <CardFooter className="p-6 pt-0"><span className="text-[10px] font-bold text-umber dark:text-zinc-100 uppercase tracking-widest mt-auto">Start Review →</span></CardFooter>
-        </Card>
-        
-        <Card onClick={() => navigateTo('quiz-setup')} className="bg-white dark:bg-zinc-900 border-taupe/20 dark:border-zinc-800 hover:border-umber/40 dark:hover:border-zinc-600 hover:shadow-md cursor-pointer transition-all group flex flex-col justify-between rounded-2xl shadow-sm">
-          <CardContent className="p-6 pb-4">
-            <div className="w-10 h-10 bg-greige/30 dark:bg-zinc-800 text-umber dark:text-zinc-300 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><CheckCircle size={20} /></div>
-            <h3 className="font-bold text-lg text-umber dark:text-zinc-100 mb-2">Knowledge Check</h3>
-            <p className="text-taupe dark:text-zinc-500 text-xs leading-relaxed">Test yourself with standard multiple-choice and identification questions.</p>
-          </CardContent>
-          <CardFooter className="p-6 pt-0"><span className="text-[10px] font-bold text-umber dark:text-zinc-100 uppercase tracking-widest mt-auto">Configure Quiz →</span></CardFooter>
-        </Card>
-
-        <Card onClick={() => navigateTo('mock-exam-setup')} className="bg-rose-600 dark:bg-rose-900/80 border-rose-700 dark:border-rose-800 shadow-md hover:bg-rose-700 dark:hover:bg-rose-800 hover:shadow-lg cursor-pointer transition-all group flex flex-col justify-between relative overflow-hidden rounded-2xl">
-          <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none"><Timer size={100} className="text-white"/></div>
-          <CardContent className="p-6 pb-4 relative z-10 text-white">
-            <div className="w-10 h-10 bg-white/20 text-white rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><Timer size={20} /></div>
-            <h3 className="font-bold text-lg mb-2 text-white">AI Mock Exam</h3>
-            <p className="text-white/80 text-xs leading-relaxed">High-stakes simulation. AI generates complex trick scenarios based on your cards.</p>
-          </CardContent>
-          <CardFooter className="p-6 pt-0 relative z-10"><span className="text-[10px] font-bold text-white uppercase tracking-widest mt-auto">Start Simulator →</span></CardFooter>
-        </Card>
-
-        <Card className="bg-white dark:bg-zinc-900 border-taupe/20 dark:border-zinc-800 shadow-sm rounded-2xl flex flex-col justify-between">
-          <CardContent className="p-6 pb-4">
-            <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 rounded-lg flex items-center justify-center mb-4"><FileText size={20} /></div>
-            <h3 className="font-bold text-lg text-umber dark:text-zinc-100 mb-2">Reading Material</h3>
-            <p className="text-taupe dark:text-zinc-500 text-xs leading-relaxed">Turn this deck into a structured AI study guide and download it as a PDF.</p>
+            <div className="w-12 h-12 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-500/20 text-amber-600 dark:text-amber-400 rounded-2xl flex items-center justify-center mb-5 group-hover:scale-105 transition-transform shadow-xs">
+              <Layers size={22} />
+            </div>
+            <h3 className="font-bold text-lg text-umber dark:text-zinc-100 mb-2 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">Deep Dive</h3>
+            <p className="text-taupe dark:text-zinc-400 text-xs leading-relaxed">Traditional flashcards. Self-rate confidence to train the spaced-repetition algorithm.</p>
           </CardContent>
           <CardFooter className="p-6 pt-0">
-            <Button onClick={handleDownloadReadout} disabled={isGeneratingReadout} className="w-full rounded-xl bg-umber text-sand hover:bg-umber/90 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300">
+            <span className="inline-flex items-center text-xs font-semibold text-amber-600 dark:text-amber-400 group-hover:translate-x-1 transition-transform">
+              Start Review →
+            </span>
+          </CardFooter>
+        </Card>
+        
+        <Card onClick={() => navigateTo('quiz-setup')} className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-stone-200/90 dark:border-white/10 hover:border-emerald-500/50 dark:hover:border-emerald-400/50 hover:shadow-xl cursor-pointer transition-all duration-300 group flex flex-col justify-between rounded-3xl shadow-sm hover:-translate-y-1">
+          <CardContent className="p-6 pb-4">
+            <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center mb-5 group-hover:scale-105 transition-transform shadow-xs">
+              <CheckCircle size={22} />
+            </div>
+            <h3 className="font-bold text-lg text-umber dark:text-zinc-100 mb-2 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Knowledge Check</h3>
+            <p className="text-taupe dark:text-zinc-400 text-xs leading-relaxed">Test yourself with standard multiple-choice and identification questions.</p>
+          </CardContent>
+          <CardFooter className="p-6 pt-0">
+            <span className="inline-flex items-center text-xs font-semibold text-emerald-600 dark:text-emerald-400 group-hover:translate-x-1 transition-transform">
+              Configure Quiz →
+            </span>
+          </CardFooter>
+        </Card>
+
+        <Card onClick={() => navigateTo('mock-exam-setup')} className="bg-gradient-to-br from-rose-600 via-rose-600 to-rose-700 dark:from-rose-900 dark:to-rose-950 border border-rose-500/50 dark:border-rose-700/50 shadow-md hover:shadow-2xl cursor-pointer transition-all duration-300 group flex flex-col justify-between relative overflow-hidden rounded-3xl hover:-translate-y-1">
+          <div className="absolute -right-4 -bottom-4 p-4 opacity-10 pointer-events-none group-hover:scale-110 transition-transform">
+            <Timer size={120} className="text-white"/>
+          </div>
+          <CardContent className="p-6 pb-4 relative z-10 text-white">
+            <div className="w-12 h-12 bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-2xl flex items-center justify-center mb-5 group-hover:scale-105 transition-transform shadow-xs">
+              <Timer size={22} />
+            </div>
+            <h3 className="font-bold text-lg mb-2 text-white">AI Mock Exam</h3>
+            <p className="text-white/90 text-xs leading-relaxed">High-stakes simulation. AI generates complex trick scenarios based on your cards.</p>
+          </CardContent>
+          <CardFooter className="p-6 pt-0 relative z-10">
+            <span className="inline-flex items-center text-xs font-semibold text-white group-hover:translate-x-1 transition-transform">
+              Start Simulator →
+            </span>
+          </CardFooter>
+        </Card>
+
+        <Card className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-stone-200/90 dark:border-white/10 shadow-sm rounded-3xl flex flex-col justify-between hover:shadow-xl transition-all duration-300">
+          <CardContent className="p-6 pb-4">
+            <div className="w-12 h-12 bg-blue-50 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-500/20 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center mb-5 shadow-xs">
+              <FileText size={22} />
+            </div>
+            <h3 className="font-bold text-lg text-umber dark:text-zinc-100 mb-2">Reading Material</h3>
+            <p className="text-taupe dark:text-zinc-400 text-xs leading-relaxed">Turn this deck into a structured AI study guide and download it as a PDF.</p>
+          </CardContent>
+          <CardFooter className="p-6 pt-0">
+            <Button onClick={handleDownloadReadout} disabled={isGeneratingReadout} className="w-full rounded-full h-11 bg-stone-900 text-stone-50 hover:bg-stone-800 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-200 font-semibold shadow-xs">
               {isGeneratingReadout ? <RotateCw size={16} className="mr-2 animate-spin" /> : <Download size={16} className="mr-2" />}
               {isGeneratingReadout ? 'Generating...' : 'Download PDF'}
             </Button>
