@@ -12,6 +12,7 @@ class Deck(Base):
     title = Column(String(255), index=True)
     description = Column(Text, nullable=True)
     visibility = Column(String(50), default="Private")
+    user_id = Column(String(64), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now()) 
 
     cards = relationship("Card", back_populates="deck", cascade="all, delete-orphan")

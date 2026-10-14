@@ -79,7 +79,7 @@ export function CreateHubView({ navigateTo, myHubs, setMyHubs, myDecks, setMyDec
         const savedResponse = await fetch(`${API_BASE}/api/decks/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(generatedDeck),
+          body: JSON.stringify({ ...generatedDeck, user_id: userId }),
         });
         if (!savedResponse.ok) throw new Error('The generated deck could not be saved.');
         initialSharedDeck = await savedResponse.json();

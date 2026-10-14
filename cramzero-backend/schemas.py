@@ -30,6 +30,7 @@ class DeckBase(BaseModel):
     title: str
     description: Optional[str] = None
     visibility: str = "Private"
+    user_id: Optional[str] = None
 
 class DeckCreate(DeckBase):
     # A new deck will include a list of cards to create simultaneously
@@ -46,6 +47,7 @@ class DeckResponse(DeckBase):
 class GenerateRequest(BaseModel):
     topic: str
     card_count: int = 10
+    user_id: Optional[str] = None
 
 class ChatRequest(BaseModel):
     message: str

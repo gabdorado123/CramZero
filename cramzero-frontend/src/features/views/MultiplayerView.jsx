@@ -22,6 +22,7 @@ import { Bubble, BubbleContent, BubbleGroup, BubbleReactions } from '@/component
 import { Marker, MarkerContent } from '@/components/ui/marker';
 import { Message, MessageAvatar, MessageContent, MessageFooter } from '@/components/ui/message';
 import ReactMarkdown from 'react-markdown';
+import { API_BASE } from '@/lib/api';
 
 export function MultiplayerView({ navigateTo, myDecks }) {
   const [view, setView] = useState('menu');
@@ -90,6 +91,23 @@ export function MultiplayerView({ navigateTo, myDecks }) {
     if (nextView && view !== nextView) transitionTo(nextView);
   };
 
+  const getMultiplayerWsUrl = () => {
+    if (import.meta.env.VITE_MULTIPLAYER_WS_URL) {
+      return import.meta.env.VITE_MULTIPLAYER_WS_URL;
+    }
+    if (API_BASE) {
+      try {
+        const parsed = new URL(API_BASE);
+        const wsProto = parsed.protocol === 'https:' ? 'wss:' : 'ws:';
+        return `${wsProto}//${parsed.host}/ws/multiplayer`;
+      } catch {
+        // Fallback below
+      }
+    }
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}://${window.location.hostname}:8787`;
+  };
+
   const connectToRoom = (message) => {
     if (!playerName.trim()) {
       setServerError('Enter a display name first.');
@@ -99,16 +117,16 @@ export function MultiplayerView({ navigateTo, myDecks }) {
     localStorage.setItem('cramzero-player-name', playerName.trim());
     setServerError('');
     setConnectionStatus('connecting');
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const socket = new WebSocket(import.meta.env.VITE_MULTIPLAYER_WS_URL || `${protocol}://${window.location.hostname}:8787`);
+    const wsUrl = getMultiplayerWsUrl();
+    const socket = new WebSocket(wsUrl);
     socketRef.current = socket;
     const connectionTimeout = setTimeout(() => {
       if (socket.readyState === WebSocket.CONNECTING) {
         socket.close();
         setConnectionStatus('error');
-        setServerError('Multiplayer server is unavailable. Restart the app with npm run dev.');
+        setServerError('Multiplayer server connection timed out. Please try again.');
       }
-    }, 5000);
+    }, 7000);
 
     socket.onopen = () => {
       clearTimeout(connectionTimeout);
@@ -129,7 +147,7 @@ export function MultiplayerView({ navigateTo, myDecks }) {
     socket.onerror = () => {
       clearTimeout(connectionTimeout);
       setConnectionStatus('error');
-      setServerError('Could not connect to the multiplayer server. Run npm run dev and try again.');
+      setServerError('Could not connect to the multiplayer server. Please verify your backend service is running.');
     };
     socket.onclose = () => {
       clearTimeout(connectionTimeout);

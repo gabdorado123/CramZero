@@ -6,10 +6,12 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --color-sand: #FFDBBB;
-  --color-greige: #CCBEB1;
-  --color-taupe: #997E67;
-  --color-umber: #664930;
+  --color-sand: #FAF7F2;
+  --color-sand-muted: #F2ECE1;
+  --color-sand-accent: #FCE8D5;
+  --color-greige: #E5DDD3;
+  --color-taupe: #7D6B5C;
+  --color-umber: #2C2117;
 }
 
 html {
@@ -205,24 +207,24 @@ a {
 }
 
 :root {
-  --background: oklch(0.91 0.04 70);
-  --foreground: oklch(0.38 0.06 55);
+  --background: oklch(0.985 0.008 75);
+  --foreground: oklch(0.24 0.02 55);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  --primary: oklch(0.24 0.02 55);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.965 0.008 75);
+  --secondary-foreground: oklch(0.24 0.02 55);
+  --muted: oklch(0.965 0.008 75);
+  --muted-foreground: oklch(0.5 0.02 55);
+  --accent: oklch(0.965 0.008 75);
+  --accent-foreground: oklch(0.24 0.02 55);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --border: oklch(0.92 0.008 75);
+  --input: oklch(0.92 0.008 75);
+  --ring: oklch(0.65 0.04 65);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);

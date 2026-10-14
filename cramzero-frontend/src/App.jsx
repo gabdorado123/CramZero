@@ -163,7 +163,7 @@ export default function App() {
     const hubCode = new URLSearchParams(window.location.search).get('hub');
     const loadWorkspace = async () => {
       const [decksResponse, hubsResponse] = await Promise.all([
-        fetch(`${API_BASE}/api/decks/`),
+        fetch(`${API_BASE}/api/decks/?user_id=${encodeURIComponent(userId)}`),
         hubCode
           ? fetch(`${API_BASE}/api/study-hubs/join`, {
               method: 'POST',
@@ -269,7 +269,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden font-sans bg-sand dark:bg-zinc-950 text-umber dark:text-zinc-100 relative transition-colors">
+    <div className="flex h-screen w-full overflow-hidden font-sans bg-[#FBF9F5] dark:bg-zinc-950 text-umber dark:text-zinc-100 relative transition-colors">
       
       <Toaster 
         position="top-center" 
@@ -286,14 +286,14 @@ export default function App() {
       <OnboardingTour currentView={currentView} navigateTo={handleNavigate} />
 
       <main className="flex-1 flex flex-col relative overflow-hidden"> 
-        <header className="px-4 md:px-6 py-2.5 border-b border-taupe/20 dark:border-zinc-800 bg-white dark:bg-zinc-950 sticky top-0 z-20 transition-colors shrink-0">
+        <header className="px-4 md:px-8 py-2.5 border-b border-stone-200/70 dark:border-zinc-800/80 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md sticky top-0 z-20 transition-colors shrink-0 shadow-2xs">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3 md:gap-5">
               <div className="flex items-center gap-2 cursor-pointer group" onClick={() => handleNavigate('landing')}>
                 <img src="/cramzero-logo.svg" alt="CramZero" className="w-9 h-9 rounded-xl group-hover:scale-105 transition-transform" />
                 <h1 className="text-xl font-bold text-umber dark:text-zinc-100 hidden sm:block tracking-tight">CramZero</h1>
               </div>
-              <div className="h-6 w-px bg-taupe/30 dark:bg-zinc-800 hidden sm:block"></div>
+              <div className="h-6 w-px bg-stone-200 dark:bg-zinc-800 hidden sm:block"></div>
               <h2 className="max-w-[42vw] truncate text-base font-bold capitalize text-umber dark:text-zinc-100 md:text-lg">
                 {currentView === 'new-deck' ? 'Create New Deck' : currentView.replace('-', ' ')}
               </h2>
@@ -302,7 +302,7 @@ export default function App() {
               <PrimaryNavigation items={navItems} currentView={currentView} onNavigate={handleNavigate} />
             )}
             <div className="flex items-center gap-3 md:gap-4 shrink-0">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-sand/50 dark:bg-zinc-900 border border-taupe/20 dark:border-zinc-800 transition-colors">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-stone-100 dark:bg-zinc-900 border border-stone-200/80 dark:border-zinc-800 transition-colors">
                 <Sun size={14} className="text-amber-600 dark:text-zinc-500" />
                 <Switch checked={isDarkMode} onCheckedChange={setIsDarkMode} className="data-[state=checked]:bg-indigo-500" />
                 <Moon size={14} className="text-taupe dark:text-indigo-400" />
@@ -315,14 +315,14 @@ export default function App() {
 
         </header>
 
-        <div key={currentView} className="flex-1 w-full overflow-y-auto flex flex-col animate-in fade-in duration-500">
+        <div key={currentView} className="flex-1 w-full overflow-y-auto flex flex-col bg-gradient-to-b from-[#FBF9F5] via-[#F8F5EE] to-[#F3EFE7] dark:from-zinc-950 dark:via-zinc-950 dark:to-zinc-900 animate-in fade-in duration-300">
           {/* Main Views */}
           {currentView === 'dashboard' && <DashboardView navigateTo={handleNavigate} setHasActiveDeck={setHasActiveDeck} myDecks={myDecks} />}
           {currentView === 'study' && <StudyView navigateTo={handleNavigate} hasActiveDeck={hasActiveDeck} setHasActiveDeck={setHasActiveDeck} setActiveDeck={setActiveDeck} myDecks={myDecks} />}
           {currentView === 'decks' && <DecksView navigateTo={handleNavigate} setActiveDeck={setActiveDeck} myDecks={myDecks} setMyDecks={setMyDecks} />}
           {currentView === 'hubs' && <StudyHubsView navigateTo={handleNavigate} setActiveHub={setActiveHub} myHubs={myHubs} userId={userId} displayName={displayName} />}
           {currentView === 'analytics' && <AnalyticsView myDecks={myDecks} />}
-          {currentView === 'new-deck' && <NewDeckView navigateTo={handleNavigate} myDecks={myDecks} setMyDecks={setMyDecks} setIsActionLoading={setIsActionLoading} setActionMessage={setActionMessage} />}
+          {currentView === 'new-deck' && <NewDeckView navigateTo={handleNavigate} myDecks={myDecks} setMyDecks={setMyDecks} userId={userId} setIsActionLoading={setIsActionLoading} setActionMessage={setActionMessage} />}
           {currentView === 'multiplayer' && <MultiplayerView navigateTo={handleNavigate} myDecks={myDecks} />}
           {currentView === 'codespace' && <CodeSpaceView navigateTo={handleNavigate} />}
           

@@ -24,7 +24,7 @@ import { Message, MessageAvatar, MessageContent, MessageFooter } from '@/compone
 import ReactMarkdown from 'react-markdown';
 import { API_BASE } from '@/lib/api';
 
-export function NewDeckView({ navigateTo, myDecks, setMyDecks, setIsActionLoading, setActionMessage }) {
+export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActionLoading, setActionMessage }) {
   const [deckName, setDeckName] = useState('');
   const [deckDesc, setDeckDesc] = useState('');
   const [inputMode, setInputMode] = useState(null); 
@@ -40,10 +40,14 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, setIsActionLoadin
   const handleSaveToDatabase = async (deckPayload) => {
      setIsSaving(true);
      try {
+         const payloadWithUser = {
+           ...deckPayload,
+           user_id: userId,
+         };
          const response = await fetch(`${API_BASE}/api/decks/`, {
            method: 'POST',
            headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify(deckPayload)
+           body: JSON.stringify(payloadWithUser)
          });
          if (response.ok) {
              const savedDeck = await response.json();
@@ -65,6 +69,7 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, setIsActionLoadin
       title: deckName,
       description: deckDesc || "",
       visibility: "Private",
+      user_id: userId,
       cards: [{ term: 'Sample Term', definition: 'Update this card by editing the deck.' }]
     });
   };
@@ -83,7 +88,7 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, setIsActionLoadin
       const response = await fetch(`${API_BASE}/api/generate-deck/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic: aiTopic, card_count: cardCount })
+        body: JSON.stringify({ topic: aiTopic, card_count: cardCount, user_id: userId })
       });
       
       if (response.ok) {
@@ -123,6 +128,7 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, setIsActionLoadin
     const formData = new FormData();
     formData.append("file", file);
     formData.append("card_count", cardCount);
+    if (userId) formData.append("user_id", userId);
 
     try {
       const response = await fetch(`${API_BASE}/api/generate-deck-from-file/`, {
@@ -165,7 +171,7 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, setIsActionLoadin
           </h2>
           <div className="flex gap-3">
              <Button variant="ghost" onClick={() => setPreviewDeck(null)} className="font-bold text-taupe dark:text-zinc-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg">Discard</Button>
-             <Button onClick={() => handleSaveToDatabase(previewDeck)} disabled={isSaving} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 font-bold rounded-lg shadow-md min-w-[150px]">
+             <Button onClick={() => handleSaveToDatabase(previewDeck)} disabled={isSaving} className="bg-umber dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 font-bold rounded-xl shadow-md min-w-[150px]">
                 {isSaving ? <RotateCw className="mr-2 animate-spin" size={16} /> : <CheckCircle size={16} className="mr-2"/>}
                 {isSaving ? "Saving..." : "Save to Library"}
              </Button>
@@ -177,7 +183,7 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, setIsActionLoadin
            <Input 
              value={previewDeck.title} 
              onChange={(e) => setPreviewDeck({...previewDeck, title: e.target.value})}
-             className="h-14 text-lg font-bold bg-sand/20 dark:bg-zinc-950 border-taupe/40 dark:border-zinc-800 text-umber dark:text-zinc-100 focus-visible:ring-umber dark:focus-visible:ring-zinc-600 rounded-lg"
+             className="h-14 text-lg font-bold bg-stone-50 dark:bg-zinc-950 border-taupe/40 dark:border-zinc-800 text-umber dark:text-zinc-100 focus-visible:ring-umber dark:focus-visible:ring-zinc-600 rounded-lg"
            />
         </Card>
 
@@ -311,15 +317,15 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, setIsActionLoadin
           <div className="space-y-6">
             <div>
               <label className="block text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider mb-2">Deck Name *</label>
-              <Input type="text" value={deckName} onChange={(e)=>setDeckName(e.target.value)} required placeholder="e.g. Intro to Databases" className="h-12 bg-sand/20 dark:bg-zinc-950 border-taupe/40 dark:border-zinc-800 text-umber dark:text-zinc-100 focus-visible:ring-umber dark:focus-visible:ring-zinc-600 rounded-lg" />
+              <Input type="text" value={deckName} onChange={(e)=>setDeckName(e.target.value)} required placeholder="e.g. Intro to Databases" className="h-12 bg-stone-50 dark:bg-zinc-950 border-stone-200 dark:border-zinc-800 text-umber dark:text-zinc-100 focus-visible:ring-amber-600 dark:focus-visible:ring-zinc-600 rounded-xl" />
             </div>
             <div>
               <label className="block text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider mb-2">Description</label>
-              <Textarea value={deckDesc} onChange={(e)=>setDeckDesc(e.target.value)} placeholder="What is this deck about?" className="h-24 resize-none bg-sand/20 dark:bg-zinc-950 border-taupe/40 dark:border-zinc-800 text-umber dark:text-zinc-100 focus-visible:ring-umber dark:focus-visible:ring-zinc-600 rounded-lg"></Textarea>
+              <Textarea value={deckDesc} onChange={(e)=>setDeckDesc(e.target.value)} placeholder="What is this deck about?" className="h-24 resize-none bg-stone-50 dark:bg-zinc-950 border-stone-200 dark:border-zinc-800 text-umber dark:text-zinc-100 focus-visible:ring-amber-600 dark:focus-visible:ring-zinc-600 rounded-xl"></Textarea>
             </div>
           </div>
           <div className="flex justify-end mt-8">
-             <Button type="submit" size="lg" disabled={!deckName.trim() || isSaving} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 font-bold px-8 h-12 rounded-xl shadow-md disabled:opacity-50 min-w-[180px]">
+             <Button type="submit" size="lg" disabled={!deckName.trim() || isSaving} className="bg-umber dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-200 font-bold px-8 h-12 rounded-xl shadow-md disabled:opacity-50 min-w-[180px]">
                 {isSaving ? <RotateCw className="mr-2 animate-spin" size={16} /> : null}
                 {isSaving ? "Saving..." : "Save Empty Deck"}
              </Button>

@@ -37,7 +37,7 @@ export function DashboardView({ navigateTo, setHasActiveDeck, myDecks }) {
           <div className="w-20 h-20 bg-greige/30 dark:bg-zinc-900 text-umber dark:text-zinc-100 rounded-full flex items-center justify-center mx-auto mb-6"><Inbox size={40} /></div>
           <CardTitle className="text-2xl mb-2 text-umber dark:text-zinc-100">Welcome to CramZero!</CardTitle>
           <CardDescription className="text-base mb-8 text-taupe dark:text-zinc-400">Your workspace is currently empty. Create your first deck to unlock insights and begin studying.</CardDescription>
-          <Button onClick={() => navigateTo('new-deck')} size="lg" className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 mx-auto font-bold rounded-xl h-14 px-8">
+          <Button onClick={() => navigateTo('new-deck')} size="lg" className="bg-umber dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-200 mx-auto font-bold rounded-xl h-12 px-8 shadow-sm hover:shadow-md transition-all">
             <Plus size={18} className="mr-2" /> Create First Deck
           </Button>
         </Card>
@@ -59,15 +59,15 @@ export function DashboardView({ navigateTo, setHasActiveDeck, myDecks }) {
   const aiInteractions = events.filter(event => event.type === 'ai_question').length;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8 p-4 pb-12 md:p-8">
-      <Card data-tour="dashboard-welcome" className="bg-sand/40 dark:bg-zinc-900/40 border-taupe/30 dark:border-zinc-800 shadow-sm">
+    <div className="mx-auto max-w-6xl space-y-8 p-4 pb-12 md:p-8 animate-in fade-in duration-300">
+      <Card data-tour="dashboard-welcome" className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm border border-stone-200/80 dark:border-zinc-800 shadow-sm rounded-2xl overflow-hidden">
         <CardContent className="p-6 md:p-8 flex flex-col md:flex-row justify-between items-center gap-6">
           <div>
-            <h2 className="text-2xl md:text-3xl font-bold text-umber dark:text-zinc-100 mb-2">Welcome back!</h2>
-            <p className="text-taupe dark:text-zinc-400 text-sm md:text-lg">You have {myDecks.length} deck{myDecks.length > 1 ? 's' : ''} to review today. Ready to crush it?</p>
+            <h2 className="text-2xl md:text-3xl font-extrabold text-umber dark:text-zinc-100 mb-2 tracking-tight">Welcome back!</h2>
+            <p className="text-taupe dark:text-zinc-400 text-sm md:text-base">You have {myDecks.length} deck{myDecks.length > 1 ? 's' : ''} to review today. Ready to crush it?</p>
           </div>
-          <Button size="lg" onClick={handleStartStudying} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 rounded-xl font-bold h-14 px-8 w-full md:w-auto transition-transform hover:scale-105">
-            <Play size={18} fill="currentColor" className="mr-2" /> Resume Last Session
+          <Button size="lg" onClick={handleStartStudying} className="bg-umber dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-200 rounded-xl font-bold h-12 px-6 w-full md:w-auto shadow-sm hover:shadow-md transition-all">
+            <Play size={17} fill="currentColor" className="mr-2" /> Resume Last Session
           </Button>
         </CardContent>
       </Card>
@@ -79,10 +79,10 @@ export function DashboardView({ navigateTo, setHasActiveDeck, myDecks }) {
           { title: 'Cards Conquered', icon: Target, val: `${cardsConquered}`, sub: 'Successful reviews', color: 'text-umber dark:text-zinc-100' },
           { title: 'AI Interactions', icon: MessageSquare, val: `${aiInteractions}`, sub: 'Questions asked to Zero', color: 'text-blue-600 dark:text-blue-400' },
         ].map((stat, i) => (
-          <Card key={i} className="hover:-translate-y-1 transition-transform cursor-default shadow-sm border-taupe/20 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+          <Card key={i} className="hover:-translate-y-1 transition-all rounded-2xl cursor-default shadow-xs hover:shadow-md border border-stone-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900">
             <CardContent className="p-5 flex flex-col justify-between h-full">
               <div className="flex items-center gap-2 text-taupe dark:text-zinc-400 text-xs font-bold uppercase tracking-wider mb-4"><stat.icon size={16} className={stat.color} /> {stat.title}</div>
-              <div><p className="text-3xl font-bold text-umber dark:text-zinc-100 mb-1">{stat.val}</p><p className="text-xs font-semibold text-taupe dark:text-zinc-500">{stat.sub}</p></div>
+              <div><p className="text-3xl font-extrabold text-umber dark:text-zinc-100 mb-1">{stat.val}</p><p className="text-xs font-semibold text-taupe dark:text-zinc-500">{stat.sub}</p></div>
             </CardContent>
           </Card>
         ))}

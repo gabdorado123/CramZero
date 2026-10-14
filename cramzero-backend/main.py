@@ -4,8 +4,10 @@ import re
 import secrets
 import time
 import tempfile
+import asyncio
+import uuid
 from io import BytesIO
-from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form
+from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -56,7 +58,25 @@ def extract_json_data(text: str):
         return json.loads(match.group(1))
     return json.loads(cleaned)
 
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
 models.Base.metadata.create_all(bind=engine)
+
+# Auto-migrate: ensure user_id column exists on decks table in Neon (PostgreSQL) / SQLite
+try:
+    with engine.connect() as conn:
+        if engine.dialect.name == "sqlite":
+            res = conn.execute(text("PRAGMA table_info(decks)")).fetchall()
+            cols = [row[1] for row in res]
+            if "user_id" not in cols:
+                conn.execute(text("ALTER TABLE decks ADD COLUMN user_id VARCHAR(64)"))
+                conn.commit()
+        else:
+            conn.execute(text("ALTER TABLE decks ADD COLUMN IF NOT EXISTS user_id VARCHAR(64)"))
+            conn.commit()
+except Exception as e:
+    print(f"Migration note (user_id on decks): {e}")
 
 app = FastAPI(title="CramZero API")
 
@@ -90,12 +110,19 @@ async def health_check():
     return {"status": "CramZero Hybrid Engines online"}
 
 @app.get("/api/decks/", response_model=list[schemas.DeckResponse])
-def get_decks(db: Session = Depends(get_db)):
-    return db.query(models.Deck).all()
+def get_decks(user_id: str | None = None, db: Session = Depends(get_db)):
+    if user_id:
+        return db.query(models.Deck).filter(models.Deck.user_id == user_id).order_by(models.Deck.created_at.desc()).all()
+    return []
 
 @app.post("/api/decks/", response_model=schemas.DeckResponse)
 def create_deck(deck: schemas.DeckCreate, db: Session = Depends(get_db)):
-    db_deck = models.Deck(title=deck.title, description=deck.description, visibility=deck.visibility)
+    db_deck = models.Deck(
+        title=deck.title, 
+        description=deck.description, 
+        visibility=deck.visibility,
+        user_id=deck.user_id,
+    )
     db.add(db_deck)
     db.commit()
     db.refresh(db_deck)
@@ -115,6 +142,7 @@ def _deck_payload(deck):
         "title": deck.title,
         "description": deck.description,
         "visibility": deck.visibility,
+        "user_id": deck.user_id,
         "created_at": deck.created_at,
         "cards": [
             {"id": card.id, "deck_id": card.deck_id, "term": card.term, "definition": card.definition}
@@ -364,6 +392,7 @@ def generate_deck_with_ai(request: schemas.GenerateRequest):
             "title": request.topic.title(),
             "description": f"Auto-generated deck covering {request.topic}.",
             "visibility": "Private",
+            "user_id": request.user_id,
             "cards": flashcards_data
         }
         
@@ -373,7 +402,7 @@ def generate_deck_with_ai(request: schemas.GenerateRequest):
 
 # --- FILE GENERATOR: GEMINI ONLY (Groq doesn't natively parse PDFs/PPTXs yet) ---
 @app.post("/api/generate-deck-from-file/", response_model=schemas.DeckCreate)
-async def generate_deck_from_file(file: UploadFile = File(...), card_count: int = Form(10)):
+async def generate_deck_from_file(file: UploadFile = File(...), card_count: int = Form(10), user_id: str | None = Form(None)):
     if not ai_client:
         raise HTTPException(status_code=500, detail="Gemini Client required for document parsing.")
         
@@ -431,6 +460,7 @@ async def generate_deck_from_file(file: UploadFile = File(...), card_count: int 
             "title": clean_title,
             "description": f"Extracted from document: {file.filename}",
             "visibility": "Private",
+            "user_id": user_id,
             "cards": flashcards_data
         }
         
@@ -658,3 +688,329 @@ def ai_tutor_chat(request: schemas.ChatRequest):
         raise HTTPException(status_code=503, detail="Professor AI is currently unavailable.")
         
     return {"reply": reply_text}
+
+
+# ============================================================================
+# MULTIPLAYER REAL-TIME BATTLE WEBSOCKET HANDLERS
+# ============================================================================
+
+QUESTION_SECONDS = 15
+multiplayer_rooms = {}  # pin -> room dict
+_multiplayer_ticker_started = False
+
+
+def make_pin() -> str:
+    while True:
+        pin = str(secrets.randbelow(900000) + 100000)
+        if pin not in multiplayer_rooms:
+            return pin
+
+
+def make_player_id() -> str:
+    return str(uuid.uuid4())
+
+
+def public_room_state(room: dict) -> dict:
+    phase = room["phase"]
+    deck = dict(room.get("deck") or {})
+    cards = deck.get("cards", [])
+    safe_cards = []
+    include_def = phase in ("round-result", "results", "cancelled")
+    for card in cards:
+        card_copy = dict(card)
+        if not include_def:
+            card_copy.pop("definition", None)
+        safe_cards.append(card_copy)
+    deck["cards"] = safe_cards
+
+    players_safe = [
+        {
+            "id": p["id"],
+            "name": p["name"],
+            "score": p["score"],
+            "isHost": p.get("isHost", False),
+        }
+        for p in room["players"]
+    ]
+
+    return {
+        "type": "room_state",
+        "room": {
+            "pin": room["pin"],
+            "phase": room["phase"],
+            "hostId": room["hostId"],
+            "deck": deck,
+            "players": players_safe,
+            "questionIndex": room["questionIndex"],
+            "questionStartedAt": room["questionStartedAt"],
+            "countdownStartedAt": room["countdownStartedAt"],
+            "cancelReason": room.get("cancelReason"),
+            "questionSeconds": QUESTION_SECONDS,
+            "answeredPlayerIds": list(room["answers"].keys()),
+            "scores": {p["id"]: p["score"] for p in room["players"]},
+        },
+    }
+
+
+async def send_ws(ws: WebSocket, message: dict):
+    try:
+        await ws.send_json(message)
+    except Exception:
+        pass
+
+
+async def broadcast_room(room: dict, message: dict):
+    for p in list(room["players"]):
+        ws = p.get("ws")
+        if ws:
+            await send_ws(ws, message)
+
+
+async def finish_round(room: dict):
+    if room["phase"] != "playing":
+        return
+    room["phase"] = "round-result"
+    room["questionStartedAt"] = None
+    await broadcast_room(room, public_room_state(room))
+
+
+async def start_question(room: dict):
+    room["phase"] = "playing"
+    room["answers"] = {}
+    room["questionStartedAt"] = int(time.time() * 1000)
+    room["countdownStartedAt"] = None
+    await broadcast_room(room, public_room_state(room))
+
+
+async def remove_player(room: dict, player_id: str):
+    was_active_match = room["phase"] in ("countdown", "playing", "round-result")
+    room["players"] = [p for p in room["players"] if p["id"] != player_id]
+    room["answers"].pop(player_id, None)
+
+    if len(room["players"]) == 0:
+        multiplayer_rooms.pop(room["pin"], None)
+        return
+
+    if was_active_match and len(room["players"]) < 2:
+        room["phase"] = "cancelled"
+        room["questionStartedAt"] = None
+        room["countdownStartedAt"] = None
+        room["cancelReason"] = "The battle ended because the other player left."
+        await broadcast_room(room, public_room_state(room))
+        return
+
+    if room["hostId"] == player_id:
+        room["hostId"] = room["players"][0]["id"]
+        room["players"][0]["isHost"] = True
+
+    await broadcast_room(room, public_room_state(room))
+
+
+async def multiplayer_tick_loop():
+    while True:
+        try:
+            await asyncio.sleep(0.25)
+            now = int(time.time() * 1000)
+            for room in list(multiplayer_rooms.values()):
+                if room.get("phase") == "countdown" and room.get("countdownStartedAt"):
+                    if now - room["countdownStartedAt"] >= 3000:
+                        await start_question(room)
+                elif room.get("phase") == "playing" and room.get("questionStartedAt"):
+                    if now - room["questionStartedAt"] >= QUESTION_SECONDS * 1000:
+                        await finish_round(room)
+        except asyncio.CancelledError:
+            break
+        except Exception:
+            pass
+
+
+def ensure_ticker_running():
+    global _multiplayer_ticker_started
+    if not _multiplayer_ticker_started:
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(multiplayer_tick_loop())
+            _multiplayer_ticker_started = True
+        except RuntimeError:
+            pass
+
+
+@app.on_event("startup")
+async def startup_multiplayer_ticker():
+    ensure_ticker_running()
+
+
+@app.websocket("/ws/multiplayer")
+async def websocket_multiplayer(websocket: WebSocket):
+    await websocket.accept()
+    ensure_ticker_running()
+    current_room_pin = None
+    current_player_id = None
+    try:
+        while True:
+            text_data = await websocket.receive_text()
+            try:
+                payload = json.loads(text_data)
+            except Exception:
+                await send_ws(websocket, {"type": "error", "message": "Invalid multiplayer message."})
+                continue
+
+            msg_type = payload.get("type")
+
+            if msg_type == "host":
+                name = str(payload.get("name") or "").strip()[:32]
+                deck = payload.get("deck") or {}
+                cards = deck.get("cards") or []
+                if not name or not cards:
+                    await send_ws(websocket, {"type": "error", "message": "A player name and playable deck are required."})
+                    continue
+
+                player_id = make_player_id()
+                pin = make_pin()
+                room = {
+                    "pin": pin,
+                    "phase": "lobby",
+                    "hostId": player_id,
+                    "deck": deck,
+                    "players": [
+                        {
+                            "id": player_id,
+                            "name": name,
+                            "score": 0,
+                            "isHost": True,
+                            "ws": websocket,
+                        }
+                    ],
+                    "questionIndex": 0,
+                    "questionStartedAt": None,
+                    "countdownStartedAt": None,
+                    "cancelReason": None,
+                    "answers": {},
+                }
+                multiplayer_rooms[pin] = room
+                current_room_pin = pin
+                current_player_id = player_id
+
+                resp = {**public_room_state(room), "type": "connected", "playerId": player_id}
+                await send_ws(websocket, resp)
+                continue
+
+            if msg_type == "join":
+                pin = re.sub(r"\D", "", str(payload.get("pin") or ""))[:6]
+                room = multiplayer_rooms.get(pin)
+                if not room:
+                    await send_ws(websocket, {"type": "error", "message": "That lobby was not found."})
+                    continue
+                if room["phase"] != "lobby":
+                    await send_ws(websocket, {"type": "error", "message": "That battle has already started."})
+                    continue
+                name = str(payload.get("name") or "").strip()[:32]
+                if not name:
+                    await send_ws(websocket, {"type": "error", "message": "Enter a display name to join."})
+                    continue
+
+                player_id = make_player_id()
+                room["players"].append({
+                    "id": player_id,
+                    "name": name,
+                    "score": 0,
+                    "isHost": False,
+                    "ws": websocket,
+                })
+                current_room_pin = pin
+                current_player_id = player_id
+
+                resp = {**public_room_state(room), "type": "connected", "playerId": player_id}
+                await send_ws(websocket, resp)
+                await broadcast_room(room, public_room_state(room))
+                continue
+
+            if not current_room_pin or not current_player_id:
+                await send_ws(websocket, {"type": "error", "message": "Join or host a lobby first."})
+                continue
+
+            room = multiplayer_rooms.get(current_room_pin)
+            if not room:
+                await send_ws(websocket, {"type": "error", "message": "Lobby no longer exists."})
+                continue
+
+            player = next((p for p in room["players"] if p["id"] == current_player_id), None)
+            if not player:
+                continue
+
+            if msg_type == "leave":
+                room_to_leave = room
+                pid = current_player_id
+                current_room_pin = None
+                current_player_id = None
+                await remove_player(room_to_leave, pid)
+                await websocket.close()
+                break
+
+            if msg_type == "start":
+                if current_player_id != room["hostId"] or len(room["players"]) < 2 or room["phase"] != "lobby":
+                    continue
+                room["phase"] = "countdown"
+                room["questionIndex"] = 0
+                room["answers"] = {}
+                room["questionStartedAt"] = None
+                room["countdownStartedAt"] = int(time.time() * 1000)
+                await broadcast_room(room, public_room_state(room))
+                continue
+
+            if msg_type == "answer":
+                if room["phase"] != "playing" or current_player_id in room["answers"]:
+                    continue
+                cards = room["deck"].get("cards", [])
+                if room["questionIndex"] >= len(cards):
+                    continue
+                card = cards[room["questionIndex"]]
+                now_ms = int(time.time() * 1000)
+                q_start = room.get("questionStartedAt") or now_ms
+                elapsed = max(0, now_ms - q_start)
+                remaining = max(0, QUESTION_SECONDS * 1000 - elapsed)
+                is_correct = (payload.get("answer") == card.get("definition"))
+                points = round(1000 * (remaining / (QUESTION_SECONDS * 1000))) if is_correct else 0
+                player["score"] += points
+                room["answers"][current_player_id] = {
+                    "answer": payload.get("answer"),
+                    "isCorrect": is_correct,
+                    "points": points,
+                }
+                await send_ws(websocket, {
+                    "type": "answer_result",
+                    "isCorrect": is_correct,
+                    "points": points,
+                    "correctAnswer": card.get("definition"),
+                })
+                await broadcast_room(room, public_room_state(room))
+                if len(room["answers"]) == len(room["players"]):
+                    await finish_round(room)
+                continue
+
+            if msg_type == "next_question":
+                if current_player_id != room["hostId"] or room["phase"] != "round-result":
+                    continue
+                cards = room["deck"].get("cards", [])
+                if room["questionIndex"] >= len(cards) - 1:
+                    room["phase"] = "results"
+                    await broadcast_room(room, public_room_state(room))
+                    continue
+                room["questionIndex"] += 1
+                room["answers"] = {}
+                room["phase"] = "countdown"
+                room["questionStartedAt"] = None
+                room["countdownStartedAt"] = int(time.time() * 1000)
+                await broadcast_room(room, public_room_state(room))
+                continue
+
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        print(f"Multiplayer WebSocket connection error: {e}")
+    finally:
+        if current_room_pin and current_player_id:
+            room = multiplayer_rooms.get(current_room_pin)
+            if room:
+                await remove_player(room, current_player_id)
+
