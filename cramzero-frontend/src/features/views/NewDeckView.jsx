@@ -174,7 +174,7 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
 
   if (previewDeck) {
     return (
-      <div className="max-w-4xl mx-auto animate-in slide-in-from-right-8 duration-300 pb-12 p-4 md:p-8">
+      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 space-y-6 md:space-y-8 animate-in slide-in-from-right-8 duration-300">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl md:text-3xl font-bold text-umber dark:text-zinc-100 flex items-center gap-2">
             <Sparkles className="text-amber-600 dark:text-amber-500"/> Review AI Output
@@ -217,7 +217,7 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
   }
 
   return (
-    <div className="max-w-4xl w-full mx-auto space-y-8 pb-16 px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-300">
+    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 space-y-6 md:space-y-8 animate-in fade-in duration-300">
       <div className="flex items-center justify-between pb-2 border-b border-stone-200/60 dark:border-zinc-800/80">
         <div>
           <Button variant="ghost" size="sm" onClick={() => navigateTo('decks')} className="-ml-3 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 font-semibold mb-1">

@@ -23,7 +23,7 @@ import { Marker, MarkerContent } from '@/components/ui/marker';
 import { Message, MessageAvatar, MessageContent, MessageFooter } from '@/components/ui/message';
 import ReactMarkdown from 'react-markdown';
 
-export function LandingPageView({ navigateTo, isDarkMode, setIsDarkMode }) {
+export function LandingPageView({ navigateTo, isDarkMode, setIsDarkMode, onOpenAuth }) {
   const [typedText, setTypedText] = useState('');
   const [activeStudyTab, setActiveStudyTab] = useState(1);
   const [isBuilding, setIsBuilding] = useState(true);
@@ -69,7 +69,7 @@ export function LandingPageView({ navigateTo, isDarkMode, setIsDarkMode }) {
               <Switch checked={isDarkMode} onCheckedChange={setIsDarkMode} className="data-[state=checked]:bg-indigo-500" />
               <Moon size={14} className="text-taupe dark:text-indigo-400" />
             </div>
-            <Button variant="ghost" onClick={() => navigateTo('dashboard')} className="font-semibold text-umber/90 dark:text-zinc-300 hover:text-umber dark:hover:text-zinc-100 hidden sm:inline-flex hover:bg-taupe/10 dark:hover:bg-zinc-800">Sign in</Button>
+            <Button variant="ghost" onClick={() => onOpenAuth ? onOpenAuth('login') : navigateTo('dashboard')} className="font-semibold text-umber/90 dark:text-zinc-300 hover:text-umber dark:hover:text-zinc-100 hidden sm:inline-flex hover:bg-taupe/10 dark:hover:bg-zinc-800">Sign in</Button>
             <Button data-tour="launch-app" onClick={() => navigateTo('dashboard')} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 rounded-full font-bold hover:bg-umber/90 dark:hover:bg-zinc-300 shadow-sm hover:scale-105">Launch App →</Button>
           </div>
         </div>
@@ -254,7 +254,7 @@ export function LandingPageView({ navigateTo, isDarkMode, setIsDarkMode }) {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {[
-            { q: "Do I need to create an account to start?", a: "No! CramZero is completely account-free by design. You can drop files, generate decks, and study right in your browser instantly." },
+            { q: "Do I need to create an account to start?", a: "No! You can start immediately as a guest on your current device, or create a free cloud account with email and password to sync your decks across all your devices." },
             { q: "What file formats are supported for upload generation?", a: "You can upload PDF documents, PowerPoint (.pptx) presentation slides, plain text (.txt), and JSON exports." },
             { q: "How do Study Hubs work?", a: "You can create a hub for your specific class. By sharing the invite link, classmates can join and any deck uploaded to the hub is instantly synced for everyone." },
             { q: "Is CramZero free for students?", a: "Yes, 100% free for all students with full access to flashcard reviews, quizzes, and multiplayer battle rooms." }

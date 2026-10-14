@@ -46,7 +46,7 @@ export function HubDetailsView({ navigateTo, activeHub, setActiveHub, setMyHubs,
   
   if (!activeHub) {
     return (
-      <div className="max-w-4xl mx-auto my-auto p-12 text-center">
+      <div className="w-full max-w-6xl mx-auto my-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
         <Card className="p-8 rounded-3xl bg-white dark:bg-zinc-900 border-stone-200 dark:border-zinc-800 shadow-sm">
           <h2 className="text-xl font-bold text-stone-900 dark:text-zinc-100 mb-2">Study Hub Not Found</h2>
           <p className="text-stone-500 dark:text-zinc-400 mb-6 text-sm">The selected hub could not be loaded or is no longer available.</p>
@@ -186,7 +186,7 @@ export function HubDetailsView({ navigateTo, activeHub, setActiveHub, setMyHubs,
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-300">
+    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 space-y-6 md:space-y-8 animate-in fade-in duration-300">
       
       {/* Back button */}
       <div>

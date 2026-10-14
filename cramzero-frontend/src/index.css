@@ -340,3 +340,14 @@ a {
     @apply font-sans;
   }
 }
+/* Smooth View Transitions across page changes */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.22s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+::view-transition-group(zero-ai-tutor-fab) {
+  animation-duration: 0.28s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}

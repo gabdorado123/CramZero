@@ -47,18 +47,18 @@ export function StudyHubsView({ navigateTo, setActiveHub, myHubs, userId, displa
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-4 md:p-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 space-y-6 md:space-y-8 animate-in fade-in duration-300">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2 border-b border-stone-200/60 dark:border-zinc-800/80">
         <div>
-          <h2 className="text-2xl font-bold text-umber dark:text-zinc-100 mb-1">Collaborative Study Hubs</h2>
-          <p className="text-taupe dark:text-zinc-400 text-sm">Join classrooms, pool notes, and study together.</p>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-umber dark:text-zinc-100 tracking-tight">Collaborative Study Hubs</h2>
+          <p className="text-taupe dark:text-zinc-400 text-xs sm:text-sm mt-0.5">Join classrooms, pool notes, and study together.</p>
         </div>
-        <Button onClick={() => navigateTo('create-hub')} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 font-semibold rounded-full h-11 px-6 shadow-sm text-sm">
+        <Button onClick={() => navigateTo('create-hub')} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 font-semibold rounded-full h-11 px-6 shadow-sm text-sm w-full sm:w-auto">
           <Plus size={18} className="mr-2" /> Create Hub
         </Button>
       </div>
 
-      <Card data-tour="study-hubs" className="bg-gradient-to-r from-blue-50/70 via-indigo-50/40 to-blue-50/70 dark:from-blue-950/40 dark:via-zinc-900 dark:to-blue-950/30 border border-blue-200/80 dark:border-blue-900/50 mb-10 shadow-sm text-umber dark:text-zinc-100 rounded-3xl overflow-hidden backdrop-blur-sm">
+      <Card data-tour="study-hubs" className="bg-gradient-to-r from-blue-50/70 via-indigo-50/40 to-blue-50/70 dark:from-blue-950/40 dark:via-zinc-900 dark:to-blue-950/30 border border-blue-200/80 dark:border-blue-900/50 shadow-sm text-umber dark:text-zinc-100 rounded-3xl overflow-hidden backdrop-blur-sm">
         <CardContent className="p-6 md:p-8 flex flex-col md:flex-row items-center gap-6">
           <div className="w-14 h-14 bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center shrink-0 shadow-xs border border-blue-200/60 dark:border-blue-500/20">
             <Share2 size={26} />

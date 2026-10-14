@@ -65,7 +65,7 @@ export function DashboardView({ navigateTo, setHasActiveDeck, myDecks }) {
   const aiInteractions = events.filter(event => event.type === 'ai_question').length;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8 p-4 pb-12 md:p-8 animate-in fade-in duration-300">
+    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 space-y-6 md:space-y-8 animate-in fade-in duration-300">
       <Card data-tour="dashboard-welcome" className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm border border-stone-200/80 dark:border-zinc-800 shadow-sm rounded-2xl overflow-hidden">
         <CardContent className="p-6 md:p-8 flex flex-col md:flex-row justify-between items-center gap-6">
           <div>

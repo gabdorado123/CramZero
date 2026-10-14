@@ -84,7 +84,7 @@ export function AnalyticsView() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-4 pb-12 md:p-8">
+    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 space-y-6 md:space-y-8 animate-in fade-in duration-300">
       <div className="mb-4 border-b border-taupe/20 pb-6 dark:border-zinc-800">
         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-taupe dark:text-zinc-500">Live from your study sessions</p>
         <h2 className="mt-2 text-2xl font-bold text-umber dark:text-zinc-100 md:text-3xl">Mastery Analytics</h2>

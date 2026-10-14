@@ -1,7 +1,9 @@
 import os
 import json
 import re
+import math
 import secrets
+import hashlib
 import time
 from datetime import datetime, timezone
 import tempfile
@@ -71,7 +73,7 @@ from sqlalchemy.orm import Session
 
 models.Base.metadata.create_all(bind=engine)
 
-# Auto-migrate: ensure user_id column exists on decks table in Neon (PostgreSQL) / SQLite
+# Auto-migrate: ensure user_id and author_name columns exist on decks table in Neon (PostgreSQL) / SQLite
 try:
     with engine.connect() as conn:
         if engine.dialect.name == "sqlite":
@@ -80,11 +82,15 @@ try:
             if "user_id" not in cols:
                 conn.execute(text("ALTER TABLE decks ADD COLUMN user_id VARCHAR(64)"))
                 conn.commit()
+            if "author_name" not in cols:
+                conn.execute(text("ALTER TABLE decks ADD COLUMN author_name VARCHAR(120) DEFAULT 'Student'"))
+                conn.commit()
         else:
             conn.execute(text("ALTER TABLE decks ADD COLUMN IF NOT EXISTS user_id VARCHAR(64)"))
+            conn.execute(text("ALTER TABLE decks ADD COLUMN IF NOT EXISTS author_name VARCHAR(120) DEFAULT 'Student'"))
             conn.commit()
 except Exception as e:
-    print(f"Migration note (user_id on decks): {e}")
+    print(f"Migration note (columns on decks): {e}")
 
 app = FastAPI(title="CramZero API")
 
@@ -234,11 +240,242 @@ def get_rate_limits_status(req: Request, user_id: str | None = None, db: Session
         }
     return status
 
+# --- PASSWORD HASHING UTILITIES ---
+def hash_password(password: str) -> str:
+    salt = secrets.token_hex(16)
+    key = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 100000)
+    return f"{salt}${key.hex()}"
+
+def verify_password(password: str, hashed: str | None) -> bool:
+    if not hashed or "$" not in hashed:
+        return False
+    try:
+        salt, key = hashed.split("$", 1)
+        check = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 100000)
+        return secrets.compare_digest(check.hex(), key)
+    except Exception:
+        return False
+
+def _user_payload(user):
+    return {
+        "id": user.id,
+        "email": user.email,
+        "display_name": user.display_name or "Student",
+        "avatar_url": user.avatar_url,
+        "is_guest": not bool(user.email and user.password_hash),
+        "created_at": user.created_at,
+    }
+
+# --- AUTH & USER PROFILE ENDPOINTS ---
+@app.post("/api/auth/register", response_model=schemas.UserResponse)
+def register_user(payload: schemas.UserRegister, db: Session = Depends(get_db)):
+    email = payload.email.strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Please enter a valid email address.")
+    if not payload.password or len(payload.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters.")
+    
+    existing = db.query(models.User).filter(models.User.email == email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="An account with this email already exists. Please sign in.")
+    
+    target_user_id = payload.guest_user_id.strip() if payload.guest_user_id else None
+    user = None
+    if target_user_id:
+        user = db.query(models.User).filter(models.User.id == target_user_id).first()
+    
+    display_name = payload.display_name.strip() if payload.display_name else "Student"
+
+    if user:
+        user.email = email
+        user.password_hash = hash_password(payload.password)
+        user.display_name = display_name
+        if payload.avatar_url:
+            user.avatar_url = payload.avatar_url
+    else:
+        user_id = target_user_id or f"user-{secrets.token_hex(12)}"
+        user = models.User(
+            id=user_id,
+            email=email,
+            password_hash=hash_password(payload.password),
+            display_name=display_name,
+            avatar_url=payload.avatar_url,
+        )
+        db.add(user)
+    
+    # Ensure all existing guest decks & hub memberships are tied to this user
+    if target_user_id and target_user_id != user.id:
+        db.query(models.Deck).filter(models.Deck.user_id == target_user_id).update({"user_id": user.id, "author_name": user.display_name})
+        db.query(models.StudyHubMember).filter(models.StudyHubMember.user_id == target_user_id).update({"user_id": user.id, "display_name": user.display_name})
+    
+    db.commit()
+    db.refresh(user)
+    return _user_payload(user)
+
+
+@app.post("/api/auth/login", response_model=schemas.UserResponse)
+def login_user(payload: schemas.UserLogin, db: Session = Depends(get_db)):
+    email = payload.email.strip().lower()
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid email or password.")
+    
+    # If the user created decks as guest on this device, merge them into their logged in account!
+    if payload.guest_user_id and payload.guest_user_id != user.id:
+        db.query(models.Deck).filter(models.Deck.user_id == payload.guest_user_id).update({"user_id": user.id, "author_name": user.display_name})
+        db.query(models.StudyHubMember).filter(models.StudyHubMember.user_id == payload.guest_user_id).update({"user_id": user.id, "display_name": user.display_name})
+        db.commit()
+
+    return _user_payload(user)
+
+
+@app.post("/api/auth/guest", response_model=schemas.UserResponse)
+def setup_guest_user(payload: schemas.GuestUserCreate, db: Session = Depends(get_db)):
+    user_id = (payload.user_id.strip() if payload.user_id else None) or f"guest-{secrets.token_hex(12)}"
+    display_name = payload.display_name.strip() if payload.display_name else "Student"
+    
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if user:
+        user.display_name = display_name
+        if payload.avatar_url:
+            user.avatar_url = payload.avatar_url
+    else:
+        user = models.User(
+            id=user_id,
+            display_name=display_name,
+            avatar_url=payload.avatar_url,
+        )
+        db.add(user)
+    
+    db.query(models.StudyHubMember).filter(models.StudyHubMember.user_id == user.id).update({"display_name": display_name})
+    db.commit()
+    db.refresh(user)
+    return _user_payload(user)
+
+
+@app.get("/api/auth/me", response_model=schemas.UserResponse)
+def get_current_user_profile(user_id: str, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        user = models.User(id=user_id, display_name="Student")
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    return _user_payload(user)
+
+
+@app.put("/api/auth/profile", response_model=schemas.UserResponse)
+def update_user_profile(payload: schemas.UserProfileUpdate, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == payload.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+    
+    if payload.display_name:
+        user.display_name = payload.display_name.strip()
+        db.query(models.StudyHubMember).filter(models.StudyHubMember.user_id == user.id).update({"display_name": user.display_name})
+        db.query(models.Deck).filter(models.Deck.user_id == user.id).update({"author_name": user.display_name})
+    
+    if payload.avatar_url is not None:
+        user.avatar_url = payload.avatar_url
+    
+    # Check if upgrading guest to full account
+    if payload.email and payload.password:
+        email = payload.email.strip().lower()
+        if not email or "@" not in email:
+            raise HTTPException(status_code=400, detail="Invalid email format.")
+        if len(payload.password) < 6:
+            raise HTTPException(status_code=400, detail="Password must be at least 6 characters.")
+        existing = db.query(models.User).filter(models.User.email == email, models.User.id != user.id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="An account with this email already exists.")
+        user.email = email
+        user.password_hash = hash_password(payload.password)
+    
+    db.commit()
+    db.refresh(user)
+    return _user_payload(user)
+
+
+# --- DECK MANAGEMENT & SHARING ENDPOINTS ---
 @app.get("/api/decks/", response_model=list[schemas.DeckResponse])
 def get_decks(user_id: str | None = None, db: Session = Depends(get_db)):
     if user_id:
         return db.query(models.Deck).filter(models.Deck.user_id == user_id).order_by(models.Deck.created_at.desc()).all()
     return []
+
+
+@app.get("/api/decks/public")
+def get_public_decks(search: str | None = None, limit: int = 50, db: Session = Depends(get_db)):
+    query = db.query(models.Deck).filter(models.Deck.visibility == "Public")
+    if search and search.strip():
+        term = f"%{search.strip()}%"
+        query = query.filter(models.Deck.title.ilike(term) | models.Deck.description.ilike(term))
+    decks = query.order_by(models.Deck.created_at.desc()).limit(limit).all()
+    return [_deck_payload(d) for d in decks]
+
+
+@app.get("/api/decks/{deck_id}")
+def get_single_deck(deck_id: int, user_id: str | None = None, db: Session = Depends(get_db)):
+    deck = db.query(models.Deck).filter(models.Deck.id == deck_id).first()
+    if not deck:
+        raise HTTPException(status_code=404, detail="Deck not found.")
+    if deck.visibility != "Public" and deck.user_id != user_id:
+        # Check if in a shared study hub with user
+        shared = db.query(models.StudyHubDeck).join(
+            models.StudyHubMember, 
+            models.StudyHubMember.hub_id == models.StudyHubDeck.hub_id
+        ).filter(
+            models.StudyHubDeck.deck_id == deck_id, 
+            models.StudyHubMember.user_id == user_id
+        ).first()
+        if not shared:
+            raise HTTPException(status_code=403, detail="This deck is private.")
+    return _deck_payload(deck)
+
+
+@app.patch("/api/decks/{deck_id}/visibility")
+def update_deck_visibility(deck_id: int, payload: schemas.DeckVisibilityUpdate, db: Session = Depends(get_db)):
+    deck = db.query(models.Deck).filter(models.Deck.id == deck_id).first()
+    if not deck:
+        raise HTTPException(status_code=404, detail="Deck not found.")
+    if deck.user_id != payload.user_id:
+        raise HTTPException(status_code=403, detail="Only the deck creator can change its visibility.")
+    
+    vis = "Public" if payload.visibility.lower() == "public" else "Private"
+    deck.visibility = vis
+    db.commit()
+    db.refresh(deck)
+    return _deck_payload(deck)
+
+
+@app.post("/api/decks/{deck_id}/clone")
+def clone_deck_to_library(deck_id: int, payload: schemas.DeckCloneRequest, db: Session = Depends(get_db)):
+    source_deck = db.query(models.Deck).filter(models.Deck.id == deck_id).first()
+    if not source_deck:
+        raise HTTPException(status_code=404, detail="Deck not found.")
+    if source_deck.visibility != "Public" and source_deck.user_id != payload.user_id:
+        raise HTTPException(status_code=403, detail="Cannot clone a private deck.")
+    
+    cloned_title = f"{source_deck.title} (Saved)" if source_deck.user_id != payload.user_id else f"{source_deck.title} (Copy)"
+    cloned_deck = models.Deck(
+        title=cloned_title,
+        description=source_deck.description,
+        visibility="Private",
+        user_id=payload.user_id,
+        author_name=payload.display_name or "Student",
+    )
+    db.add(cloned_deck)
+    db.commit()
+    db.refresh(cloned_deck)
+
+    for card in source_deck.cards:
+        cloned_card = models.Card(deck_id=cloned_deck.id, term=card.term, definition=card.definition)
+        db.add(cloned_card)
+    
+    db.commit()
+    db.refresh(cloned_deck)
+    return _deck_payload(cloned_deck)
+
 
 @app.post("/api/decks/", response_model=schemas.DeckResponse)
 def create_deck(deck: schemas.DeckCreate, db: Session = Depends(get_db)):
@@ -247,6 +484,7 @@ def create_deck(deck: schemas.DeckCreate, db: Session = Depends(get_db)):
         description=deck.description, 
         visibility=deck.visibility,
         user_id=deck.user_id,
+        author_name=deck.author_name or "Student",
     )
     db.add(db_deck)
     db.commit()
@@ -266,8 +504,9 @@ def _deck_payload(deck):
         "id": deck.id,
         "title": deck.title,
         "description": deck.description,
-        "visibility": deck.visibility,
+        "visibility": deck.visibility or "Private",
         "user_id": deck.user_id,
+        "author_name": getattr(deck, "author_name", "Student") or "Student",
         "created_at": deck.created_at,
         "cards": [
             {"id": card.id, "deck_id": card.deck_id, "term": card.term, "definition": card.definition}
@@ -903,12 +1142,22 @@ def public_room_state(room: dict) -> dict:
         safe_cards.append(card_copy)
     deck["cards"] = safe_cards
 
+    now = int(time.time() * 1000)
+    countdown_rem = 0
+    if phase == "countdown" and room.get("countdownStartedAt"):
+        countdown_rem = max(1, int(math.ceil((3000 - (now - room["countdownStartedAt"])) / 1000.0)))
+    question_rem = QUESTION_SECONDS
+    if phase == "playing" and room.get("questionStartedAt"):
+        question_rem = max(0, int(math.ceil((QUESTION_SECONDS * 1000 - (now - room["questionStartedAt"])) / 1000.0)))
+
     players_safe = [
         {
             "id": p["id"],
             "name": p["name"],
+            "avatar": p.get("avatar") or "",
             "score": p["score"],
             "isHost": p.get("isHost", False),
+            "stats": p.get("stats") or {"correct": 0, "total": 0, "streak": 0, "maxStreak": 0},
         }
         for p in room["players"]
     ]
@@ -924,6 +1173,9 @@ def public_room_state(room: dict) -> dict:
             "questionIndex": room["questionIndex"],
             "questionStartedAt": room["questionStartedAt"],
             "countdownStartedAt": room["countdownStartedAt"],
+            "serverTime": now,
+            "countdownRemaining": countdown_rem,
+            "questionSecondsRemaining": question_rem,
             "cancelReason": room.get("cancelReason"),
             "questionSeconds": QUESTION_SECONDS,
             "answeredPlayerIds": list(room["answers"].keys()),
@@ -951,6 +1203,8 @@ async def finish_round(room: dict):
         return
     room["phase"] = "round-result"
     room["questionStartedAt"] = None
+    room["_lastPlayingTick"] = None
+    room["_lastCountdownTick"] = None
     await broadcast_room(room, public_room_state(room))
 
 
@@ -959,7 +1213,15 @@ async def start_question(room: dict):
     room["answers"] = {}
     room["questionStartedAt"] = int(time.time() * 1000)
     room["countdownStartedAt"] = None
+    room["_lastPlayingTick"] = QUESTION_SECONDS
+    room["_lastCountdownTick"] = None
     await broadcast_room(room, public_room_state(room))
+    await broadcast_room(room, {
+        "type": "timer_tick",
+        "phase": "playing",
+        "timeLeft": QUESTION_SECONDS,
+        "serverTime": room["questionStartedAt"]
+    })
 
 
 async def remove_player(room: dict, player_id: str):
@@ -989,15 +1251,38 @@ async def remove_player(room: dict, player_id: str):
 async def multiplayer_tick_loop():
     while True:
         try:
-            await asyncio.sleep(0.25)
+            await asyncio.sleep(0.2)
             now = int(time.time() * 1000)
             for room in list(multiplayer_rooms.values()):
-                if room.get("phase") == "countdown" and room.get("countdownStartedAt"):
-                    if now - room["countdownStartedAt"] >= 3000:
+                phase = room.get("phase")
+                if phase == "countdown" and room.get("countdownStartedAt"):
+                    elapsed = now - room["countdownStartedAt"]
+                    if elapsed >= 3000:
                         await start_question(room)
-                elif room.get("phase") == "playing" and room.get("questionStartedAt"):
-                    if now - room["questionStartedAt"] >= QUESTION_SECONDS * 1000:
+                    else:
+                        remaining = max(1, int(math.ceil((3000 - elapsed) / 1000.0)))
+                        if room.get("_lastCountdownTick") != remaining:
+                            room["_lastCountdownTick"] = remaining
+                            await broadcast_room(room, {
+                                "type": "timer_tick",
+                                "phase": "countdown",
+                                "countdown": remaining,
+                                "serverTime": now
+                            })
+                elif phase == "playing" and room.get("questionStartedAt"):
+                    elapsed = now - room["questionStartedAt"]
+                    if elapsed >= QUESTION_SECONDS * 1000:
                         await finish_round(room)
+                    else:
+                        remaining = max(0, int(math.ceil((QUESTION_SECONDS * 1000 - elapsed) / 1000.0)))
+                        if room.get("_lastPlayingTick") != remaining:
+                            room["_lastPlayingTick"] = remaining
+                            await broadcast_room(room, {
+                                "type": "timer_tick",
+                                "phase": "playing",
+                                "timeLeft": remaining,
+                                "serverTime": now
+                            })
         except asyncio.CancelledError:
             break
         except Exception:
@@ -1039,6 +1324,7 @@ async def websocket_multiplayer(websocket: WebSocket):
 
             if msg_type == "host":
                 name = str(payload.get("name") or "").strip()[:32]
+                avatar = str(payload.get("avatar") or "").strip()
                 deck = payload.get("deck") or {}
                 cards = deck.get("cards") or []
                 if not name or not cards:
@@ -1056,8 +1342,10 @@ async def websocket_multiplayer(websocket: WebSocket):
                         {
                             "id": player_id,
                             "name": name,
+                            "avatar": avatar,
                             "score": 0,
                             "isHost": True,
+                            "stats": {"correct": 0, "total": 0, "streak": 0, "maxStreak": 0},
                             "ws": websocket,
                         }
                     ],
@@ -1085,6 +1373,7 @@ async def websocket_multiplayer(websocket: WebSocket):
                     await send_ws(websocket, {"type": "error", "message": "That battle has already started."})
                     continue
                 name = str(payload.get("name") or "").strip()[:32]
+                avatar = str(payload.get("avatar") or "").strip()
                 if not name:
                     await send_ws(websocket, {"type": "error", "message": "Enter a display name to join."})
                     continue
@@ -1093,8 +1382,10 @@ async def websocket_multiplayer(websocket: WebSocket):
                 room["players"].append({
                     "id": player_id,
                     "name": name,
+                    "avatar": avatar,
                     "score": 0,
                     "isHost": False,
+                    "stats": {"correct": 0, "total": 0, "streak": 0, "maxStreak": 0},
                     "ws": websocket,
                 })
                 current_room_pin = pin
@@ -1135,7 +1426,15 @@ async def websocket_multiplayer(websocket: WebSocket):
                 room["answers"] = {}
                 room["questionStartedAt"] = None
                 room["countdownStartedAt"] = int(time.time() * 1000)
+                room["_lastCountdownTick"] = 3
+                room["_lastPlayingTick"] = None
                 await broadcast_room(room, public_room_state(room))
+                await broadcast_room(room, {
+                    "type": "timer_tick",
+                    "phase": "countdown",
+                    "countdown": 3,
+                    "serverTime": room["countdownStartedAt"]
+                })
                 continue
 
             if msg_type == "answer":
@@ -1152,10 +1451,21 @@ async def websocket_multiplayer(websocket: WebSocket):
                 is_correct = (payload.get("answer") == card.get("definition"))
                 points = round(1000 * (remaining / (QUESTION_SECONDS * 1000))) if is_correct else 0
                 player["score"] += points
+
+                stats = player.setdefault("stats", {"correct": 0, "total": 0, "streak": 0, "maxStreak": 0})
+                stats["total"] += 1
+                if is_correct:
+                    stats["correct"] += 1
+                    stats["streak"] += 1
+                    stats["maxStreak"] = max(stats["maxStreak"], stats["streak"])
+                else:
+                    stats["streak"] = 0
+
                 room["answers"][current_player_id] = {
                     "answer": payload.get("answer"),
                     "isCorrect": is_correct,
                     "points": points,
+                    "reactionTime": round(elapsed / 1000, 2),
                 }
                 await send_ws(websocket, {
                     "type": "answer_result",
@@ -1181,7 +1491,37 @@ async def websocket_multiplayer(websocket: WebSocket):
                 room["phase"] = "countdown"
                 room["questionStartedAt"] = None
                 room["countdownStartedAt"] = int(time.time() * 1000)
+                room["_lastCountdownTick"] = 3
+                room["_lastPlayingTick"] = None
                 await broadcast_room(room, public_room_state(room))
+                await broadcast_room(room, {
+                    "type": "timer_tick",
+                    "phase": "countdown",
+                    "countdown": 3,
+                    "serverTime": room["countdownStartedAt"]
+                })
+                continue
+
+            if msg_type == "rematch":
+                if current_player_id != room["hostId"] or room["phase"] != "results":
+                    continue
+                for p in room["players"]:
+                    p["score"] = 0
+                    p["stats"] = {"correct": 0, "total": 0, "streak": 0, "maxStreak": 0}
+                room["questionIndex"] = 0
+                room["answers"] = {}
+                room["phase"] = "countdown"
+                room["questionStartedAt"] = None
+                room["countdownStartedAt"] = int(time.time() * 1000)
+                room["_lastCountdownTick"] = 3
+                room["_lastPlayingTick"] = None
+                await broadcast_room(room, public_room_state(room))
+                await broadcast_room(room, {
+                    "type": "timer_tick",
+                    "phase": "countdown",
+                    "countdown": 3,
+                    "serverTime": room["countdownStartedAt"]
+                })
                 continue
 
     except WebSocketDisconnect:
