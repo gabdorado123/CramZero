@@ -43,7 +43,7 @@ except Exception as e:
     print(f"Warning: Groq Client failed to initialize. {e}")
     groq_client = None
 
-GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
 FALLBACK_GEMINI_MODELS = ["gemini-2.0-flash", "gemini-1.5-flash"]
 
 
