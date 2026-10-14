@@ -25,9 +25,10 @@ import ReactMarkdown from 'react-markdown';
 
 export function QuizSetupView({ navigateTo, setExamConfig }) {
   const [qCount, setQCount] = useState(10);
+  const [qType, setQType] = useState('mc'); // 'mc', 'tf', 'mixed'
 
   const handleStart = (isRandom) => {
-    setExamConfig({ count: qCount, timeMode: 'No Limit', isMock: false });
+    setExamConfig({ count: qCount, timeMode: 'No Limit', isMock: false, questionType: qType, isRandom });
     navigateTo('mock-exam-active');
   };
 
@@ -37,17 +38,20 @@ export function QuizSetupView({ navigateTo, setExamConfig }) {
         <ArrowLeft size={16} className="mr-2" /> Back to Study View
       </Button>
       <h2 className="text-2xl md:text-3xl font-bold text-umber dark:text-zinc-100 mb-2">Configure Challenge</h2>
-      <p className="text-taupe dark:text-zinc-400 text-xs md:text-sm mb-6">Select the test parameters for this session.</p>
+      <p className="text-taupe dark:text-zinc-400 text-xs md:text-sm mb-6">Select the test parameters and question format for this session.</p>
       
-      <Card className="p-6 shadow-sm mb-6 bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 rounded-2xl">
-        <h3 className="font-bold text-umber dark:text-zinc-100 mb-4 flex items-center gap-2"><Target size={18}/> Challenge Length</h3>
-        <div className="flex flex-wrap sm:flex-nowrap gap-2 sm:gap-4">
+      {/* Challenge Length Card */}
+      <Card className="p-6 md:p-7 shadow-sm mb-6 bg-white dark:bg-zinc-900 border border-stone-200/90 dark:border-zinc-800 rounded-3xl">
+        <h3 className="font-bold text-umber dark:text-zinc-100 mb-4 flex items-center gap-2 text-base">
+          <Target size={18} className="text-amber-500" /> Challenge Length
+        </h3>
+        <div className="flex flex-wrap sm:flex-nowrap gap-2 sm:gap-3">
           {[5, 10, 20, 30, 50].map(num => (
             <Button 
               key={num}
               variant="outline"
               onClick={() => setQCount(num)}
-              className={`flex-1 h-12 font-bold text-sm md:text-base border-2 transition-all rounded-xl ${qCount === num ? 'bg-amber-50 dark:bg-amber-900/30 border-amber-500 dark:border-amber-600 text-amber-700 dark:text-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900/50 hover:text-amber-800 dark:hover:text-amber-400 scale-[1.02]' : 'bg-greige/10 dark:bg-zinc-800 text-taupe dark:text-zinc-400 hover:bg-greige/20 dark:hover:bg-zinc-700 hover:text-umber dark:hover:text-zinc-100 border-transparent'}`}
+              className={`flex-1 h-12 font-bold text-sm md:text-base border-2 transition-all rounded-2xl ${qCount === num ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-500 dark:border-amber-500 text-amber-700 dark:text-amber-400 shadow-xs' : 'border-stone-200 dark:border-zinc-800 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 bg-transparent'}`}
             >
               {num} <span className="hidden sm:inline font-semibold ml-1">Qs</span>
             </Button>
@@ -55,20 +59,74 @@ export function QuizSetupView({ navigateTo, setExamConfig }) {
         </div>
       </Card>
 
-      <Card className="p-4 md:p-6 shadow-sm space-y-4 mb-8 bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 rounded-2xl">
-        <div className="flex items-start gap-4 p-4 border border-umber dark:border-zinc-600 bg-sand/30 dark:bg-zinc-800 rounded-xl cursor-pointer">
-          <div className="mt-1"><div className="w-5 h-5 rounded border-2 border-umber dark:border-zinc-400 flex items-center justify-center"><div className="w-2.5 h-2.5 bg-umber dark:bg-zinc-400 rounded-sm"></div></div></div>
-          <div><h4 className="font-bold text-base md:text-lg mb-1 text-umber dark:text-zinc-100">Multiple Choice</h4><p className="text-xs md:text-sm text-umber/80 dark:text-zinc-400">Pick the correct answer from 4 generated options.</p></div>
+      {/* Question Format Selection */}
+      <Card className="p-6 md:p-7 shadow-sm mb-8 bg-white dark:bg-zinc-900 border border-stone-200/90 dark:border-zinc-800 rounded-3xl space-y-3">
+        <h3 className="font-bold text-umber dark:text-zinc-100 mb-4 flex items-center gap-2 text-base">
+          <Layers size={18} className="text-amber-500" /> Question Format
+        </h3>
+
+        {/* Multiple Choice */}
+        <div 
+          onClick={() => setQType('mc')}
+          className={`flex items-start gap-4 p-4 md:p-5 rounded-2xl border-2 cursor-pointer transition-all ${qType === 'mc' ? 'border-amber-500 bg-amber-50/50 dark:bg-amber-950/20 shadow-xs' : 'border-stone-200/80 dark:border-zinc-800 hover:border-amber-300 dark:hover:border-zinc-700'}`}
+        >
+          <div className="mt-0.5">
+            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${qType === 'mc' ? 'border-amber-600 bg-amber-600' : 'border-stone-300 dark:border-zinc-600'}`}>
+              {qType === 'mc' && <div className="w-2 h-2 bg-white rounded-full"></div>}
+            </div>
+          </div>
+          <div>
+            <h4 className="font-bold text-base text-umber dark:text-zinc-100 mb-0.5 flex items-center gap-2">
+              Multiple Choice <Badge className="bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 text-[10px] rounded-full border-none">Standard</Badge>
+            </h4>
+            <p className="text-xs md:text-sm text-taupe dark:text-zinc-400">Pick the correct definition from 4 generated options.</p>
+          </div>
         </div>
-        <div className="flex items-start gap-4 p-4 border border-taupe/20 dark:border-zinc-800 bg-greige/5 dark:bg-zinc-950 rounded-xl cursor-not-allowed opacity-60 text-taupe dark:text-zinc-600">
-          <div className="mt-1"><div className="w-5 h-5 rounded border-2 border-taupe/40 dark:border-zinc-700"></div></div>
-          <div><h4 className="font-bold text-base md:text-lg mb-1 flex items-center gap-2">True / False <Badge variant="secondary" className="text-[10px] bg-taupe/20 dark:bg-zinc-800 text-taupe dark:text-zinc-500 hover:bg-taupe/20 dark:hover:bg-zinc-800 border-none">Needs 4+ Cards</Badge></h4><p className="text-xs md:text-sm">Evaluate whether an AI-generated statement is correct.</p></div>
+
+        {/* True / False */}
+        <div 
+          onClick={() => setQType('tf')}
+          className={`flex items-start gap-4 p-4 md:p-5 rounded-2xl border-2 cursor-pointer transition-all ${qType === 'tf' ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-xs' : 'border-stone-200/80 dark:border-zinc-800 hover:border-emerald-300 dark:hover:border-zinc-700'}`}
+        >
+          <div className="mt-0.5">
+            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${qType === 'tf' ? 'border-emerald-600 bg-emerald-600' : 'border-stone-300 dark:border-zinc-600'}`}>
+              {qType === 'tf' && <div className="w-2 h-2 bg-white rounded-full"></div>}
+            </div>
+          </div>
+          <div>
+            <h4 className="font-bold text-base text-umber dark:text-zinc-100 mb-0.5 flex items-center gap-2">
+              True / False <Badge className="bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 text-[10px] rounded-full border-none">Active</Badge>
+            </h4>
+            <p className="text-xs md:text-sm text-taupe dark:text-zinc-400">Evaluate whether an AI-generated statement is accurate or a trick falsehood.</p>
+          </div>
+        </div>
+
+        {/* Mixed Mode */}
+        <div 
+          onClick={() => setQType('mixed')}
+          className={`flex items-start gap-4 p-4 md:p-5 rounded-2xl border-2 cursor-pointer transition-all ${qType === 'mixed' ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 shadow-xs' : 'border-stone-200/80 dark:border-zinc-800 hover:border-blue-300 dark:hover:border-zinc-700'}`}
+        >
+          <div className="mt-0.5">
+            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${qType === 'mixed' ? 'border-blue-600 bg-blue-600' : 'border-stone-300 dark:border-zinc-600'}`}>
+              {qType === 'mixed' && <div className="w-2 h-2 bg-white rounded-full"></div>}
+            </div>
+          </div>
+          <div>
+            <h4 className="font-bold text-base text-umber dark:text-zinc-100 mb-0.5 flex items-center gap-2">
+              Mixed Challenge <Badge className="bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 text-[10px] rounded-full border-none">Recommended</Badge>
+            </h4>
+            <p className="text-xs md:text-sm text-taupe dark:text-zinc-400">Combines multiple choice questions and true/false verification for maximum retention.</p>
+          </div>
         </div>
       </Card>
       
-      <div className="flex flex-col sm:flex-row gap-4">
-        <Button variant="outline" onClick={() => handleStart(false)} className="flex-1 h-14 rounded-xl font-bold text-base bg-white dark:bg-zinc-900 border-2 border-taupe/30 dark:border-zinc-800 text-umber dark:text-zinc-300 hover:bg-greige/10 dark:hover:bg-zinc-800 hover:text-umber dark:hover:text-zinc-100">Sequential Order</Button>
-        <Button onClick={() => handleStart(true)} className="flex-1 bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 h-14 rounded-xl font-bold text-base shadow-md">Start Randomized</Button>
+      <div className="flex flex-col sm:flex-row gap-3">
+        <Button variant="outline" onClick={() => handleStart(false)} className="flex-1 h-12 rounded-full font-bold text-sm bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 text-umber dark:text-zinc-300 hover:bg-stone-50 dark:hover:bg-zinc-800">
+          Sequential Order
+        </Button>
+        <Button onClick={() => handleStart(true)} className="flex-1 bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 h-12 rounded-full font-bold text-sm shadow-sm">
+          Start Randomized Challenge →
+        </Button>
       </div>
     </div>
   );

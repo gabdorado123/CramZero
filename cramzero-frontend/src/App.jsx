@@ -28,6 +28,7 @@ import { Message, MessageAvatar, MessageContent, MessageFooter } from "@/compone
 import ReactMarkdown from 'react-markdown';
 import { CodeSpaceView } from '@/features/codespace/CodeSpaceView';
 import { PrimaryNavigation } from '@/components/layout/PrimaryNavigation';
+import { UsageTracker } from '@/components/layout/UsageTracker';
 import { LandingPageView } from '@/features/views/LandingPageView';
 import { DashboardView } from '@/features/views/DashboardView';
 import { StudyView } from '@/features/views/StudyView';
@@ -310,7 +311,9 @@ export default function App() {
             {showNavDock && (
               <PrimaryNavigation items={navItems} currentView={currentView} onNavigate={handleNavigate} />
             )}
-            <div className="flex items-center gap-3 md:gap-4 shrink-0">
+            <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+              <UsageTracker userId={userId} />
+
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-stone-100 dark:bg-zinc-900 border border-stone-200/80 dark:border-zinc-800 transition-colors">
                 <Sun size={14} className="text-amber-600 dark:text-zinc-500" />
                 <Switch checked={isDarkMode} onCheckedChange={setIsDarkMode} className="data-[state=checked]:bg-indigo-500" />

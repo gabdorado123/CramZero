@@ -19,6 +19,13 @@ from dotenv import load_dotenv
 
 import models, schemas
 from database import engine, get_db
+from cache import (
+    ai_cache,
+    AI_CONCURRENCY_SEMAPHORE,
+    make_deck_cache_key,
+    make_chat_cache_key,
+    make_readout_cache_key,
+)
 from reportlab.lib.colors import HexColor
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import letter
@@ -458,6 +465,20 @@ def generate_deck_with_ai(request: schemas.GenerateRequest, req: Request, db: Se
     identifier = get_client_identifier(req, request.user_id)
     enforce_rate_limit("deck_generation", identifier, db)
 
+    # 1. Check in-memory cache for instant response (avoids external API calls & token exhaustion)
+    cache_key = make_deck_cache_key(request.topic, request.card_count)
+    cached_cards = ai_cache.get(cache_key)
+    if cached_cards:
+        print(f"Cache HIT for topic: '{request.topic}' ({request.card_count} cards)")
+        record_rate_limit_usage("deck_generation", identifier, db)
+        return {
+            "title": request.topic.title(),
+            "description": f"Auto-generated deck covering {request.topic}.",
+            "visibility": "Private",
+            "user_id": request.user_id,
+            "cards": cached_cards
+        }
+
     prompt = f"""
     You are an expert tutor. Generate a highly effective flashcard deck about: {request.topic}.
     Provide exactly {request.card_count} key terms and definitions.
@@ -470,36 +491,41 @@ def generate_deck_with_ai(request: schemas.GenerateRequest, req: Request, db: Se
     
     raw_text = None
 
-    # 1. Try Groq First
-    if groq_client:
-        try:
-            print(f"Attempting generation with Groq ({GROQ_MODEL})...")
-            chat_completion = groq_client.chat.completions.create(
-                messages=[{"role": "user", "content": prompt}],
-                model=GROQ_MODEL,
-                temperature=0.3,
-            )
-            raw_text = chat_completion.choices[0].message.content
-            print("Groq generation successful!")
-        except Exception as e:
-            print(f"Groq failed or rate-limited: {e}. Falling back to Gemini...")
+    # Concurrency guard: limit simultaneous heavy AI calls to prevent 429 RPM crashes from external AI providers
+    with AI_CONCURRENCY_SEMAPHORE:
+        # 1. Try Groq First with quick retry
+        if groq_client:
+            for attempt in range(2):
+                try:
+                    print(f"Attempting generation with Groq ({GROQ_MODEL})...")
+                    chat_completion = groq_client.chat.completions.create(
+                        messages=[{"role": "user", "content": prompt}],
+                        model=GROQ_MODEL,
+                        temperature=0.3,
+                    )
+                    raw_text = chat_completion.choices[0].message.content
+                    print("Groq generation successful!")
+                    break
+                except Exception as e:
+                    print(f"Groq attempt {attempt+1} failed: {e}. Retrying / Falling back...")
+                    time.sleep(0.5)
 
-    # 2. Fallback to Gemini if Groq fails or is not configured
-    if not raw_text and ai_client:
-        for model_name in FALLBACK_GEMINI_MODELS:
-            try:
-                print(f"Attempting generation with {model_name}...")
-                response = ai_client.models.generate_content(
-                    model=model_name,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(temperature=0.3)
-                )
-                raw_text = response.text
-                print(f"Success using {model_name}!")
-                break
-            except Exception as e:
-                print(f"Model {model_name} overloaded. Falling back...")
-                continue
+        # 2. Fallback to Gemini if Groq fails or is not configured
+        if not raw_text and ai_client:
+            for model_name in FALLBACK_GEMINI_MODELS:
+                try:
+                    print(f"Attempting generation with {model_name}...")
+                    response = ai_client.models.generate_content(
+                        model=model_name,
+                        contents=prompt,
+                        config=types.GenerateContentConfig(temperature=0.3)
+                    )
+                    raw_text = response.text
+                    print(f"Success using {model_name}!")
+                    break
+                except Exception as e:
+                    print(f"Model {model_name} overloaded. Falling back...")
+                    continue
 
     if not raw_text:
          raise HTTPException(status_code=503, detail="All AI engines (Groq and Gemini) are currently unavailable.")
@@ -509,6 +535,8 @@ def generate_deck_with_ai(request: schemas.GenerateRequest, req: Request, db: Se
         if not isinstance(flashcards_data, list):
             raise ValueError("Expected list of cards")
         
+        # Save to cache for future requests across all users
+        ai_cache.set(cache_key, flashcards_data)
         record_rate_limit_usage("deck_generation", identifier, db)
 
         return {
@@ -555,19 +583,20 @@ async def generate_deck_from_file(req: Request, file: UploadFile = File(...), ca
         """
         
         response = None
-        for model_name in FALLBACK_GEMINI_MODELS:
-            try:
-                print(f"Attempting file extraction with {model_name}...")
-                response = ai_client.models.generate_content(
-                    model=model_name,
-                    contents=[uploaded_gemini_file, prompt],
-                    config=types.GenerateContentConfig(temperature=0.3)
-                )
-                print(f"Success using {model_name}!")
-                break
-            except Exception as e:
-                print(f"Model {model_name} overloaded. Falling back...")
-                continue
+        with AI_CONCURRENCY_SEMAPHORE:
+            for model_name in FALLBACK_GEMINI_MODELS:
+                try:
+                    print(f"Attempting file extraction with {model_name}...")
+                    response = ai_client.models.generate_content(
+                        model=model_name,
+                        contents=[uploaded_gemini_file, prompt],
+                        config=types.GenerateContentConfig(temperature=0.3)
+                    )
+                    print(f"Success using {model_name}!")
+                    break
+                except Exception as e:
+                    print(f"Model {model_name} overloaded. Falling back...")
+                    continue
 
         try:
             ai_client.files.delete(name=uploaded_gemini_file.name)
@@ -636,38 +665,45 @@ def generate_deck_readout(deck_id: int, req: Request, user_id: str | None = None
     {card_context}
     """
 
-    raw_text = None
-    if groq_client:
+    readout_cache_key = make_readout_cache_key(deck.id, len(deck.cards), deck.title)
+    cached_readout = ai_cache.get(readout_cache_key)
+    if cached_readout:
+        readout = cached_readout
+    else:
+        raw_text = None
+        with AI_CONCURRENCY_SEMAPHORE:
+            if groq_client:
+                try:
+                    response = groq_client.chat.completions.create(
+                        messages=[{"role": "user", "content": prompt}],
+                        model=GROQ_MODEL,
+                        temperature=0.3,
+                    )
+                    raw_text = response.choices[0].message.content
+                except Exception as error:
+                    print(f"Groq readout generation failed: {error}. Falling back to Gemini...")
+
+            if not raw_text and ai_client:
+                for model_name in FALLBACK_GEMINI_MODELS:
+                    try:
+                        response = ai_client.models.generate_content(
+                            model=model_name,
+                            contents=prompt,
+                            config=types.GenerateContentConfig(temperature=0.3),
+                        )
+                        raw_text = response.text
+                        break
+                    except Exception as error:
+                        print(f"{model_name} readout generation failed: {error}")
+
+        if not raw_text:
+            raise HTTPException(status_code=503, detail="AI services are currently unavailable.")
+
         try:
-            response = groq_client.chat.completions.create(
-                messages=[{"role": "user", "content": prompt}],
-                model=GROQ_MODEL,
-                temperature=0.3,
-            )
-            raw_text = response.choices[0].message.content
-        except Exception as error:
-            print(f"Groq readout generation failed: {error}. Falling back to Gemini...")
-
-    if not raw_text and ai_client:
-        for model_name in FALLBACK_GEMINI_MODELS:
-            try:
-                response = ai_client.models.generate_content(
-                    model=model_name,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(temperature=0.3),
-                )
-                raw_text = response.text
-                break
-            except Exception as error:
-                print(f"{model_name} readout generation failed: {error}")
-
-    if not raw_text:
-        raise HTTPException(status_code=503, detail="AI services are currently unavailable.")
-
-    try:
-        readout = extract_json_data(raw_text)
-    except Exception:
-        raise HTTPException(status_code=502, detail="AI returned an invalid reading guide.")
+            readout = extract_json_data(raw_text)
+            ai_cache.set(readout_cache_key, readout, ttl=86400)
+        except Exception:
+            raise HTTPException(status_code=502, detail="AI returned an invalid reading guide.")
 
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle(
@@ -775,6 +811,12 @@ def ai_tutor_chat(request: schemas.ChatRequest, req: Request, db: Session = Depe
     identifier = get_client_identifier(req, request.user_id)
     enforce_rate_limit("chat", identifier, db)
 
+    cache_key = make_chat_cache_key(request.context, request.message)
+    cached_reply = ai_cache.get(cache_key)
+    if cached_reply:
+        record_rate_limit_usage("chat", identifier, db)
+        return {"reply": cached_reply}
+
     prompt = f"""
     You are Zero, an expert, encouraging, and highly organized AI tutor for the CramZero study app.
     You have full access to the user's current flashcard deck context below.
@@ -794,34 +836,36 @@ def ai_tutor_chat(request: schemas.ChatRequest, req: Request, db: Session = Depe
     """
     reply_text = None
     
-    if groq_client:
-        try:
-            chat_completion = groq_client.chat.completions.create(
-                messages=[{"role": "user", "content": prompt}],
-                model=GROQ_MODEL,
-                temperature=0.4,
-            )
-            reply_text = chat_completion.choices[0].message.content
-        except Exception as e:
-            print(f"Groq chat failed: {e}. Falling back to Gemini...")
-            
-    # 2. Fallback to Gemini Matrix
-    if not reply_text and ai_client:
-        for model_name in FALLBACK_GEMINI_MODELS:
+    with AI_CONCURRENCY_SEMAPHORE:
+        if groq_client:
             try:
-                response = ai_client.models.generate_content(
-                    model=model_name,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(temperature=0.4)
+                chat_completion = groq_client.chat.completions.create(
+                    messages=[{"role": "user", "content": prompt}],
+                    model=GROQ_MODEL,
+                    temperature=0.4,
                 )
-                reply_text = response.text
-                break
-            except Exception:
-                continue
+                reply_text = chat_completion.choices[0].message.content
+            except Exception as e:
+                print(f"Groq chat failed: {e}. Falling back to Gemini...")
+                
+        # 2. Fallback to Gemini Matrix
+        if not reply_text and ai_client:
+            for model_name in FALLBACK_GEMINI_MODELS:
+                try:
+                    response = ai_client.models.generate_content(
+                        model=model_name,
+                        contents=prompt,
+                        config=types.GenerateContentConfig(temperature=0.4)
+                    )
+                    reply_text = response.text
+                    break
+                except Exception:
+                    continue
                 
     if not reply_text:
         raise HTTPException(status_code=503, detail="Professor AI is currently unavailable.")
         
+    ai_cache.set(cache_key, reply_text, ttl=43200)
     record_rate_limit_usage("chat", identifier, db)
     return {"reply": reply_text}
 
