@@ -79,3 +79,15 @@ class StudyHubDeck(Base):
 
     hub = relationship("StudyHub", back_populates="shared_decks")
     deck = relationship("Deck")
+
+
+class ApiUsage(Base):
+    __tablename__ = "api_usage"
+    __table_args__ = (UniqueConstraint("identifier", "action", "date_str", name="uq_api_usage"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    identifier = Column(String(128), nullable=False, index=True)
+    action = Column(String(64), nullable=False, index=True)
+    date_str = Column(String(10), nullable=False, index=True)
+    count = Column(Integer, nullable=False, default=1)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

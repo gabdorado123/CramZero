@@ -103,9 +103,14 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
            toast.success("Generation Complete", { description: `${generatedPreview.cards.length} cards extracted from your topic.` });
         }, 500);
       } else {
+        const errorData = await response.json().catch(() => ({}));
         clearInterval(interval);
         setIsGeneratingAI(false);
-        toast.error("Generation failed", { description: "The server encountered an error." });
+        if (response.status === 429) {
+          toast.warning("Daily Deck Limit Reached", { description: errorData.detail || "You have reached your limit of 5 deck generations for today." });
+        } else {
+          toast.error("Generation failed", { description: errorData.detail || "The server encountered an error." });
+        }
       }
     } catch (error) {
       clearInterval(interval);
@@ -147,10 +152,15 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
            toast.success("File Processed", { description: `${generatedPreview.cards.length} cards extracted successfully.` });
         }, 500);
       } else {
+        const errorData = await response.json().catch(() => ({}));
         clearInterval(interval);
         setIsGeneratingAI(false);
         setInputMode(null); 
-        toast.error("File processing failed", { description: "The server encountered an error parsing your file." });
+        if (response.status === 429) {
+          toast.warning("Daily Deck Limit Reached", { description: errorData.detail || "You have reached your limit of 5 deck generations for today." });
+        } else {
+          toast.error("File processing failed", { description: errorData.detail || "The server encountered an error parsing your file." });
+        }
       }
     } catch (error) {
       clearInterval(interval);

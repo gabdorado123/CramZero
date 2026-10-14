@@ -1,5 +1,7 @@
-const ELEVENLABS_VOICE_ID = 'DODLEQrClDo8wCz460ld';
+const ELEVENLABS_VOICE_ID = import.meta.env.VITE_ELEVENLABS_VOICE_ID || 'DODLEQrClDo8wCz460ld';
 const ELEVENLABS_API_URL = `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`;
+// eleven_flash_v2_5 is ElevenLabs' fastest and most cost-effective free-tier compatible model (0.5x credit cost, ~75ms latency)
+const ELEVENLABS_MODEL_ID = import.meta.env.VITE_ELEVENLABS_MODEL_ID || 'eleven_flash_v2_5';
 
 let activeAudio = null;
 
@@ -19,7 +21,7 @@ export async function speakWithElevenLabs(text) {
     },
     body: JSON.stringify({
       text,
-      model_id: 'eleven_multilingual_v2',
+      model_id: ELEVENLABS_MODEL_ID,
       voice_settings: {
         stability: 0.5,
         similarity_boost: 0.75,

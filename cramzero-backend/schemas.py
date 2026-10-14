@@ -52,6 +52,7 @@ class GenerateRequest(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     context: str
+    user_id: Optional[str] = None
 
 
 class StudyHubCreate(BaseModel):

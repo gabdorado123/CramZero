@@ -24,13 +24,14 @@ import { Message, MessageAvatar, MessageContent, MessageFooter } from '@/compone
 import ReactMarkdown from 'react-markdown';
 import { API_BASE } from '@/lib/api';
 
-export function DeckDetailsView({ navigateTo, activeDeck, setIsTutorOpen }) {
+export function DeckDetailsView({ navigateTo, activeDeck, setIsTutorOpen, userId }) {
   const [isGeneratingReadout, setIsGeneratingReadout] = useState(false);
 
   const handleDownloadReadout = async () => {
     setIsGeneratingReadout(true);
     try {
-      const response = await fetch(`${API_BASE}/api/decks/${activeDeck.id}/readout`, {
+      const url = `${API_BASE}/api/decks/${activeDeck.id}/readout${userId ? `?user_id=${encodeURIComponent(userId)}` : ''}`;
+      const response = await fetch(url, {
         method: 'POST',
       });
 

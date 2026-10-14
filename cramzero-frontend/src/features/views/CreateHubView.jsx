@@ -66,15 +66,19 @@ export function CreateHubView({ navigateTo, myHubs, setMyHubs, myDecks, setMyDec
           const formData = new FormData();
           formData.append('file', selectedFile);
           formData.append('card_count', '10');
+          if (userId) formData.append('user_id', userId);
           generatedResponse = await fetch(`${API_BASE}/api/generate-deck-from-file/`, { method: 'POST', body: formData });
         } else {
           generatedResponse = await fetch(`${API_BASE}/api/generate-deck/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ topic: aiTopic.trim(), card_count: 10 }),
+            body: JSON.stringify({ topic: aiTopic.trim(), card_count: 10, user_id: userId }),
           });
         }
-        if (!generatedResponse.ok) throw new Error(generationMode === 'file' ? 'The file could not be processed.' : 'The study topic could not be generated.');
+        if (!generatedResponse.ok) {
+          const errData = await generatedResponse.json().catch(() => ({}));
+          throw new Error(errData.detail || (generationMode === 'file' ? 'The file could not be processed.' : 'The study topic could not be generated.'));
+        }
         const generatedDeck = await generatedResponse.json();
         const savedResponse = await fetch(`${API_BASE}/api/decks/`, {
           method: 'POST',

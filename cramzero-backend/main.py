@@ -3,11 +3,12 @@ import json
 import re
 import secrets
 import time
+from datetime import datetime, timezone
 import tempfile
 import asyncio
 import uuid
 from io import BytesIO
-from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -108,6 +109,123 @@ app.add_middleware(
 @app.get("/api/health")
 async def health_check():
     return {"status": "CramZero Hybrid Engines online"}
+
+# --- RATE LIMITING ENGINE ---
+# Configurable daily limits (reset daily at 00:00 UTC)
+RATE_LIMITS = {
+    "deck_generation": {
+        "limit": 5,
+        "label": "deck generations",
+    },
+    "chat": {
+        "limit": 30,
+        "label": "Zero AI chats",
+    },
+    "readout": {
+        "limit": 10,
+        "label": "reading guide PDF exports",
+    },
+}
+
+_in_memory_usage = {}
+
+def get_current_date_str() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+def get_client_identifier(request: Request, user_id: str | None = None) -> str:
+    if user_id and str(user_id).strip():
+        return f"user:{str(user_id).strip()}"
+    if request:
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            client_ip = forwarded.split(",")[0].strip()
+            return f"ip:{client_ip}"
+        if request.client and request.client.host:
+            return f"ip:{request.client.host}"
+    return "ip:anonymous"
+
+def get_usage_count(action: str, identifier: str, db: Session | None = None) -> int:
+    date_str = get_current_date_str()
+    key = (identifier, action, date_str)
+    
+    if db:
+        try:
+            record = db.query(models.ApiUsage).filter(
+                models.ApiUsage.identifier == identifier,
+                models.ApiUsage.action == action,
+                models.ApiUsage.date_str == date_str,
+            ).first()
+            if record:
+                _in_memory_usage[key] = record.count
+                return record.count
+        except Exception:
+            pass
+            
+    return _in_memory_usage.get(key, 0)
+
+def enforce_rate_limit(action: str, identifier: str, db: Session | None = None):
+    config = RATE_LIMITS.get(action)
+    if not config:
+        return
+        
+    limit = config["limit"]
+    label = config["label"]
+    current_count = get_usage_count(action, identifier, db)
+    
+    if current_count >= limit:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Daily limit reached for {label} ({current_count}/{limit}). Limit resets tomorrow at 00:00 UTC to protect server resources."
+        )
+
+def record_rate_limit_usage(action: str, identifier: str, db: Session | None = None):
+    config = RATE_LIMITS.get(action)
+    if not config:
+        return
+        
+    date_str = get_current_date_str()
+    key = (identifier, action, date_str)
+    
+    new_count = _in_memory_usage.get(key, 0) + 1
+    _in_memory_usage[key] = new_count
+    
+    if db:
+        try:
+            record = db.query(models.ApiUsage).filter(
+                models.ApiUsage.identifier == identifier,
+                models.ApiUsage.action == action,
+                models.ApiUsage.date_str == date_str,
+            ).first()
+            if record:
+                record.count += 1
+            else:
+                record = models.ApiUsage(
+                    identifier=identifier,
+                    action=action,
+                    date_str=date_str,
+                    count=1,
+                )
+                db.add(record)
+            db.commit()
+            _in_memory_usage[key] = record.count
+        except Exception as e:
+            db.rollback()
+            print(f"Rate limit DB record notice: {e}")
+
+@app.get("/api/rate-limits/")
+def get_rate_limits_status(req: Request, user_id: str | None = None, db: Session = Depends(get_db)):
+    identifier = get_client_identifier(req, user_id)
+    status = {}
+    for action, config in RATE_LIMITS.items():
+        used = get_usage_count(action, identifier, db)
+        limit = config["limit"]
+        status[action] = {
+            "used": used,
+            "limit": limit,
+            "remaining": max(0, limit - used),
+            "label": config["label"],
+        }
+    return status
 
 @app.get("/api/decks/", response_model=list[schemas.DeckResponse])
 def get_decks(user_id: str | None = None, db: Session = Depends(get_db)):
@@ -336,7 +454,10 @@ def update_study_hub_member_role(hub_id: int, member_id: int, request: schemas.S
 
 # --- HYBRID GENERATOR: GROQ (PRIMARY) -> GEMINI (FALLBACK) ---
 @app.post("/api/generate-deck/", response_model=schemas.DeckCreate)
-def generate_deck_with_ai(request: schemas.GenerateRequest):
+def generate_deck_with_ai(request: schemas.GenerateRequest, req: Request, db: Session = Depends(get_db)):
+    identifier = get_client_identifier(req, request.user_id)
+    enforce_rate_limit("deck_generation", identifier, db)
+
     prompt = f"""
     You are an expert tutor. Generate a highly effective flashcard deck about: {request.topic}.
     Provide exactly {request.card_count} key terms and definitions.
@@ -388,6 +509,8 @@ def generate_deck_with_ai(request: schemas.GenerateRequest):
         if not isinstance(flashcards_data, list):
             raise ValueError("Expected list of cards")
         
+        record_rate_limit_usage("deck_generation", identifier, db)
+
         return {
             "title": request.topic.title(),
             "description": f"Auto-generated deck covering {request.topic}.",
@@ -402,7 +525,10 @@ def generate_deck_with_ai(request: schemas.GenerateRequest):
 
 # --- FILE GENERATOR: GEMINI ONLY (Groq doesn't natively parse PDFs/PPTXs yet) ---
 @app.post("/api/generate-deck-from-file/", response_model=schemas.DeckCreate)
-async def generate_deck_from_file(file: UploadFile = File(...), card_count: int = Form(10), user_id: str | None = Form(None)):
+async def generate_deck_from_file(req: Request, file: UploadFile = File(...), card_count: int = Form(10), user_id: str | None = Form(None), db: Session = Depends(get_db)):
+    identifier = get_client_identifier(req, user_id)
+    enforce_rate_limit("deck_generation", identifier, db)
+
     if not ai_client:
         raise HTTPException(status_code=500, detail="Gemini Client required for document parsing.")
         
@@ -456,6 +582,8 @@ async def generate_deck_from_file(file: UploadFile = File(...), card_count: int 
             raise ValueError("Expected list of cards")
         clean_title = file.filename.replace(ext, "").replace("-", " ").replace("_", " ").title()
         
+        record_rate_limit_usage("deck_generation", identifier, db)
+
         return {
             "title": clean_title,
             "description": f"Extracted from document: {file.filename}",
@@ -471,7 +599,10 @@ async def generate_deck_from_file(file: UploadFile = File(...), card_count: int 
             os.remove(temp_file_path)
 
 @app.post("/api/decks/{deck_id}/readout")
-def generate_deck_readout(deck_id: int, db: Session = Depends(get_db)):
+def generate_deck_readout(deck_id: int, req: Request, user_id: str | None = None, db: Session = Depends(get_db)):
+    identifier = get_client_identifier(req, user_id)
+    enforce_rate_limit("readout", identifier, db)
+
     deck = db.query(models.Deck).filter(models.Deck.id == deck_id).first()
     if not deck:
         raise HTTPException(status_code=404, detail="Deck not found.")
@@ -632,6 +763,7 @@ def generate_deck_readout(deck_id: int, db: Session = Depends(get_db)):
     document.build(story, onFirstPage=lambda canvas, doc: None, onLaterPages=lambda canvas, doc: None)
     buffer.seek(0)
     filename = re.sub(r"[^A-Za-z0-9]+", "-", deck.title).strip("-").lower() or "cramzero-readout"
+    record_rate_limit_usage("readout", identifier, db)
     return StreamingResponse(
         iter([buffer.getvalue()]),
         media_type="application/pdf",
@@ -639,7 +771,10 @@ def generate_deck_readout(deck_id: int, db: Session = Depends(get_db)):
     )
 
 @app.post("/api/chat/")
-def ai_tutor_chat(request: schemas.ChatRequest):
+def ai_tutor_chat(request: schemas.ChatRequest, req: Request, db: Session = Depends(get_db)):
+    identifier = get_client_identifier(req, request.user_id)
+    enforce_rate_limit("chat", identifier, db)
+
     prompt = f"""
     You are Zero, an expert, encouraging, and highly organized AI tutor for the CramZero study app.
     You have full access to the user's current flashcard deck context below.
@@ -687,6 +822,7 @@ def ai_tutor_chat(request: schemas.ChatRequest):
     if not reply_text:
         raise HTTPException(status_code=503, detail="Professor AI is currently unavailable.")
         
+    record_rate_limit_usage("chat", identifier, db)
     return {"reply": reply_text}
 
 

@@ -156,11 +156,15 @@ export function HubDetailsView({ navigateTo, activeHub, setActiveHub, setMyHubs,
       const formData = new FormData();
       formData.append('file', file);
       formData.append('card_count', '10');
+      if (userId) formData.append('user_id', userId);
       const generatedResponse = await fetch(`${API_BASE}/api/generate-deck-from-file/`, {
         method: 'POST',
         body: formData,
       });
-      if (!generatedResponse.ok) throw new Error('The file could not be processed.');
+      if (!generatedResponse.ok) {
+        const errData = await generatedResponse.json().catch(() => ({}));
+        throw new Error(errData.detail || 'The file could not be processed.');
+      }
 
       const generatedDeck = await generatedResponse.json();
       const savedResponse = await fetch(`${API_BASE}/api/decks/`, {

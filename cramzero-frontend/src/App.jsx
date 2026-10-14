@@ -143,14 +143,21 @@ export default function App() {
       const res = await fetch(`${API_BASE}/api/chat/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMsg.content, context: contextStr })
+        body: JSON.stringify({ message: userMsg.content, context: contextStr, user_id: userId })
       });
       
       if (res.ok) {
         const data = await res.json();
         setChatMessages(prev => [...prev, { role: 'ai', content: data.reply }]);
       } else {
-        setChatMessages(prev => [...prev, { role: 'ai', content: "Sorry, my servers are a bit overloaded right now." }]);
+        const errData = await res.json().catch(() => ({}));
+        if (res.status === 429) {
+          const limitMsg = errData.detail || "Daily limit reached for Zero AI chats (30/30). You can continue chatting tomorrow!";
+          setChatMessages(prev => [...prev, { role: 'ai', content: `⏳ **Daily Chat Limit Reached (30/30)**\n\n${limitMsg}` }]);
+          toast.warning("Daily Chat Limit Reached", { description: "You have used your 30 AI chats for today." });
+        } else {
+          setChatMessages(prev => [...prev, { role: 'ai', content: errData.detail || "Sorry, my servers are a bit overloaded right now." }]);
+        }
       }
     } catch (err) {
       setChatMessages(prev => [...prev, { role: 'ai', content: "Connection error. Please check your backend server." }]);
@@ -198,15 +205,14 @@ export default function App() {
     try {
       if (await speakWithElevenLabs(text)) return;
     } catch (error) {
-      console.error('ElevenLabs text-to-speech failed:', error);
+      console.warn('ElevenLabs text-to-speech fallback:', error);
       if (error.message.includes('VITE_ELEVENLABS_API_KEY')) {
-        toast.error('Add VITE_ELEVENLABS_API_KEY to .env and restart the dev server.');
-      } else if (error.message.includes('402')) {
-        toast.error('ElevenLabs has no remaining credits for this account.');
+        toast.info('Using system speech (ElevenLabs key not configured).');
+      } else if (error.message.includes('402') || error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('credit')) {
+        toast.info('Using system speech (ElevenLabs free credits exhausted).');
       } else {
-        toast.error('ElevenLabs could not generate audio. Check the browser console.');
+        toast.info('Using system speech (ElevenLabs service unavailable).');
       }
-      return;
     }
 
     if ('speechSynthesis' in window) {
@@ -277,12 +283,12 @@ export default function App() {
         richColors={false}
         toastOptions={{
           classNames: {
-            toast: "group flex w-full items-center gap-3.5 rounded-full sm:rounded-full border border-stone-200/90 dark:border-white/15 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-2xl py-3 px-4 sm:px-5 shadow-2xl shadow-stone-900/15 dark:shadow-black/70 max-w-md mx-auto transition-all animate-in fade-in slide-in-from-top-4 duration-300",
-            title: "text-sm font-bold text-stone-900 dark:text-zinc-100 tracking-tight leading-snug",
-            description: "text-xs font-medium text-stone-600 dark:text-zinc-300 mt-0.5 leading-relaxed",
-            icon: "shrink-0 p-1.5 rounded-full flex items-center justify-center text-sm group-data-[type=error]:bg-rose-500/15 group-data-[type=error]:text-rose-600 dark:group-data-[type=error]:text-rose-400 group-data-[type=success]:bg-emerald-500/15 group-data-[type=success]:text-emerald-600 dark:group-data-[type=success]:text-emerald-400 group-data-[type=info]:bg-amber-500/15 group-data-[type=info]:text-amber-600 dark:group-data-[type=info]:text-amber-400",
-            actionButton: "rounded-full font-bold bg-amber-500 text-white text-xs px-3.5 py-1.5 hover:bg-amber-600 transition-all",
-            cancelButton: "rounded-full font-medium bg-stone-100 dark:bg-zinc-800 text-xs px-3.5 py-1.5",
+            toast: "group flex w-full items-center gap-4 rounded-2xl sm:rounded-full border border-stone-200/90 dark:border-white/15 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-2xl py-3.5 sm:py-4 px-5 sm:px-6 shadow-2xl shadow-stone-900/20 dark:shadow-black/80 max-w-lg mx-auto transition-all animate-in fade-in slide-in-from-top-4 duration-300 min-h-[64px]",
+            title: "text-base font-bold text-stone-900 dark:text-zinc-100 tracking-tight leading-snug",
+            description: "text-sm font-medium text-stone-600 dark:text-zinc-300 mt-0.5 leading-relaxed",
+            icon: "shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-base [&>svg]:w-5 [&>svg]:h-5 group-data-[type=error]:bg-rose-500/15 group-data-[type=error]:text-rose-600 dark:group-data-[type=error]:text-rose-400 group-data-[type=success]:bg-emerald-500/15 group-data-[type=success]:text-emerald-600 dark:group-data-[type=success]:text-emerald-400 group-data-[type=info]:bg-amber-500/15 group-data-[type=info]:text-amber-600 dark:group-data-[type=info]:text-amber-400",
+            actionButton: "rounded-full font-bold bg-amber-500 text-white text-sm px-4 py-2 hover:bg-amber-600 transition-all shadow-xs",
+            cancelButton: "rounded-full font-medium bg-stone-100 dark:bg-zinc-800 text-sm px-4 py-2",
           },
         }}
       />
@@ -332,7 +338,7 @@ export default function App() {
           {/* Sub Views */}
           {currentView === 'create-hub' && <CreateHubView navigateTo={handleNavigate} myHubs={myHubs} setMyHubs={setMyHubs} myDecks={myDecks} setMyDecks={setMyDecks} userId={userId} displayName={displayName} setIsActionLoading={setIsActionLoading} setActionMessage={setActionMessage} />}
           {currentView === 'hub-details' && <HubDetailsView navigateTo={handleNavigate} activeHub={activeHub} setActiveHub={setActiveHub} setMyHubs={setMyHubs} myDecks={myDecks} setMyDecks={setMyDecks} setActiveDeck={setActiveDeck} userId={userId} />}
-          {currentView === 'deck-details' && <DeckDetailsView navigateTo={handleNavigate} activeDeck={activeDeck} setIsTutorOpen={setIsTutorOpen} />}
+          {currentView === 'deck-details' && <DeckDetailsView navigateTo={handleNavigate} activeDeck={activeDeck} setIsTutorOpen={setIsTutorOpen} userId={userId} />}
           {currentView === 'flashcard-mode' && <FlashcardModeView navigateTo={handleNavigate} activeDeck={activeDeck} setIsTutorOpen={setIsTutorOpen} />}
           
           {/* Wired Active Assessment Views */}
