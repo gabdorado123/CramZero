@@ -99,7 +99,8 @@ export default function App() {
 
   const handleAuthClose = () => {
     setShowAuthModal(false);
-    if (!hasProfileSetup) {
+    const isSetup = hasProfileSetup || localStorage.getItem('cramzero-has-profile-setup') === 'true' || !!localStorage.getItem('cramzero-user-email');
+    if (!isSetup) {
       handleNavigate('landing');
     }
   };
@@ -129,7 +130,17 @@ export default function App() {
     setHasProfileSetup(true);
     localStorage.setItem('cramzero-has-profile-setup', 'true');
     setShowAuthModal(false);
-    handleNavigate('dashboard');
+
+    // Immediately route to dashboard view
+    if (!document.startViewTransition) {
+      setCurrentView('dashboard');
+    } else {
+      document.startViewTransition(() => {
+        flushSync(() => {
+          setCurrentView('dashboard');
+        });
+      });
+    }
   };
 
   const handleSignOut = () => {
@@ -296,7 +307,8 @@ export default function App() {
   };
   
   const handleNavigate = (view) => {
-    if (view !== 'landing' && !hasProfileSetup) {
+    const isSetup = hasProfileSetup || localStorage.getItem('cramzero-has-profile-setup') === 'true' || !!localStorage.getItem('cramzero-user-email');
+    if (view !== 'landing' && !isSetup) {
       setAuthModalMode('prompt');
       setShowAuthModal(true);
       return;

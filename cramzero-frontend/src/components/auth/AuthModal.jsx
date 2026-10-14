@@ -109,7 +109,6 @@ export function AuthModal({
         avatarUrl: data.avatar_url,
         isGuest: false,
       });
-      onClose();
     } catch (err) {
       toast.error('Registration failed', { description: err.message });
     } finally {
@@ -153,7 +152,6 @@ export function AuthModal({
         avatarUrl: data.avatar_url,
         isGuest: true,
       });
-      onClose();
     } catch (err) {
       toast.error('Could not set up guest identity', { description: err.message });
     } finally {
@@ -197,7 +195,6 @@ export function AuthModal({
         avatarUrl: data.avatar_url,
         isGuest: false,
       });
-      onClose();
     } catch (err) {
       toast.error('Sign in failed', { description: err.message });
     } finally {
