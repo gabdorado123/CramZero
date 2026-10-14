@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   User, Mail, Lock, Sparkles, ArrowRight, ArrowLeft, 
   CheckCircle, ShieldCheck, Laptop, Smartphone, Eye, EyeOff, RotateCw, X
@@ -38,6 +38,12 @@ export function AuthModal({
   canDismiss = false 
 }) {
   const [mode, setMode] = useState(initialMode); // 'prompt' | 'register' | 'guest' | 'login'
+
+  useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode || 'prompt');
+    }
+  }, [isOpen, initialMode]);
   const [displayName, setDisplayName] = useState(() => localStorage.getItem('cramzero-display-name') || 'Student');
   const [selectedAvatar, setSelectedAvatar] = useState(() => localStorage.getItem('cramzero-avatar-url') || PRESET_AVATARS[0].url);
   const [avatarCategory, setAvatarCategory] = useState('all'); // 'all' | 'female' | 'male'
@@ -301,6 +307,18 @@ export function AuthModal({
                 </div>
               </Card>
             </div>
+
+            {/* Existing User Sign In Link */}
+            <div className="pt-2 text-center border-t border-stone-100 dark:border-zinc-800 flex items-center justify-center gap-1.5 text-xs text-stone-500 dark:text-zinc-400">
+              <span>Already have an account?</span>
+              <button
+                type="button"
+                onClick={() => setMode('login')}
+                className="font-bold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 underline underline-offset-2 transition-colors cursor-pointer"
+              >
+                Sign In
+              </button>
+            </div>
           </div>
         )}
 
@@ -459,6 +477,17 @@ export function AuthModal({
               {isLoading ? <RotateCw size={16} className="animate-spin mr-2" /> : <ShieldCheck size={16} className="mr-2" />}
               {isLoading ? 'Creating Account...' : 'Create Account & Enter'}
             </Button>
+
+            <div className="pt-1 text-center flex items-center justify-center gap-1.5 text-xs text-stone-500 dark:text-zinc-400">
+              <span>Already have an account?</span>
+              <button
+                type="button"
+                onClick={() => setMode('login')}
+                className="font-bold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 underline underline-offset-2 transition-colors cursor-pointer"
+              >
+                Sign In
+              </button>
+            </div>
           </form>
         )}
 
@@ -581,6 +610,17 @@ export function AuthModal({
               {isLoading ? <RotateCw size={16} className="animate-spin mr-2" /> : <CheckCircle size={16} className="mr-2" />}
               {isLoading ? 'Saving Identity...' : 'Save Identity & Start Studying'}
             </Button>
+
+            <div className="pt-1 text-center flex items-center justify-center gap-1.5 text-xs text-stone-500 dark:text-zinc-400">
+              <span>Already have an account?</span>
+              <button
+                type="button"
+                onClick={() => setMode('login')}
+                className="font-bold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 underline underline-offset-2 transition-colors cursor-pointer"
+              >
+                Sign In
+              </button>
+            </div>
           </form>
         )}
 

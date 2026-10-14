@@ -148,10 +148,9 @@ export default function App() {
     localStorage.removeItem('cramzero-has-profile-setup');
     toast.success('Signed out successfully');
 
-    // REAL-TIME POPUP: Redirect to landing and immediately show Sign In modal
+    // Redirect to landing page only, without prompting any modals
+    setShowAuthModal(false);
     handleNavigate('landing');
-    setAuthModalMode('login');
-    setShowAuthModal(true);
   };
   
   const [myDecks, setMyDecks] = useState([]);

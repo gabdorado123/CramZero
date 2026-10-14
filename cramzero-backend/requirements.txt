@@ -8,3 +8,5 @@ google-genai
 groq
 reportlab
 python-multipart
+pypdf
+python-pptx

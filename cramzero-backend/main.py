@@ -790,66 +790,206 @@ def generate_deck_with_ai(request: schemas.GenerateRequest, req: Request, db: Se
          raise HTTPException(status_code=500, detail=f"AI returned invalid JSON format: {e}")
 
 
-# --- FILE GENERATOR: GEMINI ONLY (Groq doesn't natively parse PDFs/PPTXs yet) ---
+def extract_text_from_file_path(file_path: str, ext: str) -> str:
+    """Extracts raw text from .pdf, .pptx, or .txt files for fallback LLM processing."""
+    ext = ext.lower()
+    text_content = ""
+    if ext == ".txt":
+        for enc in ["utf-8", "utf-8-sig", "latin-1", "cp1252"]:
+            try:
+                with open(file_path, "r", encoding=enc, errors="ignore") as f:
+                    text_content = f.read()
+                if text_content.strip():
+                    break
+            except Exception:
+                continue
+    elif ext == ".pdf":
+        try:
+            import pypdf
+            reader = pypdf.PdfReader(file_path)
+            pages_text = []
+            for page in reader.pages:
+                extracted = page.extract_text()
+                if extracted and extracted.strip():
+                    pages_text.append(extracted.strip())
+            text_content = "\n\n".join(pages_text)
+        except Exception as e:
+            print(f"Error extracting text from PDF with pypdf: {e}")
+    elif ext == ".pptx":
+        try:
+            from pptx import Presentation
+            prs = Presentation(file_path)
+            slides_text = []
+            for idx, slide in enumerate(prs.slides, 1):
+                slide_lines = []
+                for shape in slide.shapes:
+                    if shape.has_text_frame:
+                        for paragraph in shape.text_frame.paragraphs:
+                            t = paragraph.text.strip()
+                            if t:
+                                slide_lines.append(t)
+                    elif hasattr(shape, "text") and shape.text:
+                        t = shape.text.strip()
+                        if t:
+                            slide_lines.append(t)
+                if slide_lines:
+                    slides_text.append(f"--- Slide {idx} ---\n" + "\n".join(slide_lines))
+            text_content = "\n\n".join(slides_text)
+        except Exception as e:
+            print(f"Error extracting text from PPTX with python-pptx: {e}")
+    return text_content.strip()
+
+
+def generate_deck_from_text_groq(text_content: str, card_count: int) -> list:
+    """Calls Groq to generate flashcards from extracted document text with model fallback and retries."""
+    if not groq_client:
+        raise ValueError("Groq client is not configured or unavailable.")
+
+    # Truncate text content safely to ~25,000 characters to stay within context and latency limits
+    max_chars = 25000
+    truncated_text = text_content[:max_chars] if len(text_content) > max_chars else text_content
+
+    prompt = f"""
+    You are an expert tutor. Extract the most important concepts from this document content and generate a highly effective flashcard deck.
+    Provide exactly {card_count} key terms and definitions based strictly on the document text.
+    Respond ONLY with a valid JSON array of objects. Do not include markdown formatting blocks or any explanatory prose.
+    Format exactly like this:
+    [
+        {{"term": "Concept", "definition": "Explanation"}}
+    ]
+
+    DOCUMENT CONTENT:
+    {truncated_text}
+    """
+
+    models_to_try = [GROQ_MODEL]
+    if "openai/gpt-oss-120b" in GROQ_MODEL:
+        models_to_try.append("openai/gpt-oss-20b")
+    elif "openai/gpt-oss-20b" not in models_to_try:
+        models_to_try.append("openai/gpt-oss-20b")
+
+    last_err = None
+    for model_name in models_to_try:
+        for attempt in range(2):
+            try:
+                print(f"Attempting file extraction fallback with Groq ({model_name}, attempt {attempt + 1})...")
+                chat_completion = groq_client.chat.completions.create(
+                    messages=[{"role": "user", "content": prompt}],
+                    model=model_name,
+                    temperature=0.3,
+                )
+                raw_text = chat_completion.choices[0].message.content
+                print(f"Groq fallback file generation successful using {model_name}!")
+                data = extract_json_data(raw_text)
+                if isinstance(data, list) and len(data) > 0:
+                    return data
+                raise ValueError("AI response did not contain a valid non-empty list of cards")
+            except Exception as e:
+                last_err = e
+                print(f"Groq ({model_name}) attempt {attempt + 1} failed: {e}")
+                time.sleep(0.5)
+
+    raise ValueError(f"Groq generation failed: {last_err}")
+
+
+# --- FILE GENERATOR: GEMINI WITH AUTOMATIC GROQ FALLBACK ---
 @app.post("/api/generate-deck-from-file/", response_model=schemas.DeckCreate)
 async def generate_deck_from_file(req: Request, file: UploadFile = File(...), card_count: int = Form(10), user_id: str | None = Form(None), db: Session = Depends(get_db)):
     identifier = get_client_identifier(req, user_id)
     enforce_rate_limit("deck_generation", identifier, db)
 
-    if not ai_client:
-        raise HTTPException(status_code=500, detail="Gemini Client required for document parsing.")
-        
     ext = os.path.splitext(file.filename)[1].lower()
     if ext not in ['.pdf', '.txt', '.pptx']:
-        raise HTTPException(status_code=400, detail="Unsupported file format.")
+        raise HTTPException(status_code=400, detail="Unsupported file format. Please upload a .pdf, .pptx, or .txt file.")
         
     with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as temp_file:
         content = await file.read()
         temp_file.write(content)
         temp_file_path = temp_file.name
 
-    try:
-        uploaded_gemini_file = ai_client.files.upload(file=temp_file_path)
-        
-        prompt = f"""
-        You are an expert tutor. Extract the most important concepts from this uploaded document and generate a highly effective flashcard deck.
-        Provide exactly {card_count} key terms and definitions based strictly on the document content.
-        Respond ONLY with a valid JSON array of objects. Do not include markdown formatting blocks.
-        Format exactly like this:
-        [
-            {{"term": "Concept", "definition": "Explanation"}}
-        ]
-        """
-        
-        response = None
-        with AI_CONCURRENCY_SEMAPHORE:
-            for model_name in FALLBACK_GEMINI_MODELS:
-                try:
-                    print(f"Attempting file extraction with {model_name}...")
-                    response = ai_client.models.generate_content(
-                        model=model_name,
-                        contents=[uploaded_gemini_file, prompt],
-                        config=types.GenerateContentConfig(temperature=0.3)
-                    )
-                    print(f"Success using {model_name}!")
-                    break
-                except Exception as e:
-                    print(f"Model {model_name} overloaded. Falling back...")
-                    continue
+    flashcards_data = None
+    gemini_error = None
 
-        try:
-            ai_client.files.delete(name=uploaded_gemini_file.name)
-        except:
-            pass
-            
-        if not response:
-             raise HTTPException(status_code=503, detail="Gemini models are currently at maximum capacity.")
-             
-        flashcards_data = extract_json_data(response.text)
-        if not isinstance(flashcards_data, list):
-            raise ValueError("Expected list of cards")
+    try:
+        # 1. Primary engine: Attempt Gemini native document processing
+        if ai_client:
+            uploaded_gemini_file = None
+            try:
+                uploaded_gemini_file = ai_client.files.upload(file=temp_file_path)
+                
+                prompt = f"""
+                You are an expert tutor. Extract the most important concepts from this uploaded document and generate a highly effective flashcard deck.
+                Provide exactly {card_count} key terms and definitions based strictly on the document content.
+                Respond ONLY with a valid JSON array of objects. Do not include markdown formatting blocks.
+                Format exactly like this:
+                [
+                    {{"term": "Concept", "definition": "Explanation"}}
+                ]
+                """
+                
+                response = None
+                with AI_CONCURRENCY_SEMAPHORE:
+                    for model_name in FALLBACK_GEMINI_MODELS:
+                        try:
+                            print(f"Attempting file extraction with {model_name}...")
+                            response = ai_client.models.generate_content(
+                                model=model_name,
+                                contents=[uploaded_gemini_file, prompt],
+                                config=types.GenerateContentConfig(temperature=0.3)
+                            )
+                            print(f"Success using {model_name}!")
+                            break
+                        except Exception as e:
+                            print(f"Model {model_name} overloaded. Falling back... ({e})")
+                            continue
+
+                if response and response.text:
+                    parsed = extract_json_data(response.text)
+                    if isinstance(parsed, list) and len(parsed) > 0:
+                        flashcards_data = parsed
+
+            except Exception as e:
+                gemini_error = e
+                print(f"Gemini file processing error: {e}")
+            finally:
+                if uploaded_gemini_file:
+                    try:
+                        ai_client.files.delete(name=uploaded_gemini_file.name)
+                    except Exception:
+                        pass
+        else:
+            gemini_error = "Gemini client not initialized"
+
+        # 2. Secondary engine: If Gemini failed or is unavailable, switch to Groq fallback
+        if not flashcards_data:
+            print(f"Gemini file generation failed ({gemini_error}). Switching to Groq fallback...")
+            if not groq_client:
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Gemini failed ({gemini_error}) and Groq client is not available."
+                )
+
+            extracted_text = extract_text_from_file_path(temp_file_path, ext)
+            if not extracted_text:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Could not extract readable text from document. Ensure the file contains selectable text and is not an empty or scanned document."
+                )
+
+            with AI_CONCURRENCY_SEMAPHORE:
+                try:
+                    flashcards_data = generate_deck_from_text_groq(extracted_text, card_count)
+                except Exception as e:
+                    print(f"Groq fallback file generation failed: {e}")
+                    raise HTTPException(
+                        status_code=503,
+                        detail=f"Both Gemini ({gemini_error}) and Groq ({e}) failed to generate the deck."
+                    )
+
+        if not flashcards_data or not isinstance(flashcards_data, list):
+            raise HTTPException(status_code=500, detail="AI returned invalid card format.")
+
         clean_title = file.filename.replace(ext, "").replace("-", " ").replace("_", " ").title()
-        
         record_rate_limit_usage("deck_generation", identifier, db)
 
         return {
@@ -859,12 +999,13 @@ async def generate_deck_from_file(req: Request, file: UploadFile = File(...), ca
             "user_id": user_id,
             "cards": flashcards_data
         }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"File processing failed: {e}")
+
     finally:
         if os.path.exists(temp_file_path):
-            os.remove(temp_file_path)
+            try:
+                os.remove(temp_file_path)
+            except Exception:
+                pass
 
 @app.post("/api/decks/{deck_id}/readout")
 def generate_deck_readout(deck_id: int, req: Request, user_id: str | None = None, db: Session = Depends(get_db)):

@@ -71,13 +71,22 @@ export function LandingPageView({ navigateTo, hasProfileSetup, isDarkMode, setIs
             <a href="#architecture" className="hover:text-umber dark:hover:text-zinc-100 transition-colors">Ecosystem</a>
             <a href="#faq" className="hover:text-umber dark:hover:text-zinc-100 transition-colors">Architecture & FAQ</a>
           </nav>
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-sand/50 dark:bg-zinc-900 border border-taupe/20 dark:border-zinc-800 transition-colors mr-2">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-sand/50 dark:bg-zinc-900 border border-taupe/20 dark:border-zinc-800 transition-colors mr-1">
               <Sun size={14} className="text-amber-600 dark:text-zinc-500" />
               <Switch checked={isDarkMode} onCheckedChange={setIsDarkMode} className="data-[state=checked]:bg-indigo-500" />
               <Moon size={14} className="text-taupe dark:text-indigo-400" />
             </div>
-            <Button data-tour="launch-app" onClick={handleLaunchApp} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 rounded-full font-bold hover:bg-umber/90 dark:hover:bg-zinc-300 shadow-sm hover:scale-105">Launch App →</Button>
+            <Button 
+              variant="ghost" 
+              onClick={() => onOpenAuth ? onOpenAuth('login') : handleLaunchApp()} 
+              className="font-bold text-xs sm:text-sm text-umber dark:text-zinc-200 hover:bg-taupe/10 dark:hover:bg-zinc-800 rounded-full px-3 sm:px-4"
+            >
+              Sign In
+            </Button>
+            <Button data-tour="launch-app" onClick={handleLaunchApp} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 rounded-full font-bold hover:bg-umber/90 dark:hover:bg-zinc-300 shadow-sm hover:scale-105 text-xs sm:text-sm px-3.5 sm:px-5">
+              Launch App →
+            </Button>
           </div>
         </div>
       </header>
@@ -93,9 +102,12 @@ export function LandingPageView({ navigateTo, hasProfileSetup, isDarkMode, setIs
           <p className="text-base md:text-lg text-taupe dark:text-zinc-400 leading-relaxed font-medium max-w-lg mx-auto lg:mx-0">
             Transform heavy PDFs, PPTX slides, and lecture notes into smart flashcards and quizzes instantly using Google Gemini AI.
           </p>
-          <div className="flex items-center justify-center lg:justify-start gap-4 pt-2">
-            <Button size="lg" onClick={handleLaunchApp} className="bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 rounded-xl font-bold text-base hover:bg-umber/90 dark:hover:bg-zinc-300 shadow-md hover:scale-105 h-14 px-8">
+          <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 pt-2">
+            <Button size="lg" onClick={handleLaunchApp} className="w-full sm:w-auto bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 rounded-xl font-bold text-base hover:bg-umber/90 dark:hover:bg-zinc-300 shadow-md hover:scale-105 h-14 px-8">
               Start Studying Now <ArrowRight size={18} className="ml-2" />
+            </Button>
+            <Button size="lg" variant="outline" onClick={() => onOpenAuth ? onOpenAuth('login') : handleLaunchApp()} className="w-full sm:w-auto border-taupe/30 dark:border-zinc-700 text-umber dark:text-zinc-100 rounded-xl font-bold text-base hover:bg-greige/30 dark:hover:bg-zinc-800 h-14 px-6">
+              Sign In
             </Button>
           </div>
         </div>
