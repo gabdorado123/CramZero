@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  BookOpen, FileText, Sparkles, Plus, ArrowLeft, Edit3, Trash2,
+  BookOpen, FileText, Sparkles, Plus, ArrowLeft, Edit3, Trash2, Play,
   CheckCircle, Layers, Timer, Download, Share2, Globe, Lock, RotateCw, Check, Copy
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -159,8 +159,15 @@ export function DeckDetailsView({
           </div>
         </div>
 
-        {/* Action Controls: Visibility Toggle, Share, Save to Library */}
+        {/* Action Controls: Primary Study CTA, Visibility Toggle, Share */}
         <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto">
+          <Button
+            size="sm"
+            onClick={() => navigateTo('flashcard-mode')}
+            className="rounded-full h-10 px-5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-xs flex items-center gap-1.5"
+          >
+            <Play size={13} fill="currentColor" /> Study Flashcards
+          </Button>
           {/* Visibility Toggle (Owner Only) */}
           {isOwner ? (
             <Button

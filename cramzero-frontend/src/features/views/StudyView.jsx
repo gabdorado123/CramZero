@@ -81,12 +81,13 @@ export function StudyView({ navigateTo, setHasActiveDeck, setActiveDeck, myDecks
     <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5 md:py-8 space-y-6 md:space-y-8 animate-in fade-in duration-200">
       
       {/* Top Segmented Tabs Bar (Fits device cleanly) */}
-      <div className="flex items-center gap-1.5 p-1 bg-stone-200/50 dark:bg-zinc-900/90 rounded-2xl border border-stone-200/80 dark:border-zinc-800/80 w-fit max-w-full overflow-x-auto no-scrollbar">
-        {[
-          { id: 'Review', label: 'Spaced Repetition' },
-          { id: 'Quiz', label: 'Knowledge Check' },
-          { id: 'Flashcards', label: 'Deep Dive' },
-        ].map((tab) => (
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5 p-1 bg-stone-200/50 dark:bg-zinc-900/90 rounded-2xl border border-stone-200/80 dark:border-zinc-800/80 w-fit max-w-full overflow-x-auto no-scrollbar">
+          {[
+            { id: 'Review', label: 'Spaced Repetition', sub: 'Smart Daily Review' },
+            { id: 'Quiz', label: 'Knowledge Check', sub: 'Interactive Quiz' },
+            { id: 'Flashcards', label: 'Deep Dive', sub: 'Flashcard Review' },
+          ].map((tab) => (
           <button 
             key={tab.id} 
             onClick={() => setActiveTab(tab.id)} 
@@ -99,6 +100,12 @@ export function StudyView({ navigateTo, setHasActiveDeck, setActiveDeck, myDecks
             {tab.label}
           </button>
         ))}
+        </div>
+        <p className="text-xs text-taupe dark:text-zinc-400 font-medium hidden md:block">
+          {activeTab === 'Review' && 'Prioritizes cards you find challenging with spaced intervals.'}
+          {activeTab === 'Quiz' && 'Tests comprehension with multiple-choice questions.'}
+          {activeTab === 'Flashcards' && 'Classic 3D card flipping for comprehensive memorization.'}
+        </p>
       </div>
 
       <div key={activeTab} className="animate-in fade-in duration-200">

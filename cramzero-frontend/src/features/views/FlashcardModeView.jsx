@@ -1,31 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
-import { flushSync } from 'react-dom';
 import {
-  BookOpen, Clock, FileText, Send, ChevronLeft, ChevronRight, RotateCw, Menu, X,
-  MessageCircle, UploadCloud, Sparkles, Home, Library, Users, BarChart2, Play, Plus,
-  ArrowLeft, Mic, MicOff, Volume2, Settings, Edit3, Trash2, HelpCircle, CheckCircle,
-  Search, Layers, Brain, Zap, MessageSquare, TrendingUp, Calendar, Target,
-  Shuffle, Maximize, Minimize, RotateCcw, Star, Check, ArrowRight, ShieldCheck, Award, Code, Cpu,
-  Download, Share2, Timer, PieChart, Activity, AlertTriangle, Link as LinkIcon, Inbox,
-  Sun, Moon, Copy
+  Clock, Shuffle, Maximize, RotateCcw, Check, Sparkles, ArrowLeft,
+  ChevronLeft, ChevronRight, RotateCw, Layers, Award, Keyboard
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { Progress } from '@/components/ui/progress';
-import { toast } from 'sonner';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Bubble, BubbleContent, BubbleGroup, BubbleReactions } from '@/components/ui/bubble';
-import { Marker, MarkerContent } from '@/components/ui/marker';
-import { Message, MessageAvatar, MessageContent, MessageFooter } from '@/components/ui/message';
-import ReactMarkdown from 'react-markdown';
 import { recordAnalyticsEvent } from '@/lib/analytics';
 
 export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
-  const safeDeck = activeDeck || { cards: [{term: "Loading...", definition: "Please hold."}] };
+  const safeDeck = activeDeck || { title: "Flashcard Deck", cards: [{term: "Loading...", definition: "Please hold."}] };
 
   const [isFlipped, setIsFlipped] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -122,6 +105,45 @@ export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
     setIsFinished(false);
   };
 
+  // -------------------------------------------------------------
+  // KEYBOARD SHORTCUTS FOR INTUITIVE STUDYING (SPACE, ARROWS, 1-3)
+  // -------------------------------------------------------------
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (['INPUT', 'TEXTAREA'].includes(e.target?.tagName)) return;
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (isFinished) {
+          handleReviewAgain();
+        } else {
+          setIsFlipped(prev => !prev);
+          setProgress(0);
+        }
+      } else if (e.code === 'ArrowRight') {
+        e.preventDefault();
+        if (!isFinished) handleNext();
+      } else if (e.code === 'ArrowLeft') {
+        e.preventDefault();
+        if (!isFinished) handlePrev();
+      } else if (isFlipped && !isFinished) {
+        if (e.key === '1') {
+          e.preventDefault();
+          handleRate('hard');
+        } else if (e.key === '2') {
+          e.preventDefault();
+          handleRate('good');
+        } else if (e.key === '3') {
+          e.preventDefault();
+          handleRate('easy');
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFlipped, currentIndex, isFinished, safeDeck]);
+
   const toggleFullscreen = () => document.fullscreenElement ? document.exitFullscreen() : containerRef.current?.requestFullscreen().catch(e => console.log(e));
 
   const totalCards = safeDeck.cards?.length || 1;
@@ -131,13 +153,25 @@ export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
     <div className="min-h-full flex-1 w-full flex flex-col items-center justify-center p-4 md:p-8">
       <div ref={containerRef} className="max-w-3xl w-full mx-auto my-auto flex flex-col items-center animate-in fade-in duration-300 bg-white dark:bg-zinc-950 p-5 md:p-8 rounded-3xl border border-stone-200/90 dark:border-zinc-800 shadow-sm">
         
-        {/* Controls Toolbar */}
-        <div className="w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 border-b border-stone-200/60 dark:border-zinc-800/80 pb-4">
+        {/* Controls Toolbar with Deck Title Context */}
+        <div className="w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 border-b border-stone-200/60 dark:border-zinc-800/80 pb-4">
           <div className="flex flex-wrap items-center gap-2 md:gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigateTo('deck-details')} className="text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 hover:bg-stone-100 dark:hover:bg-zinc-800 rounded-xl h-9 w-9">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => navigateTo('deck-details')} 
+              className="text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 hover:bg-stone-100 dark:hover:bg-zinc-800 rounded-xl h-9 w-9 shrink-0"
+              title="Return to Deck Details"
+            >
               <ArrowLeft size={18}/>
             </Button>
-            <div className="flex flex-wrap gap-1.5 sm:border-r sm:border-stone-200 dark:sm:border-zinc-800 sm:pr-3">
+
+            {/* Deck Title Breadcrumb */}
+            <span className="hidden sm:inline-block font-extrabold text-xs text-umber dark:text-zinc-200 max-w-[160px] md:max-w-[210px] truncate" title={safeDeck.title}>
+              {safeDeck.title}
+            </span>
+
+            <div className="flex flex-wrap gap-1.5 sm:border-l sm:border-stone-200 dark:sm:border-zinc-800 sm:pl-3">
               <Button variant="outline" size="sm" onClick={cycleAutoSpeed} disabled={isFinished} className={`h-8 text-xs font-bold rounded-lg border transition-all ${autoSpeed > 0 ? 'bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800 shadow-xs' : 'border-stone-200 dark:border-zinc-800 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 bg-transparent'}`}>
                 <Clock size={13} className="mr-1.5 text-amber-600" /> {autoSpeed > 0 ? `${autoSpeed}s` : 'Auto'}
               </Button>
@@ -151,10 +185,12 @@ export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
                 <Maximize size={13} className="mr-1.5" /> Focus
               </Button>
             </div>
+            
             <Badge variant="secondary" className="font-bold tracking-wide rounded-lg text-xs bg-stone-100 dark:bg-zinc-800 text-umber dark:text-zinc-200 border border-stone-200/50 dark:border-zinc-700/50 px-2.5 py-1">
               {isFinished ? `Completed (${totalCards}/${totalCards})` : `Card ${currentIndex + 1} / ${totalCards}`}
             </Badge>
           </div>
+
           <div>
             <Button onClick={() => setIsTutorOpen(true)} className="h-8.5 bg-amber-500 hover:bg-amber-600 text-white border-0 text-xs font-bold shadow-xs rounded-xl px-3.5 flex items-center gap-1.5 transition-all hover:shadow-md">
               <Sparkles size={14} /> Ask AI
@@ -225,7 +261,7 @@ export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
                 variant="outline"
                 className="flex-1 h-12 rounded-full font-bold bg-white dark:bg-zinc-900 border-stone-200 dark:border-zinc-800 text-umber dark:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 shadow-2xs flex items-center justify-center gap-2"
               >
-                <Layers size={16} /> Back to Decks
+                <Layers size={16} /> Back to Library
               </Button>
             </div>
             
@@ -247,7 +283,7 @@ export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
           </div>
         ) : (
           <>
-            {/* Flashcard Flipper */}
+            {/* 3D Flashcard Flipper */}
             <div className="card-scene w-full max-w-xl h-[clamp(280px,46vh,420px)] shrink-0 cursor-pointer select-none" onClick={() => { setIsFlipped(!isFlipped); setProgress(0); }}>
               <div className={`card-flipper ${isFlipped ? 'is-flipped' : ''}`}>
                 <div className="card-face card-front group bg-white dark:bg-zinc-900 border border-stone-200/90 dark:border-zinc-800 p-6 md:p-8 text-center rounded-3xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between overflow-hidden relative">
@@ -278,7 +314,7 @@ export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
                       </div>
                     ) : (
                       <Badge variant="outline" className="text-xs font-semibold text-taupe dark:text-zinc-400 border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-800/50 rounded-full px-3 py-1">
-                        Click to flip definition
+                        Click or press Space to reveal definition
                       </Badge>
                     )}
                   </div>
@@ -312,7 +348,7 @@ export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
                       </div>
                     ) : (
                       <Badge variant="outline" className="text-xs font-semibold text-taupe dark:text-zinc-400 border-stone-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-800/50 rounded-full px-3 py-1">
-                        Click to flip back
+                        Click or press Space to flip back
                       </Badge>
                     )}
                   </div>
@@ -329,6 +365,7 @@ export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
                     disabled={currentIndex === 0} 
                     aria-label="Previous card"
                     className="w-12 h-12 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-umber dark:text-zinc-100 shadow-xs hover:shadow-md hover:bg-stone-50 dark:hover:bg-zinc-800 flex items-center justify-center transition-all disabled:opacity-30 disabled:pointer-events-none hover:scale-105 active:scale-95"
+                    title="Previous Card (← Arrow)"
                   >
                     <ChevronLeft size={24}/>
                   </button>
@@ -350,6 +387,7 @@ export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
                       onClick={handleNext} 
                       aria-label="Next card"
                       className="w-12 h-12 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-umber dark:text-zinc-100 shadow-xs hover:shadow-md hover:bg-stone-50 dark:hover:bg-zinc-800 flex items-center justify-center transition-all disabled:opacity-30 disabled:pointer-events-none hover:scale-105 active:scale-95"
+                      title="Next Card (→ Arrow)"
                     >
                       <ChevronRight size={24}/>
                     </button>
@@ -357,17 +395,48 @@ export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
                 </div>
               ) : (
                 <div className="flex gap-2 md:gap-3 w-full animate-in slide-in-from-bottom-2 duration-200">
-                  <Button onClick={() => handleRate('hard')} className="flex-1 h-12 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900 rounded-xl font-bold hover:bg-rose-100 dark:hover:bg-rose-900/60 shadow-xs">
-                    Hard (1m)
+                  <Button 
+                    onClick={() => handleRate('hard')} 
+                    className="flex-1 h-12 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900 rounded-xl font-bold hover:bg-rose-100 dark:hover:bg-rose-900/60 shadow-xs"
+                    title="Press 1"
+                  >
+                    Hard <span className="opacity-70 text-xs ml-1">(1)</span>
                   </Button>
-                  <Button variant="outline" onClick={() => handleRate('good')} className="flex-1 h-12 rounded-xl font-bold bg-white dark:bg-zinc-900 border-stone-200 dark:border-zinc-800 text-umber dark:text-zinc-300 hover:bg-stone-50 dark:hover:bg-zinc-800 shadow-xs">
-                    Good (10m)
+                  <Button 
+                    variant="outline" 
+                    onClick={() => handleRate('good')} 
+                    className="flex-1 h-12 rounded-xl font-bold bg-white dark:bg-zinc-900 border-stone-200 dark:border-zinc-800 text-umber dark:text-zinc-300 hover:bg-stone-50 dark:hover:bg-zinc-800 shadow-xs"
+                    title="Press 2"
+                  >
+                    Good <span className="opacity-70 text-xs ml-1">(2)</span>
                   </Button>
-                  <Button onClick={() => handleRate('easy')} className="flex-1 h-12 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900 rounded-xl font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/60 shadow-xs">
-                    Easy (4d)
+                  <Button 
+                    onClick={() => handleRate('easy')} 
+                    className="flex-1 h-12 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900 rounded-xl font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/60 shadow-xs"
+                    title="Press 3"
+                  >
+                    Easy <span className="opacity-70 text-xs ml-1">(3)</span>
                   </Button>
                 </div>
               )}
+            </div>
+
+            {/* Desktop Keyboard Shortcuts Helper */}
+            <div className="hidden sm:flex items-center justify-center gap-4 text-[11px] font-medium text-taupe dark:text-zinc-500 mt-3 pt-2 border-t border-stone-200/50 dark:border-zinc-800/50">
+              <span className="flex items-center gap-1.5">
+                <kbd className="px-1.5 py-0.5 rounded bg-stone-100 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 font-mono text-[10px] text-stone-700 dark:text-zinc-300">Space</kbd>
+                Flip
+              </span>
+              <span className="text-stone-300 dark:text-zinc-700">•</span>
+              <span className="flex items-center gap-1.5">
+                <kbd className="px-1.5 py-0.5 rounded bg-stone-100 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 font-mono text-[10px] text-stone-700 dark:text-zinc-300">← / →</kbd>
+                Prev / Next
+              </span>
+              <span className="text-stone-300 dark:text-zinc-700">•</span>
+              <span className="flex items-center gap-1.5">
+                <kbd className="px-1.5 py-0.5 rounded bg-stone-100 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 font-mono text-[10px] text-stone-700 dark:text-zinc-300">1, 2, 3</kbd>
+                Rate difficulty
+              </span>
             </div>
           </>
         )}
@@ -376,7 +445,3 @@ export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// ACTIVE ASSESSMENT ENGINE (DYNAMIC QUIZ & MOCK EXAM VIEW)
-// ---------------------------------------------------------------------------

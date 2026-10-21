@@ -23,7 +23,7 @@ import { Marker, MarkerContent } from '@/components/ui/marker';
 import { Message, MessageAvatar, MessageContent, MessageFooter } from '@/components/ui/message';
 import ReactMarkdown from 'react-markdown';
 
-export function QuizSetupView({ navigateTo, setExamConfig }) {
+export function QuizSetupView({ navigateTo, activeDeck, setExamConfig }) {
   const [qCount, setQCount] = useState(10);
   const [qType, setQType] = useState('mc'); // 'mc', 'tf', 'mixed'
 
@@ -34,11 +34,21 @@ export function QuizSetupView({ navigateTo, setExamConfig }) {
 
   return (
     <div className="max-w-3xl mx-auto animate-in fade-in duration-300 p-4 md:p-8">
-      <Button variant="ghost" onClick={() => navigateTo('study')} className="-ml-4 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 mb-6 font-medium">
-        <ArrowLeft size={16} className="mr-2" /> Back to Study View
+      <Button 
+        variant="ghost" 
+        onClick={() => navigateTo(activeDeck ? 'deck-details' : 'study')} 
+        className="-ml-4 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 mb-4 font-medium"
+      >
+        <ArrowLeft size={16} className="mr-2" /> {activeDeck ? `Back to ${activeDeck.title}` : 'Back to Study View'}
       </Button>
-      <h2 className="text-2xl md:text-3xl font-bold text-umber dark:text-zinc-100 mb-2">Configure Challenge</h2>
-      <p className="text-taupe dark:text-zinc-400 text-xs md:text-sm mb-6">Select the test parameters and question format for this session.</p>
+      <h2 className="text-2xl md:text-3xl font-bold text-umber dark:text-zinc-100 mb-2">Configure Quiz Challenge</h2>
+      <p className="text-taupe dark:text-zinc-400 text-xs md:text-sm mb-6">
+        {activeDeck ? (
+          <>Testing on: <span className="font-bold text-umber dark:text-zinc-200">{activeDeck.title}</span> ({activeDeck.cards?.length || 0} cards available)</>
+        ) : (
+          'Select the test parameters and question format for this session.'
+        )}
+      </p>
       
       {/* Challenge Length Card */}
       <Card className="p-6 md:p-7 shadow-sm mb-6 bg-white dark:bg-zinc-900 border border-stone-200/90 dark:border-zinc-800 rounded-3xl">

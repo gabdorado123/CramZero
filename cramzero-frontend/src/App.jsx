@@ -206,6 +206,14 @@ export default function App() {
     }
   }, [activeDeck]);
 
+  // Close AI Tutor when navigating away from an active deck
+  useEffect(() => {
+    if (!['deck-details', 'flashcard-mode'].includes(currentView)) {
+      setIsTutorOpen(false);
+      setIsTutorExpanded(false);
+    }
+  }, [currentView]);
+
   const handleSendChat = async () => {
     if (!chatInput.trim()) return;
     
@@ -336,6 +344,7 @@ export default function App() {
 
   const focusViews = ['new-deck', 'deck-details', 'create-hub', 'hub-details', 'flashcard-mode', 'quiz-setup', 'mock-exam-setup', 'mock-exam-active'];
   const showNavDock = !focusViews.includes(currentView);
+  const isInsideDeck = Boolean(activeDeck && ['deck-details', 'flashcard-mode'].includes(currentView));
 
   return (
     <>
@@ -385,10 +394,6 @@ export default function App() {
                 <img src="/cramzero-logo.svg" alt="CramZero" className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl group-hover:scale-105 transition-transform" />
                 <h1 className="text-lg sm:text-xl font-bold text-umber dark:text-zinc-100 hidden sm:block tracking-tight">CramZero</h1>
               </div>
-              <div className="h-5 w-px bg-stone-200 dark:bg-zinc-800 hidden sm:block"></div>
-              <h2 className="max-w-[36vw] sm:max-w-[42vw] md:max-w-none truncate text-sm sm:text-base font-bold capitalize text-umber dark:text-zinc-100 md:text-lg">
-                {currentView === 'new-deck' ? 'Create New Deck' : currentView.replace('-', ' ')}
-              </h2>
             </div>
             {showNavDock && (
               <PrimaryNavigation items={navItems} currentView={currentView} onNavigate={handleNavigate} />
@@ -423,7 +428,7 @@ export default function App() {
 
         <div key={currentView} className={`flex-1 w-full overflow-y-auto no-scrollbar scroll-touch flex flex-col ${showNavDock ? 'pb-24 md:pb-6' : 'pb-6'} bg-gradient-to-b from-[#FBF9F5] via-[#F8F5EE] to-[#F3EFE7] dark:from-zinc-950 dark:via-zinc-950 dark:to-zinc-900 animate-in fade-in duration-300`}>
           {/* Main Views */}
-          {currentView === 'dashboard' && <DashboardView navigateTo={handleNavigate} setHasActiveDeck={setHasActiveDeck} myDecks={myDecks} />}
+          {currentView === 'dashboard' && <DashboardView navigateTo={handleNavigate} setHasActiveDeck={setHasActiveDeck} setActiveDeck={setActiveDeck} myDecks={myDecks} displayName={displayName} />}
           {currentView === 'study' && <StudyView navigateTo={handleNavigate} hasActiveDeck={hasActiveDeck} setHasActiveDeck={setHasActiveDeck} setActiveDeck={setActiveDeck} myDecks={myDecks} />}
           {currentView === 'decks' && <DecksView navigateTo={handleNavigate} setActiveDeck={setActiveDeck} myDecks={myDecks} setMyDecks={setMyDecks} userId={userId} displayName={displayName} />}
           {currentView === 'profile' && (
@@ -457,7 +462,7 @@ export default function App() {
           {currentView === 'flashcard-mode' && <FlashcardModeView navigateTo={handleNavigate} activeDeck={activeDeck} setIsTutorOpen={setIsTutorOpen} />}
           
           {/* Wired Active Assessment Views */}
-          {currentView === 'quiz-setup' && <QuizSetupView navigateTo={handleNavigate} setExamConfig={setExamConfig} />}
+          {currentView === 'quiz-setup' && <QuizSetupView navigateTo={handleNavigate} activeDeck={activeDeck} setExamConfig={setExamConfig} />}
           {currentView === 'mock-exam-setup' && <MockExamSetupView navigateTo={handleNavigate} activeDeck={activeDeck} setExamConfig={setExamConfig} />}
           {currentView === 'mock-exam-active' && <MockExamActiveView navigateTo={handleNavigate} activeDeck={activeDeck} examConfig={examConfig} />}
         </div>
@@ -486,8 +491,8 @@ export default function App() {
         </div>
       )}
 
-      {/* Floating AI Tutor Button */}
-      {currentView !== 'landing' && !isTutorOpen && (
+      {/* Floating AI Tutor Button (Only visible when inside a deck) */}
+      {isInsideDeck && !isTutorOpen && (
         <button 
           onClick={() => setIsTutorOpen(true)} 
           style={{ viewTransitionName: 'zero-ai-tutor-fab' }}
@@ -502,7 +507,7 @@ export default function App() {
       )}
 
       {/* Professor AI Chat Window */}
-      {currentView !== 'landing' && isTutorOpen && (
+      {isInsideDeck && isTutorOpen && (
         <>
           {isTutorExpanded && <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[55] animate-in fade-in duration-300" onClick={() => setIsTutorExpanded(false)} />}
           <aside className={`fixed bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl border border-stone-200/90 dark:border-white/10 shadow-2xl flex flex-col z-[60] overflow-hidden transition-all duration-300 ease-in-out ${isTutorExpanded ? 'inset-2 sm:inset-4 md:inset-10 lg:inset-x-[15%] lg:inset-y-10 rounded-3xl' : 'bottom-0 left-0 right-0 max-h-[85vh] h-[520px] rounded-t-3xl md:bottom-8 md:right-8 md:left-auto md:w-[400px] md:h-[600px] md:rounded-3xl md:max-h-none animate-in slide-in-from-bottom-6'}`}>

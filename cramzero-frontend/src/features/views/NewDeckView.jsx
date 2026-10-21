@@ -1,88 +1,112 @@
 import { useState, useEffect, useRef } from 'react';
-import { flushSync } from 'react-dom';
 import {
-  BookOpen, Clock, FileText, Send, ChevronLeft, ChevronRight, RotateCw, Menu, X,
-  MessageCircle, UploadCloud, Sparkles, Home, Library, Users, BarChart2, Play, Plus,
-  ArrowLeft, Mic, MicOff, Volume2, Settings, Edit3, Trash2, HelpCircle, CheckCircle,
-  Search, Layers, Brain, Zap, MessageSquare, TrendingUp, Calendar, Target,
-  Shuffle, Maximize, Minimize, RotateCcw, Star, Check, ArrowRight, ShieldCheck, Award, Code, Cpu,
-  Download, Share2, Timer, PieChart, Activity, AlertTriangle, Link as LinkIcon, Inbox,
-  Sun, Moon, Copy
+  Sparkles, UploadCloud, Edit3, ArrowLeft, RotateCw, CheckCircle,
+  FileText, X, AlertCircle, Layers, Check, Info
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Bubble, BubbleContent, BubbleGroup, BubbleReactions } from '@/components/ui/bubble';
-import { Marker, MarkerContent } from '@/components/ui/marker';
-import { Message, MessageAvatar, MessageContent, MessageFooter } from '@/components/ui/message';
-import ReactMarkdown from 'react-markdown';
 import { API_BASE } from '@/lib/api';
 
 export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActionLoading, setActionMessage }) {
+  // Mode tabs: 'ai' | 'file' | 'manual'
+  const [activeTab, setActiveTab] = useState(() => {
+    const savedTab = sessionStorage.getItem('cramzero-mode-tab');
+    if (savedTab) {
+      sessionStorage.removeItem('cramzero-mode-tab');
+      return savedTab;
+    }
+    return 'ai';
+  });
+
+  const [aiTopic, setAiTopic] = useState(() => {
+    const prefill = sessionStorage.getItem('cramzero-prefill-topic');
+    if (prefill) {
+      sessionStorage.removeItem('cramzero-prefill-topic');
+      return prefill;
+    }
+    return '';
+  });
+
+  const [cardCount, setCardCount] = useState(10);
   const [deckName, setDeckName] = useState('');
   const [deckDesc, setDeckDesc] = useState('');
-  const [inputMode, setInputMode] = useState(null); 
-  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
-  const [aiTopic, setAiTopic] = useState('');
-  const [previewDeck, setPreviewDeck] = useState(null);
-  const [cardCount, setCardCount] = useState(10);
-  const [progress, setProgress] = useState(0);
-  const fileInputRef = useRef(null);
   
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [generatingMode, setGeneratingMode] = useState(''); // 'prompt' | 'file'
+  const [progress, setProgress] = useState(0);
+  const [previewDeck, setPreviewDeck] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  // File upload state
+  const [selectedFile, setSelectedFile] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const topicSuggestions = [
+    'Cellular Respiration & ATP',
+    'Python Data Structures',
+    'Cognitive Psychology & Memory',
+    'Constitutional Law Principles',
+    'Pharmacology & Antibiotics',
+    'Microeconomics Supply & Demand'
+  ];
+
   const handleSaveToDatabase = async (deckPayload) => {
-     setIsSaving(true);
-     try {
-         const payloadWithUser = {
-           ...deckPayload,
-           user_id: userId,
-         };
-         const response = await fetch(`${API_BASE}/api/decks/`, {
-           method: 'POST',
-           headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify(payloadWithUser)
-         });
-         if (response.ok) {
-             const savedDeck = await response.json();
-             setMyDecks([savedDeck, ...myDecks]);
-             toast.success("Deck Saved", { description: `"${deckPayload.title || 'New Deck'}" has been added to your library.` });
-             navigateTo('decks');
-           }
-         } catch (error) {
-       toast.error("Failed to save deck", { description: "Please check your connection and try again." });
-     } finally {
-       setIsSaving(false);
-     }
+    setIsSaving(true);
+    try {
+      const payloadWithUser = {
+        ...deckPayload,
+        user_id: userId,
+      };
+      const response = await fetch(`${API_BASE}/api/decks/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payloadWithUser)
+      });
+      if (response.ok) {
+        const savedDeck = await response.json();
+        setMyDecks([savedDeck, ...myDecks]);
+        toast.success("Deck Saved to Library!", { 
+          description: `"${deckPayload.title || 'New Deck'}" is now available in your personal collection.` 
+        });
+        navigateTo('decks');
+      } else {
+        const err = await response.json().catch(() => ({}));
+        toast.error("Failed to save deck", { description: err.detail || "Server error while saving." });
+      }
+    } catch (error) {
+      toast.error("Failed to save deck", { description: "Please check your backend connection." });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleManualCreate = (e) => {
     e.preventDefault();
-    if(!deckName.trim()) return;
+    if (!deckName.trim()) return;
     handleSaveToDatabase({
-      title: deckName,
-      description: deckDesc || "",
+      title: deckName.trim(),
+      description: deckDesc.trim() || "",
       visibility: "Private",
       user_id: userId,
-      cards: [{ term: 'Sample Term', definition: 'Update this card by editing the deck.' }]
+      cards: [{ term: 'Sample Term', definition: 'Click edit to customize this card definition.' }]
     });
   };
 
   const handleGenerateAIDeck = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!aiTopic.trim()) return;
     
     setIsGeneratingAI(true);
-    setProgress(10);
+    setGeneratingMode('prompt');
+    setProgress(15);
     const interval = setInterval(() => {
-        setProgress(p => p < 90 ? p + Math.floor(Math.random() * 15) : 90);
-    }, 500);
+      setProgress(p => p < 90 ? p + Math.floor(Math.random() * 12) + 4 : 90);
+    }, 450);
     
     try {
       const response = await fetch(`${API_BASE}/api/generate-deck/`, {
@@ -96,20 +120,20 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
         clearInterval(interval);
         setProgress(100);
         setTimeout(() => {
-           setPreviewDeck(generatedPreview); 
-           setInputMode(null); 
-           setAiTopic('');
-           setIsGeneratingAI(false);
-           toast.success("Generation Complete", { description: `${generatedPreview.cards.length} cards extracted from your topic.` });
-        }, 500);
+          setPreviewDeck(generatedPreview); 
+          setIsGeneratingAI(false);
+          toast.success("Flashcards Generated!", { 
+            description: `${generatedPreview.cards?.length || 0} cards generated. Review and save below.` 
+          });
+        }, 400);
       } else {
         const errorData = await response.json().catch(() => ({}));
         clearInterval(interval);
         setIsGeneratingAI(false);
         if (response.status === 429) {
-          toast.warning("Daily Deck Limit Reached", { description: errorData.detail || "You have reached your limit of 5 deck generations for today." });
+          toast.warning("Daily Limit Reached", { description: errorData.detail || "Daily generation limit reached." });
         } else {
-          toast.error("Generation failed", { description: errorData.detail || "The server encountered an error." });
+          toast.error("Generation failed", { description: errorData.detail || "Error generating deck." });
         }
       }
     } catch (error) {
@@ -119,19 +143,28 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
     } 
   };
 
-  const handleFileUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
+  const handleFileSelect = (event) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
 
-    setInputMode('file'); 
+  const handleProcessFile = async () => {
+    if (!selectedFile) {
+      fileInputRef.current?.click();
+      return;
+    }
+
     setIsGeneratingAI(true);
-    setProgress(10);
+    setGeneratingMode('file');
+    setProgress(15);
     const interval = setInterval(() => {
-        setProgress(p => p < 90 ? p + Math.floor(Math.random() * 15) : 90);
-    }, 500);
+      setProgress(p => p < 90 ? p + Math.floor(Math.random() * 12) + 3 : 90);
+    }, 450);
     
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", selectedFile);
     formData.append("card_count", cardCount);
     if (userId) formData.append("user_id", userId);
 
@@ -146,136 +179,232 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
         clearInterval(interval);
         setProgress(100);
         setTimeout(() => {
-           setPreviewDeck(generatedPreview); 
-           setInputMode(null);
-           setIsGeneratingAI(false);
-           toast.success("File Processed", { description: `${generatedPreview.cards.length} cards extracted successfully.` });
-        }, 500);
+          setPreviewDeck(generatedPreview); 
+          setIsGeneratingAI(false);
+          toast.success("Document Analyzed!", { 
+            description: `${generatedPreview.cards?.length || 0} cards extracted from your file.` 
+          });
+        }, 400);
       } else {
         const errorData = await response.json().catch(() => ({}));
         clearInterval(interval);
         setIsGeneratingAI(false);
-        setInputMode(null); 
         if (response.status === 429) {
-          toast.warning("Daily Deck Limit Reached", { description: errorData.detail || "You have reached your limit of 5 deck generations for today." });
+          toast.warning("Daily Limit Reached", { description: errorData.detail || "Daily generation limit reached." });
         } else {
-          toast.error("File processing failed", { description: errorData.detail || "The server encountered an error parsing your file." });
+          toast.error("File processing failed", { description: errorData.detail || "Error processing your document." });
         }
       }
     } catch (error) {
       clearInterval(interval);
       setIsGeneratingAI(false);
-      setInputMode(null);
       toast.error("Connection Error", { description: "Could not connect to the backend server." });
-    } finally {
-      event.target.value = null; 
     }
   };
 
+  // -------------------------------------------------------------
+  // PREVIEW SCREEN: Review and save generated flashcards
+  // -------------------------------------------------------------
   if (previewDeck) {
     return (
-      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 space-y-6 md:space-y-8 animate-in slide-in-from-right-8 duration-300">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-umber dark:text-zinc-100 flex items-center gap-2">
-            <Sparkles className="text-amber-600 dark:text-amber-500"/> Review AI Output
-          </h2>
-          <div className="flex gap-3">
-             <Button variant="ghost" onClick={() => setPreviewDeck(null)} className="font-bold text-taupe dark:text-zinc-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg">Discard</Button>
-             <Button onClick={() => handleSaveToDatabase(previewDeck)} disabled={isSaving} className="bg-umber dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-umber/90 dark:hover:bg-zinc-300 font-bold rounded-xl shadow-md min-w-[150px]">
-                {isSaving ? <RotateCw className="mr-2 animate-spin" size={16} /> : <CheckCircle size={16} className="mr-2"/>}
-                {isSaving ? "Saving..." : "Save to Library"}
-             </Button>
+      <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 space-y-6 md:space-y-8 animate-in slide-in-from-right-4 duration-300">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2 border-b border-stone-200/60 dark:border-zinc-800/80">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Badge className="bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-300/60 text-xs font-bold">
+                Generation Ready
+              </Badge>
+              <span className="text-xs text-taupe dark:text-zinc-500">•</span>
+              <span className="text-xs text-taupe dark:text-zinc-400 font-semibold">{previewDeck.cards?.length || 0} Flashcards</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-umber dark:text-zinc-100 tracking-tight flex items-center gap-2">
+              <Sparkles className="text-amber-500" size={24} /> Review Flashcards
+            </h2>
+          </div>
+          <div className="flex items-center gap-2.5 w-full sm:w-auto">
+            <Button 
+              variant="outline" 
+              onClick={() => setPreviewDeck(null)} 
+              className="flex-1 sm:flex-none font-semibold text-xs border-stone-200 dark:border-zinc-800 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 rounded-xl h-11 px-4"
+            >
+              Discard
+            </Button>
+            <Button 
+              onClick={() => handleSaveToDatabase(previewDeck)} 
+              disabled={isSaving} 
+              className="flex-1 sm:flex-none bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-xl h-11 px-6 shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2"
+            >
+              {isSaving ? <RotateCw className="animate-spin" size={15} /> : <CheckCircle size={15} />}
+              {isSaving ? "Saving to Library..." : "Save to My Library"}
+            </Button>
           </div>
         </div>
         
-        <Card className="p-6 shadow-sm mb-6 border-taupe/30 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-2xl">
-           <label className="block text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider mb-2">Deck Title</label>
-           <Input 
-             value={previewDeck.title} 
-             onChange={(e) => setPreviewDeck({...previewDeck, title: e.target.value})}
-             className="h-14 text-lg font-bold bg-stone-50 dark:bg-zinc-950 border-taupe/40 dark:border-zinc-800 text-umber dark:text-zinc-100 focus-visible:ring-umber dark:focus-visible:ring-zinc-600 rounded-lg"
-           />
+        {/* Editable Title Card */}
+        <Card className="p-5 sm:p-6 shadow-2xs border border-stone-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-2xl">
+          <label className="block text-xs font-bold text-taupe dark:text-zinc-400 uppercase tracking-wider mb-2">
+            Deck Title (You can edit before saving)
+          </label>
+          <Input 
+            value={previewDeck.title} 
+            onChange={(e) => setPreviewDeck({...previewDeck, title: e.target.value})}
+            className="h-12 text-base sm:text-lg font-bold bg-stone-50 dark:bg-zinc-950 border-stone-200 dark:border-zinc-800 text-umber dark:text-zinc-100 focus-visible:ring-amber-500 rounded-xl shadow-2xs"
+          />
         </Card>
 
-        <h3 className="font-bold text-lg text-umber dark:text-zinc-100 mb-4">Generated Flashcards ({previewDeck.cards.length})</h3>
-        <div className="space-y-3">
-          {previewDeck.cards.map((card, i) => (
-            <Card key={i} className="p-4 flex flex-col md:flex-row gap-4 md:gap-6 shadow-sm border-taupe/20 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-xl">
-              <div className="flex-1 md:border-r md:border-taupe/20 dark:md:border-zinc-800 md:pr-6">
-                <p className="text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider mb-1">Term</p>
-                <p className="text-umber dark:text-zinc-100 font-medium">{card.term}</p>
-              </div>
-              <div className="flex-[2]">
-                <p className="text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider mb-1">Definition</p>
-                <p className="text-umber dark:text-zinc-300 text-sm">{card.definition}</p>
-              </div>
-            </Card>
-          ))}
+        {/* Generated Cards List */}
+        <div>
+          <h3 className="font-extrabold text-base md:text-lg text-umber dark:text-zinc-100 mb-3 flex items-center justify-between">
+            <span>Generated Cards ({previewDeck.cards?.length || 0})</span>
+            <span className="text-xs font-normal text-taupe dark:text-zinc-500">All terms and definitions ready</span>
+          </h3>
+          <div className="space-y-3">
+            {previewDeck.cards?.map((card, i) => (
+              <Card key={i} className="p-4 sm:p-5 flex flex-col md:flex-row gap-4 md:gap-6 shadow-2xs border border-stone-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-2xl">
+                <div className="flex-1 md:border-r md:border-stone-200/80 dark:md:border-zinc-800 md:pr-6">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="w-5 h-5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 text-[11px] font-bold flex items-center justify-center">
+                      {i + 1}
+                    </span>
+                    <p className="text-[11px] font-bold text-taupe dark:text-zinc-400 uppercase tracking-wider">Term</p>
+                  </div>
+                  <p className="text-umber dark:text-zinc-100 font-bold text-sm sm:text-base pl-7">{card.term}</p>
+                </div>
+                <div className="flex-[2]">
+                  <p className="text-[11px] font-bold text-taupe dark:text-zinc-400 uppercase tracking-wider mb-1">Definition</p>
+                  <p className="text-stone-700 dark:text-zinc-300 text-xs sm:text-sm leading-relaxed">{card.definition}</p>
+                </div>
+              </Card>
+            ))}
+          </div>
         </div>
       </div>
     );
   }
 
+  // -------------------------------------------------------------
+  // ACTIVE GENERATION LOADING SCREEN
+  // -------------------------------------------------------------
+  if (isGeneratingAI) {
+    return (
+      <div className="w-full max-w-2xl mx-auto px-4 py-16 flex flex-col items-center justify-center text-center animate-in fade-in duration-300 my-auto">
+        <div className="w-20 h-20 rounded-3xl bg-amber-500/15 dark:bg-amber-500/25 border border-amber-500/30 flex items-center justify-center mb-6 text-amber-600 dark:text-amber-400 shadow-lg shadow-amber-500/10">
+          <RotateCw size={36} className="animate-spin" />
+        </div>
+        <h3 className="text-xl sm:text-2xl font-extrabold text-umber dark:text-zinc-100 mb-2 tracking-tight">
+          {generatingMode === 'file' ? 'Analyzing Document & Extracting Terms...' : 'Zero AI is Building Your Deck...'}
+        </h3>
+        <p className="text-xs sm:text-sm text-taupe dark:text-zinc-400 max-w-md mx-auto mb-8 leading-relaxed">
+          {generatingMode === 'file' 
+            ? 'Reading file contents, identifying core concepts, and drafting precise recall flashcards with failover protection.' 
+            : `Synthesizing ${cardCount} flashcards with clear definitions, context, and key terms.`}
+        </p>
+
+        <div className="w-full max-w-md space-y-2">
+          <div className="flex justify-between text-xs font-bold text-amber-800 dark:text-amber-400">
+            <span>Synthesizing Cards</span>
+            <span>{progress}%</span>
+          </div>
+          <Progress value={progress} className="h-2.5 [&>div]:bg-amber-500 rounded-full" />
+        </div>
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------
+  // MAIN CREATION INTERFACE: 3-Tab Selector
+  // -------------------------------------------------------------
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 space-y-6 md:space-y-8 animate-in fade-in duration-300">
-      <div className="flex items-center justify-between pb-2 border-b border-stone-200/60 dark:border-zinc-800/80">
+    <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 space-y-6 md:space-y-8 animate-in fade-in duration-300">
+      
+      {/* Header Bar */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-2 border-b border-stone-200/60 dark:border-zinc-800/80">
         <div>
-          <Button variant="ghost" size="sm" onClick={() => navigateTo('decks')} className="-ml-3 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 font-semibold mb-1">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => navigateTo('decks')} 
+            className="-ml-3 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 font-semibold mb-1"
+          >
             <ArrowLeft size={16} className="mr-1.5" /> Back to Library
           </Button>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-umber dark:text-zinc-100 tracking-tight">Create New Deck</h2>
-          <p className="text-xs sm:text-sm text-taupe dark:text-zinc-400 mt-0.5">Synthesize notes instantly with AI or create your own custom card set.</p>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-umber dark:text-zinc-100 tracking-tight">
+            Create Flashcard Deck
+          </h2>
+          <p className="text-xs sm:text-sm text-taupe dark:text-zinc-400 mt-0.5">
+            Choose your preferred creation method below to build your study collection.
+          </p>
         </div>
       </div>
 
-      <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".pdf,.pptx,.txt" className="hidden" />
+      {/* 3-Mode Selector Tabs */}
+      <div className="grid grid-cols-3 gap-2 p-1.5 bg-stone-200/50 dark:bg-zinc-900/90 rounded-2xl border border-stone-200/80 dark:border-zinc-800/80">
+        <button
+          onClick={() => setActiveTab('ai')}
+          className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+            activeTab === 'ai'
+              ? 'bg-white text-umber dark:bg-zinc-800 dark:text-zinc-100 shadow-xs'
+              : 'text-taupe hover:text-umber dark:text-zinc-400 dark:hover:text-zinc-100'
+          }`}
+        >
+          <Sparkles size={16} className={activeTab === 'ai' ? 'text-amber-500' : ''} />
+          <span>AI Topic</span>
+        </button>
 
-      {/* Primary AI Generator Card */}
-      <Card className="rounded-3xl border border-amber-200/80 dark:border-amber-900/40 bg-gradient-to-b from-amber-50/60 via-white to-white dark:from-amber-950/20 dark:via-zinc-900 dark:to-zinc-900 p-6 md:p-8 shadow-sm">
-        {isGeneratingAI ? (
-          <div className="w-full flex flex-col items-center justify-center py-10 animate-in fade-in zoom-in-95 duration-300">
-            <div className="w-16 h-16 rounded-2xl bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center mb-5 text-amber-600 dark:text-amber-400">
-              <RotateCw size={32} className="animate-spin" />
-            </div>
-            <h3 className="text-lg md:text-xl font-bold text-umber dark:text-zinc-100 mb-1">
-              {inputMode === 'file' ? 'Parsing & Extracting Document...' : 'Zero AI is Compiling Your Flashcards...'}
-            </h3>
-            <p className="text-xs md:text-sm text-taupe dark:text-zinc-400 mb-6">
-              Analyzing key concepts, drafting precise definitions, and organizing your deck.
-            </p>
-            <div className="w-full max-w-md space-y-2">
-              <div className="flex justify-between text-xs font-bold text-amber-800 dark:text-amber-400">
-                <span>Progress</span>
-                <span>{progress}%</span>
-              </div>
-              <Progress value={progress} className="h-2.5 [&>div]:bg-amber-500 rounded-full" />
-            </div>
-          </div>
-        ) : (
+        <button
+          onClick={() => setActiveTab('file')}
+          className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+            activeTab === 'file'
+              ? 'bg-white text-umber dark:bg-zinc-800 dark:text-zinc-100 shadow-xs'
+              : 'text-taupe hover:text-umber dark:text-zinc-400 dark:hover:text-zinc-100'
+          }`}
+        >
+          <UploadCloud size={16} className={activeTab === 'file' ? 'text-blue-500' : ''} />
+          <span>Upload File</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('manual')}
+          className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+            activeTab === 'manual'
+              ? 'bg-white text-umber dark:bg-zinc-800 dark:text-zinc-100 shadow-xs'
+              : 'text-taupe hover:text-umber dark:text-zinc-400 dark:hover:text-zinc-100'
+          }`}
+        >
+          <Edit3 size={16} className={activeTab === 'manual' ? 'text-stone-700 dark:text-zinc-300' : ''} />
+          <span>Manual Setup</span>
+        </button>
+      </div>
+
+      {/* TAB 1: AI TOPIC GENERATOR */}
+      {activeTab === 'ai' && (
+        <Card className="rounded-3xl border border-amber-200/80 dark:border-amber-900/40 bg-gradient-to-b from-amber-50/50 via-white to-white dark:from-amber-950/20 dark:via-zinc-900 dark:to-zinc-900 p-6 sm:p-8 shadow-xs">
           <form onSubmit={handleGenerateAIDeck} className="space-y-6">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                  <Sparkles size={22} />
-                </div>
-                <div>
-                  <h3 className="text-lg md:text-xl font-bold text-umber dark:text-zinc-100 tracking-tight">Generate Flashcards with AI</h3>
-                  <p className="text-xs md:text-sm text-taupe dark:text-zinc-400">Enter any topic or concept to generate a ready-to-study deck in seconds.</p>
-                </div>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <Sparkles size={22} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-umber dark:text-zinc-100">
+                  Instant AI Flashcard Generator
+                </h3>
+                <p className="text-xs text-taupe dark:text-zinc-400">
+                  Type any study subject or concept to synthesize a ready-to-study deck.
+                </p>
               </div>
             </div>
 
             {/* Topic Input */}
             <div>
               <label className="block text-xs font-bold text-taupe dark:text-zinc-400 uppercase tracking-wider mb-2">
-                Study Topic or Keyword
+                Study Topic or Keyword *
               </label>
               <div className="relative">
                 <Input 
                   value={aiTopic} 
                   onChange={(e) => setAiTopic(e.target.value)} 
-                  placeholder="e.g., 'World War II Key Turning Points' or 'Neurotransmitters & Synapses'" 
-                  className="h-12 pl-4 pr-10 text-sm md:text-base bg-white dark:bg-zinc-950 border-stone-200 dark:border-zinc-800 text-umber dark:text-zinc-100 focus-visible:ring-amber-500 rounded-xl shadow-2xs"
+                  placeholder="e.g., 'Cellular Respiration and Krebs Cycle' or 'Python Object-Oriented Programming'" 
+                  className="h-12 pl-4 pr-10 text-sm sm:text-base bg-white dark:bg-zinc-950 border-stone-200 dark:border-zinc-800 text-umber dark:text-zinc-100 focus-visible:ring-amber-500 rounded-xl shadow-2xs"
                 />
                 {aiTopic && (
                   <button 
@@ -289,7 +418,26 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
               </div>
             </div>
 
-            {/* Deck Size Selector */}
+            {/* Quick Topic Chips */}
+            <div>
+              <p className="text-[11px] font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider mb-2">
+                Need inspiration? Click a popular topic:
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {topicSuggestions.map((topic, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setAiTopic(topic)}
+                    className="text-xs px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-amber-100 dark:bg-zinc-800 dark:hover:bg-amber-950/60 text-stone-700 dark:text-zinc-300 hover:text-amber-900 dark:hover:text-amber-300 border border-stone-200/60 dark:border-zinc-700 transition-colors"
+                  >
+                    {topic}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Card Count Selector */}
             <div>
               <label className="block text-xs font-bold text-taupe dark:text-zinc-400 uppercase tracking-wider mb-2.5">
                 Deck Size
@@ -314,83 +462,193 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
             </div>
 
             {/* Actions */}
-            <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-stone-200/60 dark:border-zinc-800/80">
-              <button 
-                type="button" 
-                onClick={() => fileInputRef.current?.click()} 
-                className="text-xs font-semibold text-amber-800 dark:text-amber-400 hover:underline flex items-center gap-1.5 py-1"
-              >
-                <UploadCloud size={16} /> Or import notes from file (.pdf, .pptx, .txt)
-              </button>
+            <div className="pt-3 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-stone-200/60 dark:border-zinc-800/80">
+              <span className="text-xs text-taupe dark:text-zinc-400">
+                Generates {cardCount} flashcards with definitions
+              </span>
               
               <Button 
                 type="submit" 
                 disabled={!aiTopic.trim()} 
-                className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl h-11 px-7 shadow-xs hover:shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl h-11 px-7 shadow-xs hover:shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                <Sparkles size={16} /> Generate {cardCount} Cards
+                <Sparkles size={16} /> Generate {cardCount} Flashcards
               </Button>
             </div>
           </form>
-        )}
-      </Card>
+        </Card>
+      )}
 
-      {/* Divider */}
-      <div className="flex items-center gap-4 w-full">
-        <div className="h-px bg-stone-200 dark:bg-zinc-800 flex-1"></div>
-        <span className="text-[11px] font-bold text-taupe dark:text-zinc-500 uppercase tracking-widest">Or create from scratch</span>
-        <div className="h-px bg-stone-200 dark:bg-zinc-800 flex-1"></div>
-      </div>
-      
-      {/* Manual Creation Card */}
-      <Card className="p-6 md:p-8 shadow-xs border border-stone-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-3xl">
-        <form onSubmit={handleManualCreate}>
-          <div className="flex items-center gap-3 border-b border-stone-200/60 dark:border-zinc-800/80 pb-4 mb-6">
-            <div className="w-9 h-9 rounded-xl bg-stone-100 dark:bg-zinc-800 text-umber dark:text-zinc-100 flex items-center justify-center">
-              <Edit3 size={18} />
-            </div>
-            <div>
-              <h3 className="font-bold text-lg text-umber dark:text-zinc-100">Manual Deck Setup</h3>
-              <p className="text-xs text-taupe dark:text-zinc-400">Create an empty deck structure and add flashcards one by one.</p>
-            </div>
-          </div>
+      {/* TAB 2: FILE UPLOAD */}
+      {activeTab === 'file' && (
+        <Card className="rounded-3xl border border-blue-200/80 dark:border-blue-900/40 bg-gradient-to-b from-blue-50/40 via-white to-white dark:from-blue-950/20 dark:via-zinc-900 dark:to-zinc-900 p-6 sm:p-8 shadow-xs">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileSelect} 
+            accept=".pdf,.pptx,.txt" 
+            className="hidden" 
+          />
 
-          <div className="space-y-5">
-            <div>
-              <label className="block text-xs font-bold text-taupe dark:text-zinc-400 uppercase tracking-wider mb-2">Deck Title *</label>
-              <Input 
-                type="text" 
-                value={deckName} 
-                onChange={(e) => setDeckName(e.target.value)} 
-                required 
-                placeholder="e.g. Constitutional Law Principles" 
-                className="h-11 bg-stone-50/50 dark:bg-zinc-950 border-stone-200 dark:border-zinc-800 text-umber dark:text-zinc-100 focus-visible:ring-amber-600 rounded-xl" 
-              />
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                <UploadCloud size={22} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-umber dark:text-zinc-100">
+                  Import Notes & Lecture Slides
+                </h3>
+                <p className="text-xs text-taupe dark:text-zinc-400">
+                  Upload a PDF, PowerPoint (.pptx), or text file to extract cards automatically.
+                </p>
+              </div>
             </div>
-            <div>
-              <label className="block text-xs font-bold text-taupe dark:text-zinc-400 uppercase tracking-wider mb-2">Description (Optional)</label>
-              <Textarea 
-                value={deckDesc} 
-                onChange={(e) => setDeckDesc(e.target.value)} 
-                placeholder="Briefly describe what this deck covers..." 
-                className="h-20 resize-none bg-stone-50/50 dark:bg-zinc-950 border-stone-200 dark:border-zinc-800 text-umber dark:text-zinc-100 focus-visible:ring-amber-600 rounded-xl text-sm" 
-              />
-            </div>
-          </div>
 
-          <div className="flex justify-end mt-6 pt-4 border-t border-stone-200/60 dark:border-zinc-800/80">
-            <Button 
-              type="submit" 
-              size="lg" 
-              disabled={!deckName.trim() || isSaving} 
-              className="bg-umber dark:bg-zinc-100 text-white dark:text-zinc-950 hover:bg-umber/90 dark:hover:bg-zinc-200 font-bold px-7 h-11 rounded-xl shadow-xs disabled:opacity-50 min-w-[160px]"
+            {/* File Dropzone Area */}
+            <div 
+              onClick={() => fileInputRef.current?.click()}
+              className={`p-8 sm:p-10 border-2 border-dashed rounded-2xl text-center cursor-pointer transition-all flex flex-col items-center justify-center ${
+                selectedFile 
+                  ? 'border-blue-500 bg-blue-50/40 dark:bg-blue-950/30' 
+                  : 'border-stone-300 dark:border-zinc-800 hover:border-blue-400 bg-white dark:bg-zinc-950/50'
+              }`}
             >
-              {isSaving ? <RotateCw className="mr-2 animate-spin" size={16} /> : null}
-              {isSaving ? "Saving..." : "Create Empty Deck"}
-            </Button>
+              <div className="w-14 h-14 rounded-2xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-3">
+                <FileText size={28} />
+              </div>
+              {selectedFile ? (
+                <div>
+                  <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300 text-xs font-bold mb-1">
+                    File Selected
+                  </Badge>
+                  <p className="font-bold text-sm sm:text-base text-umber dark:text-zinc-100">
+                    {selectedFile.name}
+                  </p>
+                  <p className="text-xs text-taupe dark:text-zinc-400 mt-1">
+                    {(selectedFile.size / 1024).toFixed(1)} KB · Click to choose a different file
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <p className="font-bold text-sm sm:text-base text-umber dark:text-zinc-100 mb-1">
+                    Click to browse or drop your file here
+                  </p>
+                  <p className="text-xs text-taupe dark:text-zinc-400 max-w-sm mx-auto">
+                    Supports PDF documents (.pdf), PowerPoint slide decks (.pptx), and plain text notes (.txt).
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Format Badges and Failover Notice */}
+            <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-stone-100 dark:bg-zinc-800/60 border border-stone-200/60 dark:border-zinc-700/60">
+              <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-zinc-300">
+                <Info size={14} className="text-blue-500 shrink-0" />
+                <span>Supported: <strong>PDF, PPTX, TXT</strong> (up to 20MB)</span>
+              </div>
+              <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                <Check size={12} strokeWidth={3} /> Gemini & Groq Failover Enabled
+              </span>
+            </div>
+
+            {/* Card Count Selector */}
+            <div>
+              <label className="block text-xs font-bold text-taupe dark:text-zinc-400 uppercase tracking-wider mb-2.5">
+                Number of Cards to Extract
+              </label>
+              <div className="grid grid-cols-4 gap-2 sm:gap-3">
+                {[5, 10, 15, 20].map((num) => (
+                  <button 
+                    key={num} 
+                    type="button" 
+                    onClick={() => setCardCount(num)} 
+                    className={`h-11 rounded-xl text-xs sm:text-sm font-bold border transition-all flex items-center justify-center gap-1.5 ${
+                      cardCount === num 
+                        ? 'bg-blue-600 text-white border-blue-700 shadow-xs scale-[1.02]' 
+                        : 'bg-white dark:bg-zinc-950 text-umber dark:text-zinc-300 border-stone-200 dark:border-zinc-800 hover:border-blue-300 dark:hover:border-blue-700'
+                    }`}
+                  >
+                    <span>{num}</span>
+                    <span className="font-normal opacity-90 text-[11px] hidden sm:inline">Cards</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Action Button */}
+            <div className="pt-3 flex justify-end border-t border-stone-200/60 dark:border-zinc-800/80">
+              <Button 
+                onClick={handleProcessFile} 
+                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl h-11 px-7 shadow-xs hover:shadow-md transition-all flex items-center justify-center gap-2"
+              >
+                <UploadCloud size={16} />
+                {selectedFile ? `Analyze File & Generate ${cardCount} Cards` : 'Choose File to Process'}
+              </Button>
+            </div>
           </div>
-        </form>
-      </Card>
+        </Card>
+      )}
+
+      {/* TAB 3: MANUAL DECK SETUP */}
+      {activeTab === 'manual' && (
+        <Card className="p-6 sm:p-8 shadow-xs border border-stone-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-3xl">
+          <form onSubmit={handleManualCreate} className="space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-stone-100 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 flex items-center justify-center shrink-0">
+                <Edit3 size={20} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-umber dark:text-zinc-100">
+                  Manual Deck Setup
+                </h3>
+                <p className="text-xs text-taupe dark:text-zinc-400">
+                  Create a custom blank deck and add cards one-by-one.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-taupe dark:text-zinc-400 uppercase tracking-wider mb-2">
+                  Deck Title *
+                </label>
+                <Input 
+                  type="text" 
+                  value={deckName} 
+                  onChange={(e) => setDeckName(e.target.value)} 
+                  required 
+                  placeholder="e.g. Constitutional Law Principles" 
+                  className="h-12 bg-stone-50/50 dark:bg-zinc-950 border-stone-200 dark:border-zinc-800 text-umber dark:text-zinc-100 focus-visible:ring-amber-500 rounded-xl" 
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-taupe dark:text-zinc-400 uppercase tracking-wider mb-2">
+                  Description (Optional)
+                </label>
+                <Textarea 
+                  value={deckDesc} 
+                  onChange={(e) => setDeckDesc(e.target.value)} 
+                  placeholder="Briefly describe what this deck covers..." 
+                  className="h-24 resize-none bg-stone-50/50 dark:bg-zinc-950 border-stone-200 dark:border-zinc-800 text-umber dark:text-zinc-100 focus-visible:ring-amber-500 rounded-xl text-sm" 
+                />
+              </div>
+            </div>
+
+            <div className="pt-3 flex justify-end border-t border-stone-200/60 dark:border-zinc-800/80">
+              <Button 
+                type="submit" 
+                disabled={!deckName.trim() || isSaving} 
+                className="w-full sm:w-auto bg-umber dark:bg-zinc-100 text-white dark:text-zinc-950 hover:bg-umber/90 dark:hover:bg-zinc-200 font-bold px-7 h-11 rounded-xl shadow-xs disabled:opacity-50 min-w-[160px]"
+              >
+                {isSaving ? <RotateCw className="mr-2 animate-spin" size={16} /> : null}
+                {isSaving ? "Creating..." : "Create Empty Deck"}
+              </Button>
+            </div>
+          </form>
+        </Card>
+      )}
     </div>
   );
 }
