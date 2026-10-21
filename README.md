@@ -1,10 +1,12 @@
 <div align="center">
 
-# ⚡ CramZero
+  <img src="assets/cramzero-logo.svg" alt="CramZero Logo" width="96" height="96" />
 
-<p align="center">
-  <strong>Frictionless AI Micro-Learning. Zero limits, instant mastery.</strong>
-</p>
+  <h1>CramZero</h1>
+
+  <p align="center">
+    <strong>Frictionless AI Micro-Learning. Zero limits, instant mastery.</strong>
+  </p>
 
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.141+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)

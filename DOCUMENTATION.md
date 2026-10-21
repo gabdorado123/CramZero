@@ -1,4 +1,4 @@
-# 📖 CramZero Master Documentation
+# <img src="assets/cramzero-logo.svg" alt="CramZero Logo" width="36" height="36" valign="middle" /> CramZero Master Documentation
 
 Welcome to the comprehensive technical documentation for **CramZero**, a high-performance, frictionless AI micro-learning and collaborative study platform.
 
