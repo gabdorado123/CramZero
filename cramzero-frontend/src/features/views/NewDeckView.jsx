@@ -34,6 +34,17 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
 
   const [cardCount, setCardCount] = useState(10);
   const [cardCountInput, setCardCountInput] = useState('10');
+  const [isCustomCount, setIsCustomCount] = useState(false);
+
+  const handleSelectPreset = (num) => {
+    setIsCustomCount(false);
+    setCardCount(num);
+    setCardCountInput(String(num));
+  };
+
+  const handleSelectCustom = () => {
+    setIsCustomCount(true);
+  };
 
   const handleCardCountChange = (val) => {
     setCardCountInput(val);
@@ -48,6 +59,7 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
     if (isNaN(num) || num < 1) {
       setCardCountInput('10');
       setCardCount(10);
+      setIsCustomCount(false);
     } else if (num > 50) {
       setCardCountInput('50');
       setCardCount(50);
@@ -477,9 +489,9 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
                   <button
                     key={num}
                     type="button"
-                    onClick={() => { setCardCount(num); setCardCountInput(String(num)); }}
+                    onClick={() => handleSelectPreset(num)}
                     className={`h-11 rounded-xl text-xs sm:text-sm font-bold border transition-all flex items-center justify-center gap-1.5 ${
-                      cardCount === num
+                      !isCustomCount && cardCount === num
                         ? 'bg-amber-500 text-white border-amber-600 shadow-xs scale-[1.02]'
                         : 'bg-white dark:bg-zinc-950 text-umber dark:text-zinc-300 border-stone-200 dark:border-zinc-800 hover:border-amber-300 dark:hover:border-amber-700'
                     }`}
@@ -492,9 +504,9 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
                 {/* Custom Button - shows inline input when active */}
                 <button
                   type="button"
-                  onClick={() => {}}
+                  onClick={handleSelectCustom}
                   className={`h-11 rounded-xl text-xs sm:text-sm font-bold border transition-all flex items-center justify-center gap-1 ${
-                    cardCount !== 5 && cardCount !== 10 && cardCount !== 15 && cardCount !== 20
+                    isCustomCount
                       ? 'bg-amber-500 text-white border-amber-600 shadow-xs scale-[1.02]'
                       : 'bg-white dark:bg-zinc-950 text-umber dark:text-zinc-300 border-stone-200 dark:border-zinc-800 hover:border-amber-300 dark:hover:border-amber-700'
                   }`}
@@ -503,8 +515,8 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
                 </button>
               </div>
 
-              {/* Custom Inline Input - shows when custom value is selected */}
-              {(cardCount !== 5 && cardCount !== 10 && cardCount !== 15 && cardCount !== 20) && (
+              {/* Custom Inline Input - shows when custom mode is active */}
+              {isCustomCount && (
                 <div className="mt-3 flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
                   <Input
                     type="number"
@@ -632,9 +644,9 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
                   <button
                     key={num}
                     type="button"
-                    onClick={() => { setCardCount(num); setCardCountInput(String(num)); }}
+                    onClick={() => handleSelectPreset(num)}
                     className={`h-11 rounded-xl text-xs sm:text-sm font-bold border transition-all flex items-center justify-center gap-1.5 ${
-                      cardCount === num
+                      !isCustomCount && cardCount === num
                         ? 'bg-blue-600 text-white border-blue-700 shadow-xs scale-[1.02]'
                         : 'bg-white dark:bg-zinc-950 text-umber dark:text-zinc-300 border-stone-200 dark:border-zinc-800 hover:border-blue-300 dark:hover:border-blue-700'
                     }`}
@@ -647,9 +659,9 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
                 {/* Custom Button - shows inline input when active */}
                 <button
                   type="button"
-                  onClick={() => {}}
+                  onClick={handleSelectCustom}
                   className={`h-11 rounded-xl text-xs sm:text-sm font-bold border transition-all flex items-center justify-center gap-1 ${
-                    cardCount !== 5 && cardCount !== 10 && cardCount !== 15 && cardCount !== 20
+                    isCustomCount
                       ? 'bg-blue-600 text-white border-blue-700 shadow-xs scale-[1.02]'
                       : 'bg-white dark:bg-zinc-950 text-umber dark:text-zinc-300 border-stone-200 dark:border-zinc-800 hover:border-blue-300 dark:hover:border-blue-700'
                   }`}
@@ -658,8 +670,8 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
                 </button>
               </div>
 
-              {/* Custom Inline Input - shows when custom value is selected */}
-              {(cardCount !== 5 && cardCount !== 10 && cardCount !== 15 && cardCount !== 20) && (
+              {/* Custom Inline Input - shows when custom mode is active */}
+              {isCustomCount && (
                 <div className="mt-3 flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
                   <Input
                     type="number"
