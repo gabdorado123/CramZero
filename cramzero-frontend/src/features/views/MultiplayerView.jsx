@@ -1,13 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { flushSync } from 'react-dom';
 import {
   BookOpen, Clock, FileText, Send, ChevronLeft, ChevronRight, RotateCw, Menu, X,
   MessageCircle, UploadCloud, Sparkles, Home, Library, Users, BarChart2, Play, Plus,
-  ArrowLeft, Mic, MicOff, Volume2, Settings, Edit3, Trash2, HelpCircle, CheckCircle,
+  ArrowLeft, Mic, MicOff, Volume2, VolumeX, Settings, Edit3, Trash2, HelpCircle, CheckCircle,
   Search, Layers, Brain, Zap, MessageSquare, TrendingUp, Calendar, Target,
   Shuffle, Maximize, Minimize, RotateCcw, Star, Check, ArrowRight, ShieldCheck, Award, Code, Cpu,
   Download, Share2, Timer, PieChart, Activity, AlertTriangle, Link as LinkIcon, Inbox,
-  Sun, Moon, Copy, Trophy, Crown, Flame, Swords
+  Sun, Moon, Copy, Trophy, Crown, Flame, Swords, Smile, Frown, Zap as ZapIcon, ThumbsUp, Heart, Ghost,
+  MessageCircle as MessageCircleIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,6 +24,7 @@ import { Marker, MarkerContent } from '@/components/ui/marker';
 import { Message, MessageAvatar, MessageContent, MessageFooter } from '@/components/ui/message';
 import ReactMarkdown from 'react-markdown';
 import { API_BASE } from '@/lib/api';
+import { initAudio, preloadAllSfx, playSfx, playSfxIfAllowed, setSfxVolume, getSfxVolume, toggleSfxMute, isSfxMuted, SFX_NAMES, cleanupAudio } from '@/lib/sfx';
 
 export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvatarUrl, setActiveDeck }) {
   const [view, setView] = useState('menu');
@@ -51,6 +53,42 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
   
   const [answeredStatus, setAnsweredStatus] = useState(new Set());
   const [roundScores, setRoundScores] = useState({});
+
+  // Emote & Sound state
+  const [emoteCooldown, setEmoteCooldown] = useState(0);
+  const [activeEmotes, setActiveEmotes] = useState([]);
+  const [showEmoteWheel, setShowEmoteWheel] = useState(false);
+  const [sfxVolume, setSfxVolumeState] = useState(() => getSfxVolume());
+  const [audioInitialized, setAudioInitialized] = useState(false);
+
+  // Emote helper functions
+  const getEmoteEmoji = (emoteId) => {
+    const emotes = {
+      gg: '👏',
+      nice: '👍',
+      oops: '😅',
+      mind_blown: '🤯',
+      thinking: '🤔',
+      laugh: '😂',
+      sad: '😢',
+      fire: '🔥',
+    };
+    return emotes[emoteId] || '❓';
+  };
+
+  const getEmoteLabel = (emoteId) => {
+    const labels = {
+      gg: 'Good Game',
+      nice: 'Nice!',
+      oops: 'Oops',
+      mind_blown: 'Mind Blown',
+      thinking: 'Thinking...',
+      laugh: 'Haha',
+      sad: 'Sad',
+      fire: 'On Fire!',
+    };
+    return labels[emoteId] || 'Unknown';
+  };
 
   // Sync player name if userDisplayName changes
   useEffect(() => {
@@ -153,6 +191,12 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
       clearTimeout(connectionTimeout);
       setConnectionStatus('connected');
       socket.send(JSON.stringify(message));
+      // Initialize audio and preload sounds on first connection
+      if (!audioInitialized) {
+        initAudio();
+        preloadAllSfx();
+        setAudioInitialized(true);
+      }
     };
     socket.onmessage = (event) => {
       const payload = JSON.parse(event.data);
@@ -173,7 +217,20 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
       }
 
       if (payload.room) applyRoomState(payload.room);
-      if (payload.type === 'answer_result') setAnswerResult(payload);
+      if (payload.type === 'answer_result') {
+        setAnswerResult(payload);
+        if (payload.isCorrect) {
+          playSfx('answer_correct');
+        } else {
+          playSfx('answer_incorrect');
+        }
+      }
+      if (payload.type === 'emote') {
+        playSfx(`emote_${payload.emoteId}`);
+        const emoteObj = { id: `${payload.playerId}-${payload.timestamp}`, ...payload };
+        setActiveEmotes(prev => [...prev, emoteObj]);
+        setTimeout(() => setActiveEmotes(prev => prev.filter(e => e.id !== emoteObj.id)), 3000);
+      }
       if (payload.type === 'error') {
         setServerError(payload.message);
         setConnectionStatus('error');
@@ -195,6 +252,14 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
     if (socketRef.current?.readyState === WebSocket.OPEN) {
       socketRef.current.send(JSON.stringify(message));
     }
+  };
+
+  const sendEmote = (emoteId) => {
+    if (emoteCooldown > 0) return;
+    sendMessage({ type: 'emote', emoteId });
+    setEmoteCooldown(3000);
+    setTimeout(() => setEmoteCooldown(0), 3000);
+    playSfx('emote_sent');
   };
 
   const requestExit = () => setShowExitConfirm(true);
@@ -229,6 +294,84 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
 
   useEffect(() => () => socketRef.current?.close(), []);
 
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => cleanupAudio();
+  }, []);
+
+  // Emote Wheel Component
+  const EmoteWheel = useCallback(({ isOpen, onClose, onSelect, disabled, cooldownMs }) => {
+    if (!isOpen) return null;
+    const emotes = [
+      { id: 'gg', emoji: '👏', label: 'Good Game' },
+      { id: 'nice', emoji: '👍', label: 'Nice!' },
+      { id: 'oops', emoji: '😅', label: 'Oops' },
+      { id: 'mind_blown', emoji: '🤯', label: 'Mind Blown' },
+      { id: 'thinking', emoji: '🤔', label: 'Thinking...' },
+      { id: 'laugh', emoji: '😂', label: 'Haha' },
+      { id: 'sad', emoji: '😢', label: 'Sad' },
+      { id: 'fire', emoji: '🔥', label: 'On Fire!' },
+    ];
+
+    return (
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] animate-in zoom-in-95 duration-200">
+        <div className="relative flex flex-col items-center gap-2">
+          {/* Emote Buttons Ring */}
+          <div className="relative w-32 h-32" role="group" aria-label="Emotes">
+            {emotes.map((emote, i) => {
+              const angle = (i / emotes.length) * 2 * Math.PI - Math.PI / 2;
+              const radius = 64;
+              const x = radius * Math.cos(angle);
+              const y = radius * Math.sin(angle);
+              return (
+                <button
+                  key={emote.id}
+                  onClick={() => { onSelect(emote.id); onClose(); }}
+                  disabled={disabled}
+                  className="absolute top-1/2 left-1/2 w-12 h-12 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white dark:bg-zinc-900 border-2 border-amber-300 dark:border-amber-800 shadow-lg text-2xl flex items-center justify-center transition-all duration-200 hover:scale-115 hover:border-amber-500 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ transform: `translate(-50%, -50%) translate(${x}px, ${y}px)` }}
+                  aria-label={emote.label}
+                >
+                  {emote.emoji}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Center Close/Cooldown Button */}
+          <button
+            onClick={onClose}
+            className="relative w-16 h-16 rounded-full bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 font-bold text-xl flex items-center justify-center shadow-lg border-2 border-amber-300 dark:border-amber-800 transition-all hover:scale-105"
+            aria-label={disabled ? `Cooldown: ${Math.ceil(cooldownMs / 1000)}s` : 'Close emote wheel'}
+          >
+            {disabled ? (
+              <>
+                <svg className="w-8 h-8" viewBox="0 0 32 32">
+                  <circle
+                    cx="16"
+                    cy="16"
+                    r="14"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    fill="none"
+                    strokeDasharray={88}
+                    strokeDashoffset={88 * (1 - cooldownMs / 3000)}
+                    strokeLinecap="round"
+                    className="text-amber-500"
+                    style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }}
+                  />
+                </svg>
+                <span className="sr-only">Cooldown: {Math.ceil(cooldownMs / 1000)}s</span>
+              </>
+            ) : (
+              <X size={20} />
+            )}
+          </button>
+        </div>
+      </div>
+    );
+  }, []);
+
   // Synchronized countdown fallback using server offset
   useEffect(() => {
     if (view !== 'countdown' || !countdownStartedAt) return undefined;
@@ -242,6 +385,15 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
     const interval = setInterval(updateCountdown, 250);
     return () => clearInterval(interval);
   }, [view, countdownStartedAt]);
+
+  // Countdown sound effects
+  useEffect(() => {
+    if (view !== 'countdown') return;
+    if (countdown === 3) playSfx('countdown_3');
+    else if (countdown === 2) playSfx('countdown_2');
+    else if (countdown === 1) playSfx('countdown_1');
+    else if (countdown === 0) playSfx('countdown_go');
+  }, [view, countdown]);
 
   // Synchronized question timer fallback using server offset
   useEffect(() => {
@@ -300,6 +452,7 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
     if (selectedAnswer !== null) return;
     setSelectedAnswer(opt);
     sendMessage({ type: 'answer', answer: opt });
+    playSfx('answer_locked');
   };
 
   const handleNextQuestion = () => {
@@ -441,12 +594,32 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
     );
   }
 
+  // Player join/leave sounds in lobby
+  useEffect(() => {
+    if (view !== 'lobby') return;
+    if (players.length > 1) {
+      // Check if a new player joined (simplified - just play on mount if >1 player)
+      playSfx('player_join');
+    }
+  }, [view, players]);
+
   if (view === 'lobby') {
     return (
       <div className="max-w-3xl mx-auto pb-12 p-4 md:p-8 text-center mt-10 animate-in fade-in duration-300">
         <div className="mb-4 flex items-center justify-between gap-4">
           <h2 className="text-left text-xl font-bold text-taupe dark:text-zinc-500 uppercase tracking-widest">Waiting for players...</h2>
-          <Badge className="shrink-0 gap-2 rounded-full border-none bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"><span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" /> Live room</Badge>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleSfxMute}
+              className="text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100"
+              title={isSfxMuted() ? 'Unmute sounds' : 'Mute sounds'}
+            >
+              {isSfxMuted() ? <VolumeX size={20} /> : <Volume2 size={20} />}
+            </Button>
+            <Badge className="shrink-0 gap-2 rounded-full border-none bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"><span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" /> Live room</Badge>
+          </div>
         </div>
         <Card className="p-6 md:p-10 shadow-sm mb-10 bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 rounded-2xl relative animate-in slide-in-from-bottom-2 duration-300">
           <p className="text-sm font-bold text-taupe dark:text-zinc-500 uppercase tracking-widest mb-2">Join at CramZero with Pin:</p>
@@ -669,6 +842,13 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
     );
   }
 
+  // Round end sound
+  useEffect(() => {
+    if (view === 'round-result') {
+      playSfx('round_end');
+    }
+  }, [view]);
+
   if (view === 'round-result') {
     const currentCard = selectedDeck.cards[currentQIndex];
     const isCorrect = answerResult?.isCorrect || false;
@@ -685,9 +865,30 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
               Question {currentQIndex + 1}
             </h2>
           </div>
-          <Button variant="ghost" size="icon" onClick={requestExit} className="text-taupe dark:text-zinc-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 -mr-2" title="Quit Match">
-            <X size={20} />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowEmoteWheel(true)}
+              disabled={emoteCooldown > 0}
+              className="text-taupe dark:text-zinc-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 disabled:opacity-50"
+              title={emoteCooldown > 0 ? `Emote cooldown: ${Math.ceil(emoteCooldown / 1000)}s` : 'Send Emote'}
+            >
+              <MessageCircleIcon size={20} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleSfxMute}
+              className="text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100"
+              title={isSfxMuted() ? 'Unmute sounds' : 'Mute sounds'}
+            >
+              {isSfxMuted() ? <VolumeX size={20} /> : <Volume2 size={20} />}
+            </Button>
+            <Button variant="ghost" size="icon" onClick={requestExit} className="text-taupe dark:text-zinc-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 -mr-2" title="Quit Match">
+              <X size={20} />
+            </Button>
+          </div>
         </div>
 
         <div className="pb-2 px-2 md:px-0 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
@@ -755,6 +956,37 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
             </Button>
           </div>
         )}
+
+        {/* Emote Bubbles */}
+        {activeEmotes.map((emote) => {
+          const sender = players.find(p => p.id === emote.playerId);
+          if (!sender) return null;
+          const isP1 = sender === players[0];
+          return (
+            <div
+              key={emote.id}
+              className={`fixed z-[50] animate-in zoom-in-95 duration-200 pointer-events-none ${
+                isP1 ? 'bottom-[60%] left-1/2 -translate-x-1/2' : 'bottom-[60%] right-1/2 translate-x-1/2'
+              }`}
+              style={{ transform: isP1 ? 'translateX(-50%) translateY(0)' : 'translateX(50%) translateY(0)' }}
+            >
+              <div className="bg-white dark:bg-zinc-900 border-2 border-amber-300 dark:border-amber-800 rounded-2xl px-4 py-2 shadow-lg flex flex-col items-center gap-1">
+                <span className="text-3xl">{getEmoteEmoji(emote.emoteId)}</span>
+                <span className="text-xs font-bold text-umber dark:text-zinc-100">{getEmoteLabel(emote.emoteId)}</span>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Emote Wheel */}
+        <EmoteWheel
+          isOpen={showEmoteWheel}
+          onClose={() => setShowEmoteWheel(false)}
+          onSelect={sendEmote}
+          disabled={emoteCooldown > 0}
+          cooldownMs={emoteCooldown}
+        />
+
         {exitConfirmation}
       </div>
     );
@@ -782,6 +1014,25 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
             <Badge variant="outline" className={`px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 font-mono font-bold text-sm md:text-base border transition-colors ${timeLeft < 5 ? 'text-rose-600 dark:text-rose-400 border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 animate-pulse' : 'text-umber dark:text-zinc-100 border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900'}`}>
               <Timer size={16} /> {timeLeft}s
             </Badge>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleSfxMute}
+              className="text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100"
+              title={isSfxMuted() ? 'Unmute sounds' : 'Mute sounds'}
+            >
+              {isSfxMuted() ? <VolumeX size={20} /> : <Volume2 size={20} />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowEmoteWheel(true)}
+              disabled={emoteCooldown > 0}
+              className="text-taupe dark:text-zinc-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 disabled:opacity-50"
+              title={emoteCooldown > 0 ? `Emote cooldown: ${Math.ceil(emoteCooldown / 1000)}s` : 'Send Emote'}
+            >
+              <MessageCircleIcon size={20} />
+            </Button>
             <Button variant="ghost" size="icon" onClick={requestExit} className="text-taupe dark:text-zinc-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30" title="Quit Match">
               <X size={20} />
             </Button>
@@ -910,10 +1161,58 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
             </div>
           </Card>
         </div>
+
+        {/* Emote Bubbles */}
+        {activeEmotes.map((emote) => {
+          const sender = players.find(p => p.id === emote.playerId);
+          if (!sender) return null;
+          const isP1 = sender === players[0];
+          return (
+            <div
+              key={emote.id}
+              className={`fixed z-[50] animate-in zoom-in-95 duration-200 pointer-events-none ${
+                isP1 ? 'bottom-[60%] left-1/2 -translate-x-1/2' : 'bottom-[60%] right-1/2 translate-x-1/2'
+              }`}
+              style={{ transform: isP1 ? 'translateX(-50%) translateY(0)' : 'translateX(50%) translateY(0)' }}
+            >
+              <div className="bg-white dark:bg-zinc-900 border-2 border-amber-300 dark:border-amber-800 rounded-2xl px-4 py-2 shadow-lg flex flex-col items-center gap-1">
+                <span className="text-3xl">{getEmoteEmoji(emote.emoteId)}</span>
+                <span className="text-xs font-bold text-umber dark:text-zinc-100">{getEmoteLabel(emote.emoteId)}</span>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Emote Wheel */}
+        <EmoteWheel
+          isOpen={showEmoteWheel}
+          onClose={() => setShowEmoteWheel(false)}
+          onSelect={sendEmote}
+          disabled={emoteCooldown > 0}
+          cooldownMs={emoteCooldown}
+        />
+
         {exitConfirmation}
       </div>
     );
   }
+
+  // Match result sounds
+  useEffect(() => {
+    if (view !== 'results') return;
+    const finalStandings = [...players].sort((a, b) => b.score - a.score);
+    const winner = finalStandings[0];
+    const isWinner = winner?.isMe;
+    const isTie = finalStandings.length > 1 && finalStandings[0].score === finalStandings[1].score;
+
+    if (isTie) {
+      playSfx('match_draw');
+    } else if (isWinner) {
+      playSfx('match_victory');
+    } else {
+      playSfx('match_defeat');
+    }
+  }, [view, players]);
 
   // --- ELEVATED BATTLE RESULTS PODIUM ARENA ---
   if (view === 'results') {

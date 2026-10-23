@@ -9,6 +9,10 @@ const QUESTION_SECONDS = 15;
 const rooms = new Map();
 const lockPath = path.resolve('.multiplayer-server.lock');
 
+// Valid emote IDs for validation
+const VALID_EMOTES = ['gg', 'nice', 'oops', 'mind_blown', 'thinking', 'laugh', 'sad', 'fire'];
+const EMOTE_COOLDOWN_MS = 3000;
+
 const acquireLock = () => {
   try {
     const existingPid = Number(fs.readFileSync(lockPath, 'utf8'));
@@ -150,6 +154,7 @@ const handleMessage = (socket, message) => {
       countdownStartedAt: null,
       answers: new Map(),
       timer: null,
+      emoteCooldowns: new Map(),
     };
     rooms.set(room.pin, room);
     socket.room = room;
@@ -237,6 +242,21 @@ const handleMessage = (socket, message) => {
     room.questionStartedAt = null;
     room.countdownStartedAt = Date.now();
     publishState(room);
+  }
+
+  if (payload.type === 'emote') {
+    if (!['countdown', 'playing', 'round-result'].includes(room.phase)) return;
+    const player = room.players.find((p) => p.id === socket.playerId);
+    if (!player) return;
+    const emoteId = payload.emoteId;
+    if (!VALID_EMOTES.includes(emoteId)) return;
+    const now = Date.now();
+    const lastEmote = room.emoteCooldowns?.get(player.id) || 0;
+    if (now - lastEmote < EMOTE_COOLDOWN_MS) return;
+    if (!room.emoteCooldowns) room.emoteCooldowns = new Map();
+    room.emoteCooldowns.set(player.id, now);
+    broadcast(room, { type: 'emote', playerId: player.id, playerName: player.name, emoteId, timestamp: now });
+    return;
   }
 };
 
