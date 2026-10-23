@@ -33,40 +33,27 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
   });
 
   const [cardCount, setCardCount] = useState(10);
-  const [isCustomCount, setIsCustomCount] = useState(false);
-  const [customInput, setCustomInput] = useState('25');
+  const [cardCountInput, setCardCountInput] = useState('10');
 
-  const handleSelectPreset = (num) => {
-    setIsCustomCount(false);
-    setCardCount(num);
-  };
-
-  const handleSelectCustom = () => {
-    setIsCustomCount(true);
-    const parsed = parseInt(customInput, 10);
-    const valid = !isNaN(parsed) && parsed > 0 ? Math.min(50, Math.max(1, parsed)) : 25;
-    setCardCount(valid);
-  };
-
-  const handleCustomCountChange = (val) => {
-    setCustomInput(val);
+  const handleCardCountChange = (val) => {
+    setCardCountInput(val);
     const num = parseInt(val, 10);
     if (!isNaN(num) && num > 0) {
       setCardCount(Math.min(50, Math.max(1, num)));
     }
   };
 
-  const handleCustomBlur = () => {
-    const num = parseInt(customInput, 10);
+  const handleCardCountBlur = () => {
+    const num = parseInt(cardCountInput, 10);
     if (isNaN(num) || num < 1) {
-      setCustomInput('10');
+      setCardCountInput('10');
       setCardCount(10);
     } else if (num > 50) {
-      setCustomInput('50');
+      setCardCountInput('50');
       setCardCount(50);
       toast.info('Maximum card count is 50 for optimal AI quality.');
     } else {
-      setCustomInput(String(num));
+      setCardCountInput(String(num));
       setCardCount(num);
     }
   };
@@ -474,76 +461,27 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
               </div>
             </div>
 
-            {/* Card Count Selector */}
+            {/* Card Count Selector - Simple Input */}
             <div>
-              <div className="flex items-center justify-between mb-2.5">
-                <label className="block text-xs font-bold text-taupe dark:text-zinc-400 uppercase tracking-wider">
-                  Deck Size
-                </label>
-                <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
-                  {cardCount} cards selected
+              <label className="block text-xs font-bold text-taupe dark:text-zinc-400 uppercase tracking-wider mb-2">
+                Number of Cards (1-50)
+              </label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={cardCountInput}
+                  onChange={(e) => handleCardCountChange(e.target.value)}
+                  onBlur={handleCardCountBlur}
+                  placeholder="e.g. 10"
+                  className="h-10 w-24 text-center font-bold text-sm bg-white dark:bg-zinc-900 border-stone-200 dark:border-zinc-700 text-umber dark:text-zinc-100 rounded-xl focus-visible:ring-amber-500 shadow-2xs"
+                />
+                <span className="text-xs font-medium text-taupe dark:text-zinc-400">cards</span>
+                <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                  (Max 50 for optimal AI quality)
                 </span>
               </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-2.5">
-                {[5, 10, 15, 20].map((num) => (
-                  <button 
-                    key={num} 
-                    type="button" 
-                    onClick={() => handleSelectPreset(num)} 
-                    className={`h-11 rounded-xl text-xs sm:text-sm font-bold border transition-all flex items-center justify-center gap-1.5 ${
-                      !isCustomCount && cardCount === num 
-                        ? 'bg-amber-500 text-white border-amber-600 shadow-xs scale-[1.02]' 
-                        : 'bg-white dark:bg-zinc-950 text-umber dark:text-zinc-300 border-stone-200 dark:border-zinc-800 hover:border-amber-300 dark:hover:border-amber-700'
-                    }`}
-                  >
-                    <span>{num}</span>
-                    <span className="font-normal opacity-90 text-[11px]">Cards</span>
-                  </button>
-                ))}
-
-                {/* Custom Card Count Button */}
-                <button
-                  type="button"
-                  onClick={handleSelectCustom}
-                  className={`h-11 rounded-xl text-xs sm:text-sm font-bold border transition-all flex items-center justify-center gap-1 col-span-2 sm:col-span-1 ${
-                    isCustomCount
-                      ? 'bg-amber-500 text-white border-amber-600 shadow-xs scale-[1.02]'
-                      : 'bg-white dark:bg-zinc-950 text-umber dark:text-zinc-300 border-stone-200 dark:border-zinc-800 hover:border-amber-300 dark:hover:border-amber-700'
-                  }`}
-                >
-                  <span>Custom</span>
-                  {isCustomCount && <span className="font-mono text-xs opacity-95">({cardCount})</span>}
-                </button>
-              </div>
-
-              {/* Custom Input Drawer */}
-              {isCustomCount && (
-                <div className="mt-3 p-3.5 rounded-2xl bg-amber-50/60 dark:bg-zinc-950 border border-amber-200/80 dark:border-zinc-800 animate-in fade-in slide-in-from-top-1 duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5">
-                    <label className="text-xs font-bold text-umber dark:text-zinc-200 whitespace-nowrap">
-                      Custom Number of Cards:
-                    </label>
-                    <div className="relative w-28">
-                      <Input 
-                        type="number"
-                        min={1}
-                        max={50}
-                        value={customInput}
-                        onChange={(e) => handleCustomCountChange(e.target.value)}
-                        onBlur={handleCustomBlur}
-                        placeholder="e.g. 25"
-                        className="h-10 text-center font-bold text-sm bg-white dark:bg-zinc-900 border-stone-200 dark:border-zinc-700 text-umber dark:text-zinc-100 rounded-xl focus-visible:ring-amber-500 shadow-2xs"
-                        autoFocus
-                      />
-                    </div>
-                    <span className="text-xs font-medium text-taupe dark:text-zinc-400">cards</span>
-                  </div>
-                  <span className="text-[11px] font-medium text-taupe dark:text-zinc-400">
-                    Enter any quantity from 1 to 50 cards
-                  </span>
-                </div>
-              )}
             </div>
 
             {/* Actions */}
@@ -637,76 +575,27 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
               </span>
             </div>
 
-            {/* Card Count Selector */}
+            {/* Card Count Selector - Simple Input */}
             <div>
-              <div className="flex items-center justify-between mb-2.5">
-                <label className="block text-xs font-bold text-taupe dark:text-zinc-400 uppercase tracking-wider">
-                  Number of Cards to Extract
-                </label>
-                <span className="text-xs font-semibold text-blue-700 dark:text-blue-400">
-                  {cardCount} cards selected
+              <label className="block text-xs font-bold text-taupe dark:text-zinc-400 uppercase tracking-wider mb-2">
+                Number of Cards to Extract (1-50)
+              </label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={cardCountInput}
+                  onChange={(e) => handleCardCountChange(e.target.value)}
+                  onBlur={handleCardCountBlur}
+                  placeholder="e.g. 10"
+                  className="h-10 w-24 text-center font-bold text-sm bg-white dark:bg-zinc-900 border-stone-200 dark:border-zinc-700 text-umber dark:text-zinc-100 rounded-xl focus-visible:ring-blue-500 shadow-2xs"
+                />
+                <span className="text-xs font-medium text-taupe dark:text-zinc-400">cards</span>
+                <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">
+                  (Max 50 for optimal AI quality)
                 </span>
               </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-2.5">
-                {[5, 10, 15, 20].map((num) => (
-                  <button 
-                    key={num} 
-                    type="button" 
-                    onClick={() => handleSelectPreset(num)} 
-                    className={`h-11 rounded-xl text-xs sm:text-sm font-bold border transition-all flex items-center justify-center gap-1.5 ${
-                      !isCustomCount && cardCount === num 
-                        ? 'bg-blue-600 text-white border-blue-700 shadow-xs scale-[1.02]' 
-                        : 'bg-white dark:bg-zinc-950 text-umber dark:text-zinc-300 border-stone-200 dark:border-zinc-800 hover:border-blue-300 dark:hover:border-blue-700'
-                    }`}
-                  >
-                    <span>{num}</span>
-                    <span className="font-normal opacity-90 text-[11px]">Cards</span>
-                  </button>
-                ))}
-
-                {/* Custom Card Count Button */}
-                <button
-                  type="button"
-                  onClick={handleSelectCustom}
-                  className={`h-11 rounded-xl text-xs sm:text-sm font-bold border transition-all flex items-center justify-center gap-1 col-span-2 sm:col-span-1 ${
-                    isCustomCount
-                      ? 'bg-blue-600 text-white border-blue-700 shadow-xs scale-[1.02]'
-                      : 'bg-white dark:bg-zinc-950 text-umber dark:text-zinc-300 border-stone-200 dark:border-zinc-800 hover:border-blue-300 dark:hover:border-blue-700'
-                  }`}
-                >
-                  <span>Custom</span>
-                  {isCustomCount && <span className="font-mono text-xs opacity-95">({cardCount})</span>}
-                </button>
-              </div>
-
-              {/* Custom Input Drawer */}
-              {isCustomCount && (
-                <div className="mt-3 p-3.5 rounded-2xl bg-blue-50/60 dark:bg-zinc-950 border border-blue-200/80 dark:border-zinc-800 animate-in fade-in slide-in-from-top-1 duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5">
-                    <label className="text-xs font-bold text-umber dark:text-zinc-200 whitespace-nowrap">
-                      Custom Number of Cards:
-                    </label>
-                    <div className="relative w-28">
-                      <Input 
-                        type="number"
-                        min={1}
-                        max={50}
-                        value={customInput}
-                        onChange={(e) => handleCustomCountChange(e.target.value)}
-                        onBlur={handleCustomBlur}
-                        placeholder="e.g. 25"
-                        className="h-10 text-center font-bold text-sm bg-white dark:bg-zinc-900 border-stone-200 dark:border-zinc-700 text-umber dark:text-zinc-100 rounded-xl focus-visible:ring-blue-500 shadow-2xs"
-                        autoFocus
-                      />
-                    </div>
-                    <span className="text-xs font-medium text-taupe dark:text-zinc-400">cards</span>
-                  </div>
-                  <span className="text-[11px] font-medium text-taupe dark:text-zinc-400">
-                    Extract between 1 and 50 cards from your document
-                  </span>
-                </div>
-              )}
             </div>
 
             {/* Action Button */}
