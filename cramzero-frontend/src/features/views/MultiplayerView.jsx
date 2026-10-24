@@ -27,6 +27,9 @@ import { API_BASE } from '@/lib/api';
 import { initAudio, preloadAllSfx, playSfx, playSfxIfAllowed, setSfxVolume, getSfxVolume, toggleSfxMute, isSfxMuted, SFX_NAMES, cleanupAudio } from '@/lib/sfx';
 
 export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvatarUrl, setActiveDeck }) {
+  // ==========================================
+  // 1. ALL HOOKS & STATE (Must be at the top)
+  // ==========================================
   const [view, setView] = useState('menu');
   const [pinInput, setPinInput] = useState(() => new URLSearchParams(window.location.search).get('room') || '');
   const [lobbyPin, setLobbyPin] = useState('');
@@ -61,43 +64,174 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
   const [sfxVolume, setSfxVolumeState] = useState(() => getSfxVolume());
   const [audioInitialized, setAudioInitialized] = useState(false);
 
-  // Emote helper functions
+  // Emote Wheel Hook (Must be declared at top level)
+  const EmoteWheel = useCallback(({ isOpen, onClose, onSelect, disabled, cooldownMs }) => {
+    if (!isOpen) return null;
+    const emotes = [
+      { id: 'gg', emoji: '👏', label: 'Good Game' },
+      { id: 'nice', emoji: '👍', label: 'Nice!' },
+      { id: 'oops', emoji: '😅', label: 'Oops' },
+      { id: 'mind_blown', emoji: '🤯', label: 'Mind Blown' },
+      { id: 'thinking', emoji: '🤔', label: 'Thinking...' },
+      { id: 'laugh', emoji: '😂', label: 'Haha' },
+      { id: 'sad', emoji: '😢', label: 'Sad' },
+      { id: 'fire', emoji: '🔥', label: 'On Fire!' },
+    ];
+
+    return (
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] animate-in zoom-in-95 duration-200">
+        <div className="relative flex flex-col items-center gap-2">
+          <div className="relative w-32 h-32" role="group" aria-label="Emotes">
+            {emotes.map((emote, i) => {
+              const angle = (i / emotes.length) * 2 * Math.PI - Math.PI / 2;
+              const radius = 64;
+              const x = radius * Math.cos(angle);
+              const y = radius * Math.sin(angle);
+              return (
+                <button
+                  key={emote.id}
+                  onClick={() => { onSelect(emote.id); onClose(); }}
+                  disabled={disabled}
+                  className="absolute top-1/2 left-1/2 w-12 h-12 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white dark:bg-zinc-900 border-2 border-amber-300 dark:border-amber-800 shadow-lg text-2xl flex items-center justify-center transition-all duration-200 hover:scale-115 hover:border-amber-500 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ transform: `translate(-50%, -50%) translate(${x}px, ${y}px)` }}
+                  aria-label={emote.label}
+                >
+                  {emote.emoji}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            onClick={onClose}
+            className="relative w-16 h-16 rounded-full bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 font-bold text-xl flex items-center justify-center shadow-lg border-2 border-amber-300 dark:border-amber-800 transition-all hover:scale-105"
+            aria-label={disabled ? `Cooldown: ${Math.ceil(cooldownMs / 1000)}s` : 'Close emote wheel'}
+          >
+            {disabled ? (
+              <>
+                <svg className="w-8 h-8" viewBox="0 0 32 32">
+                  <circle
+                    cx="16" cy="16" r="14"
+                    stroke="currentColor" strokeWidth="4" fill="none"
+                    strokeDasharray={88} strokeDashoffset={88 * (1 - cooldownMs / 3000)}
+                    strokeLinecap="round" className="text-amber-500"
+                    style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }}
+                  />
+                </svg>
+                <span className="sr-only">Cooldown: {Math.ceil(cooldownMs / 1000)}s</span>
+              </>
+            ) : (
+              <X size={20} />
+            )}
+          </button>
+        </div>
+      </div>
+    );
+  }, []);
+
+  // ==========================================
+  // 2. ALL EFFECT HOOKS (Strictly at top level)
+  // ==========================================
+  useEffect(() => {
+    if (userDisplayName && playerName === 'Student') {
+      setPlayerName(userDisplayName);
+    }
+  }, [userDisplayName, playerName]);
+
+  useEffect(() => () => socketRef.current?.close(), []);
+
+  useEffect(() => {
+    return () => cleanupAudio();
+  }, []);
+
+  // Synchronized countdown fallback using server offset
+  useEffect(() => {
+    if (view !== 'countdown' || !countdownStartedAt) return undefined;
+    const updateCountdown = () => {
+      const nowOnServer = Date.now() + serverOffsetRef.current;
+      const elapsed = Math.max(0, nowOnServer - countdownStartedAt);
+      const rem = Math.max(1, Math.ceil((3000 - elapsed) / 1000));
+      setCountdown(prev => (prev !== rem ? rem : prev));
+    };
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 250);
+    return () => clearInterval(interval);
+  }, [view, countdownStartedAt]);
+
+  // Countdown sound effects
+  useEffect(() => {
+    if (view !== 'countdown') return;
+    if (countdown === 3) playSfx('countdown_3');
+    else if (countdown === 2) playSfx('countdown_2');
+    else if (countdown === 1) playSfx('countdown_1');
+    else if (countdown === 0) playSfx('countdown_go');
+  }, [view, countdown]);
+
+  // Synchronized question timer fallback using server offset
+  useEffect(() => {
+    if (view !== 'playing' || !questionStartedAt) return undefined;
+    const updateTimer = () => {
+      const nowOnServer = Date.now() + serverOffsetRef.current;
+      const elapsed = Math.max(0, nowOnServer - questionStartedAt);
+      const rem = Math.max(0, Math.ceil((questionSeconds * 1000 - elapsed) / 1000));
+      setTimeLeft(prev => (prev !== rem ? rem : prev));
+    };
+    updateTimer();
+    const interval = setInterval(updateTimer, 250);
+    return () => clearInterval(interval);
+  }, [view, questionStartedAt, questionSeconds]);
+
+  // Player join sounds in lobby
+  useEffect(() => {
+    if (view !== 'lobby') return;
+    if (players.length > 1) {
+      playSfx('player_join');
+    }
+  }, [view, players]);
+
+  // Round end sound
+  useEffect(() => {
+    if (view === 'round-result') {
+      playSfx('round_end');
+    }
+  }, [view]);
+
+  // Match result sounds
+  useEffect(() => {
+    if (view !== 'results') return;
+    const finalStandings = [...players].sort((a, b) => b.score - a.score);
+    const winner = finalStandings[0];
+    const isWinner = winner?.isMe;
+    const isTie = finalStandings.length > 1 && finalStandings[0].score === finalStandings[1].score;
+
+    if (isTie) {
+      playSfx('match_draw');
+    } else if (isWinner) {
+      playSfx('match_victory');
+    } else {
+      playSfx('match_defeat');
+    }
+  }, [view, players]);
+
+  // ==========================================
+  // 3. HELPER FUNCTIONS
+  // ==========================================
   const getEmoteEmoji = (emoteId) => {
     const emotes = {
-      gg: '👏',
-      nice: '👍',
-      oops: '😅',
-      mind_blown: '🤯',
-      thinking: '🤔',
-      laugh: '😂',
-      sad: '😢',
-      fire: '🔥',
+      gg: '👏', nice: '👍', oops: '😅', mind_blown: '🤯',
+      thinking: '🤔', laugh: '😂', sad: '😢', fire: '🔥',
     };
     return emotes[emoteId] || '❓';
   };
 
   const getEmoteLabel = (emoteId) => {
     const labels = {
-      gg: 'Good Game',
-      nice: 'Nice!',
-      oops: 'Oops',
-      mind_blown: 'Mind Blown',
-      thinking: 'Thinking...',
-      laugh: 'Haha',
-      sad: 'Sad',
-      fire: 'On Fire!',
+      gg: 'Good Game', nice: 'Nice!', oops: 'Oops', mind_blown: 'Mind Blown',
+      thinking: 'Thinking...', laugh: 'Haha', sad: 'Sad', fire: 'On Fire!',
     };
     return labels[emoteId] || 'Unknown';
   };
 
-  // Sync player name if userDisplayName changes
-  useEffect(() => {
-    if (userDisplayName && playerName === 'Student') {
-      setPlayerName(userDisplayName);
-    }
-  }, [userDisplayName]);
-
-  // Native View Transition Helper
   const transitionTo = (newView) => {
     if (!document.startViewTransition) {
       setView(newView);
@@ -191,7 +325,6 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
       clearTimeout(connectionTimeout);
       setConnectionStatus('connected');
       socket.send(JSON.stringify(message));
-      // Initialize audio and preload sounds on first connection
       if (!audioInitialized) {
         initAudio();
         preloadAllSfx();
@@ -206,7 +339,6 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
         serverOffsetRef.current = payload.serverTime - Date.now();
       }
 
-      // Authoritative real-time timer tick from server
       if (payload.type === 'timer_tick') {
         if (payload.phase === 'countdown' && typeof payload.countdown === 'number') {
           setCountdown(payload.countdown);
@@ -219,11 +351,8 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
       if (payload.room) applyRoomState(payload.room);
       if (payload.type === 'answer_result') {
         setAnswerResult(payload);
-        if (payload.isCorrect) {
-          playSfx('answer_correct');
-        } else {
-          playSfx('answer_incorrect');
-        }
+        if (payload.isCorrect) playSfx('answer_correct');
+        else playSfx('answer_incorrect');
       }
       if (payload.type === 'emote') {
         playSfx(`emote_${payload.emoteId}`);
@@ -291,123 +420,6 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
       </Card>
     </div>
   );
-
-  useEffect(() => () => socketRef.current?.close(), []);
-
-  // Cleanup audio on unmount
-  useEffect(() => {
-    return () => cleanupAudio();
-  }, []);
-
-  // Emote Wheel Component
-  const EmoteWheel = useCallback(({ isOpen, onClose, onSelect, disabled, cooldownMs }) => {
-    if (!isOpen) return null;
-    const emotes = [
-      { id: 'gg', emoji: '👏', label: 'Good Game' },
-      { id: 'nice', emoji: '👍', label: 'Nice!' },
-      { id: 'oops', emoji: '😅', label: 'Oops' },
-      { id: 'mind_blown', emoji: '🤯', label: 'Mind Blown' },
-      { id: 'thinking', emoji: '🤔', label: 'Thinking...' },
-      { id: 'laugh', emoji: '😂', label: 'Haha' },
-      { id: 'sad', emoji: '😢', label: 'Sad' },
-      { id: 'fire', emoji: '🔥', label: 'On Fire!' },
-    ];
-
-    return (
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] animate-in zoom-in-95 duration-200">
-        <div className="relative flex flex-col items-center gap-2">
-          {/* Emote Buttons Ring */}
-          <div className="relative w-32 h-32" role="group" aria-label="Emotes">
-            {emotes.map((emote, i) => {
-              const angle = (i / emotes.length) * 2 * Math.PI - Math.PI / 2;
-              const radius = 64;
-              const x = radius * Math.cos(angle);
-              const y = radius * Math.sin(angle);
-              return (
-                <button
-                  key={emote.id}
-                  onClick={() => { onSelect(emote.id); onClose(); }}
-                  disabled={disabled}
-                  className="absolute top-1/2 left-1/2 w-12 h-12 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white dark:bg-zinc-900 border-2 border-amber-300 dark:border-amber-800 shadow-lg text-2xl flex items-center justify-center transition-all duration-200 hover:scale-115 hover:border-amber-500 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ transform: `translate(-50%, -50%) translate(${x}px, ${y}px)` }}
-                  aria-label={emote.label}
-                >
-                  {emote.emoji}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Center Close/Cooldown Button */}
-          <button
-            onClick={onClose}
-            className="relative w-16 h-16 rounded-full bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 font-bold text-xl flex items-center justify-center shadow-lg border-2 border-amber-300 dark:border-amber-800 transition-all hover:scale-105"
-            aria-label={disabled ? `Cooldown: ${Math.ceil(cooldownMs / 1000)}s` : 'Close emote wheel'}
-          >
-            {disabled ? (
-              <>
-                <svg className="w-8 h-8" viewBox="0 0 32 32">
-                  <circle
-                    cx="16"
-                    cy="16"
-                    r="14"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                    fill="none"
-                    strokeDasharray={88}
-                    strokeDashoffset={88 * (1 - cooldownMs / 3000)}
-                    strokeLinecap="round"
-                    className="text-amber-500"
-                    style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }}
-                  />
-                </svg>
-                <span className="sr-only">Cooldown: {Math.ceil(cooldownMs / 1000)}s</span>
-              </>
-            ) : (
-              <X size={20} />
-            )}
-          </button>
-        </div>
-      </div>
-    );
-  }, []);
-
-  // Synchronized countdown fallback using server offset
-  useEffect(() => {
-    if (view !== 'countdown' || !countdownStartedAt) return undefined;
-    const updateCountdown = () => {
-      const nowOnServer = Date.now() + serverOffsetRef.current;
-      const elapsed = Math.max(0, nowOnServer - countdownStartedAt);
-      const rem = Math.max(1, Math.ceil((3000 - elapsed) / 1000));
-      setCountdown(prev => (prev !== rem ? rem : prev));
-    };
-    updateCountdown();
-    const interval = setInterval(updateCountdown, 250);
-    return () => clearInterval(interval);
-  }, [view, countdownStartedAt]);
-
-  // Countdown sound effects
-  useEffect(() => {
-    if (view !== 'countdown') return;
-    if (countdown === 3) playSfx('countdown_3');
-    else if (countdown === 2) playSfx('countdown_2');
-    else if (countdown === 1) playSfx('countdown_1');
-    else if (countdown === 0) playSfx('countdown_go');
-  }, [view, countdown]);
-
-  // Synchronized question timer fallback using server offset
-  useEffect(() => {
-    if (view !== 'playing' || !questionStartedAt) return undefined;
-    const updateTimer = () => {
-      const nowOnServer = Date.now() + serverOffsetRef.current;
-      const elapsed = Math.max(0, nowOnServer - questionStartedAt);
-      const rem = Math.max(0, Math.ceil((questionSeconds * 1000 - elapsed) / 1000));
-      setTimeLeft(prev => (prev !== rem ? rem : prev));
-    };
-    updateTimer();
-    const interval = setInterval(updateTimer, 250);
-    return () => clearInterval(interval);
-  }, [view, questionStartedAt, questionSeconds]);
 
   const handleHostDeckSelect = (deck) => {
     const playableDeck = {
@@ -490,6 +502,9 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
     }
   };
 
+  // ==========================================
+  // 4. VIEW RENDERS (Safe from hook violations)
+  // ==========================================
   if (view === 'select-deck') {
     return (
       <div className="max-w-5xl w-full mx-auto pb-16 px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-300 space-y-6">
@@ -513,7 +528,6 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
               </p>
             </div>
 
-            {/* Display Name Box */}
             <div className="bg-white dark:bg-zinc-900 border border-stone-200/80 dark:border-zinc-800 rounded-2xl p-3 shadow-xs min-w-[240px]">
               <label className="block text-[10px] font-extrabold text-taupe dark:text-zinc-400 uppercase tracking-wider mb-1.5">
                 Host Display Name
@@ -594,15 +608,6 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
     );
   }
 
-  // Player join/leave sounds in lobby
-  useEffect(() => {
-    if (view !== 'lobby') return;
-    if (players.length > 1) {
-      // Check if a new player joined (simplified - just play on mount if >1 player)
-      playSfx('player_join');
-    }
-  }, [view, players]);
-
   if (view === 'lobby') {
     return (
       <div className="max-w-3xl mx-auto pb-12 p-4 md:p-8 text-center mt-10 animate-in fade-in duration-300">
@@ -636,11 +641,7 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
           {players.map((p, i) => (
             <div key={p.id} style={{ animationDelay: `${i * 80}ms` }} className="flex flex-col items-center gap-2 animate-in zoom-in duration-300">
               {p.avatar ? (
-                <img
-                  src={p.avatar}
-                  alt={p.name}
-                  className="w-16 h-16 rounded-2xl object-cover border-2 border-amber-500 shadow-sm"
-                />
+                <img src={p.avatar} alt={p.name} className="w-16 h-16 rounded-2xl object-cover border-2 border-amber-500 shadow-sm" />
               ) : (
                 <div className="w-16 h-16 rounded-2xl bg-sand dark:bg-zinc-800 border-2 border-umber dark:border-zinc-500 text-umber dark:text-zinc-100 flex items-center justify-center font-bold text-xl uppercase shadow-sm">
                   {p.name.substring(0, 2)}
@@ -673,21 +674,18 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
     );
   }
 
-  // --- REVAMPED VERSUS MATCHUP COUNTDOWN ARENA ---
   if (view === 'countdown') {
     const p1 = players[0] || { name: 'Player 1', avatar: '', score: 0 };
     const p2 = players[1] || { name: 'Player 2', avatar: '', score: 0 };
-    const strokeDash = 326.7; // 2 * PI * 52
+    const strokeDash = 326.7;
     const strokeOffset = strokeDash * Math.max(0, (countdown - 1) / 3);
 
     return (
       <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 flex flex-col items-center justify-center min-h-[75vh] animate-in fade-in duration-300">
         <Card className="relative w-full max-w-2xl rounded-3xl border border-stone-200/80 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl p-8 sm:p-12 shadow-2xl overflow-hidden text-center">
-          {/* Subtle warm arena lighting */}
           <div className="absolute -top-24 -left-24 w-60 h-60 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute -bottom-24 -right-24 w-60 h-60 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
 
-          {/* Top arena badge */}
           <div className="flex flex-col items-center justify-center gap-1.5 mb-6 sm:mb-8">
             <Badge className="bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300/80 dark:border-amber-800/80 px-3.5 py-1 text-xs font-bold rounded-full gap-1.5 shadow-2xs">
               <Zap size={13} className="text-amber-600 fill-amber-600" /> QUESTION {currentQIndex + 1} OF {selectedDeck?.cards?.length || 0}
@@ -697,17 +695,11 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
             </h3>
           </div>
 
-          {/* Versus Matchup Stage */}
           <div className="grid grid-cols-7 items-center justify-center gap-2 sm:gap-4 mb-8 sm:mb-10">
-            {/* Player 1 (Host / Challenger) */}
             <div className="col-span-3 flex flex-col items-center">
               <div className="relative mb-2">
                 {p1.avatar ? (
-                  <img
-                    src={p1.avatar}
-                    alt={p1.name}
-                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl object-cover border-2 border-amber-500 shadow-lg shadow-amber-500/15"
-                  />
+                  <img src={p1.avatar} alt={p1.name} className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl object-cover border-2 border-amber-500 shadow-lg shadow-amber-500/15" />
                 ) : (
                   <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl bg-amber-100 dark:bg-amber-950/60 border-2 border-amber-500 text-amber-800 dark:text-amber-300 flex items-center justify-center font-black text-xl sm:text-2xl shadow-lg">
                     {p1.name ? p1.name.slice(0, 2).toUpperCase() : 'P1'}
@@ -719,30 +711,20 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
                   </span>
                 )}
               </div>
-              <p className="font-extrabold text-sm sm:text-base text-umber dark:text-zinc-100 truncate max-w-[120px] sm:max-w-[160px]">
-                {p1.name}
-              </p>
-              <span className="font-mono text-xs font-bold text-amber-600 dark:text-amber-400 mt-0.5">
-                {(roundScores[p1.id] || p1.score || 0).toLocaleString()} pts
-              </span>
+              <p className="font-extrabold text-sm sm:text-base text-umber dark:text-zinc-100 truncate max-w-[120px] sm:max-w-[160px]">{p1.name}</p>
+              <span className="font-mono text-xs font-bold text-amber-600 dark:text-amber-400 mt-0.5">{(roundScores[p1.id] || p1.score || 0).toLocaleString()} pts</span>
             </div>
 
-            {/* Pulsing VS Center Badge */}
             <div className="col-span-1 flex items-center justify-center">
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center font-black text-xs sm:text-sm shadow-md shadow-amber-500/30 animate-pulse">
                 VS
               </div>
             </div>
 
-            {/* Player 2 (Challenger) */}
             <div className="col-span-3 flex flex-col items-center">
               <div className="relative mb-2">
                 {p2.avatar ? (
-                  <img
-                    src={p2.avatar}
-                    alt={p2.name}
-                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl object-cover border-2 border-stone-300 dark:border-zinc-700 shadow-lg"
-                  />
+                  <img src={p2.avatar} alt={p2.name} className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl object-cover border-2 border-stone-300 dark:border-zinc-700 shadow-lg" />
                 ) : (
                   <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl bg-stone-100 dark:bg-zinc-800 border-2 border-stone-300 dark:border-zinc-700 text-stone-700 dark:text-zinc-300 flex items-center justify-center font-black text-xl sm:text-2xl shadow-lg">
                     {p2.name ? p2.name.slice(0, 2).toUpperCase() : 'P2'}
@@ -754,43 +736,18 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
                   </span>
                 )}
               </div>
-              <p className="font-extrabold text-sm sm:text-base text-umber dark:text-zinc-100 truncate max-w-[120px] sm:max-w-[160px]">
-                {p2.name}
-              </p>
-              <span className="font-mono text-xs font-bold text-taupe dark:text-zinc-400 mt-0.5">
-                {(roundScores[p2.id] || p2.score || 0).toLocaleString()} pts
-              </span>
+              <p className="font-extrabold text-sm sm:text-base text-umber dark:text-zinc-100 truncate max-w-[120px] sm:max-w-[160px]">{p2.name}</p>
+              <span className="font-mono text-xs font-bold text-taupe dark:text-zinc-400 mt-0.5">{(roundScores[p2.id] || p2.score || 0).toLocaleString()} pts</span>
             </div>
           </div>
 
-          {/* Circular Countdown Dial */}
           <div className="relative flex items-center justify-center my-4">
             <svg className="w-36 h-36 sm:w-40 sm:h-40 transform -rotate-90">
-              <circle
-                cx="50%"
-                cy="50%"
-                r="52"
-                className="stroke-stone-200 dark:stroke-zinc-800"
-                strokeWidth="7"
-                fill="transparent"
-              />
-              <circle
-                cx="50%"
-                cy="50%"
-                r="52"
-                className="stroke-amber-500 transition-all duration-300 ease-out"
-                strokeWidth="7"
-                strokeDasharray={strokeDash}
-                strokeDashoffset={strokeOffset}
-                strokeLinecap="round"
-                fill="transparent"
-              />
+              <circle cx="50%" cy="50%" r="52" className="stroke-stone-200 dark:stroke-zinc-800" strokeWidth="7" fill="transparent" />
+              <circle cx="50%" cy="50%" r="52" className="stroke-amber-500 transition-all duration-300 ease-out" strokeWidth="7" strokeDasharray={strokeDash} strokeDashoffset={strokeOffset} strokeLinecap="round" fill="transparent" />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span
-                key={countdown}
-                className="text-5xl sm:text-6xl font-black text-umber dark:text-zinc-100 tracking-tight animate-in zoom-in-75 duration-200"
-              >
+              <span key={countdown} className="text-5xl sm:text-6xl font-black text-umber dark:text-zinc-100 tracking-tight animate-in zoom-in-75 duration-200">
                 {countdown > 0 ? countdown : 'GO!'}
               </span>
               <span className="text-[11px] font-extrabold uppercase tracking-widest text-amber-700 dark:text-amber-400 mt-0.5">
@@ -799,18 +756,12 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
             </div>
           </div>
 
-          {/* Match Tip */}
           <p className="mt-4 text-xs font-semibold text-taupe dark:text-zinc-500 max-w-sm mx-auto">
             ⚡ Quick answers score up to <span className="text-amber-600 dark:text-amber-400 font-bold">1,000 pts</span> each. Speed + accuracy wins!
           </p>
 
           <div className="mt-8">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={requestExit}
-              className="text-taupe dark:text-zinc-500 hover:text-rose-600 dark:hover:text-rose-400 rounded-xl font-semibold"
-            >
+            <Button variant="ghost" size="sm" onClick={requestExit} className="text-taupe dark:text-zinc-500 hover:text-rose-600 dark:hover:text-rose-400 rounded-xl font-semibold">
               Exit Match
             </Button>
           </div>
@@ -825,7 +776,7 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
       <Card className="mx-auto mt-12 max-w-xl rounded-2xl border-taupe/30 bg-white p-8 text-center shadow-xl dark:border-zinc-800 dark:bg-zinc-900 animate-in zoom-in-95 duration-300">
         <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"><Users size={30} /></div>
         <h2 className="text-2xl font-bold text-umber dark:text-zinc-100">Battle discontinued</h2>
-        <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-taupe dark:text-zinc-400">{selectedDeck?.title ? `The battle for ${selectedDeck.title} ended because there was no longer another player in the room.` : 'The battle ended because there was no longer another player in the room.'}</p>
+        <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-taupe dark:text-zinc-400">The battle ended because there was no longer another player in the room.</p>
         <Button onClick={() => transitionTo('menu')} className="mt-7 h-11 rounded-xl bg-umber px-6 font-bold text-sand hover:bg-umber/90 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300">Back to Multiplayer</Button>
       </Card>
     );
@@ -836,18 +787,11 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
       <Card className="mx-auto mt-12 max-w-xl rounded-2xl border-taupe/30 bg-white p-8 text-center shadow-xl dark:border-zinc-800 dark:bg-zinc-900 animate-in fade-in duration-300">
         <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"><RotateCw size={26} className="animate-spin" /></div>
         <h2 className="text-xl font-bold text-umber dark:text-zinc-100">Restoring battle</h2>
-        <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-taupe dark:text-zinc-400">The live room is still syncing. You can return to Multiplayer if the session is no longer available.</p>
+        <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-taupe dark:text-zinc-400">The live room is still syncing.</p>
         <Button onClick={confirmExit} className="mt-6 h-11 rounded-xl bg-umber px-6 font-bold text-sand hover:bg-umber/90 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300">Return to Multiplayer</Button>
       </Card>
     );
   }
-
-  // Round end sound
-  useEffect(() => {
-    if (view === 'round-result') {
-      playSfx('round_end');
-    }
-  }, [view]);
 
   if (view === 'round-result') {
     const currentCard = selectedDeck.cards[currentQIndex];
@@ -858,31 +802,14 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
       <div className="max-w-5xl w-full mx-auto pb-8 relative">
         <div className="bg-sand/90 dark:bg-zinc-950/90 backdrop-blur-md pb-4 mb-6 border-b border-taupe/20 dark:border-zinc-800 flex justify-between items-end transition-colors shrink-0 px-2 md:px-0">
           <div>
-            <p className="text-[10px] font-bold text-taupe dark:text-zinc-500 uppercase tracking-widest mb-1 flex items-center gap-2">
-              Round Complete
-            </p>
-            <h2 className="text-xl md:text-2xl font-bold text-umber dark:text-zinc-100 truncate max-w-[250px] md:max-w-md">
-              Question {currentQIndex + 1}
-            </h2>
+            <p className="text-[10px] font-bold text-taupe dark:text-zinc-500 uppercase tracking-widest mb-1 flex items-center gap-2">Round Complete</p>
+            <h2 className="text-xl md:text-2xl font-bold text-umber dark:text-zinc-100 truncate max-w-[250px] md:max-w-md">Question {currentQIndex + 1}</h2>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowEmoteWheel(true)}
-              disabled={emoteCooldown > 0}
-              className="text-taupe dark:text-zinc-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 disabled:opacity-50"
-              title={emoteCooldown > 0 ? `Emote cooldown: ${Math.ceil(emoteCooldown / 1000)}s` : 'Send Emote'}
-            >
+            <Button variant="ghost" size="icon" onClick={() => setShowEmoteWheel(true)} disabled={emoteCooldown > 0} className="text-taupe dark:text-zinc-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 disabled:opacity-50" title="Send Emote">
               <MessageCircleIcon size={20} />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleSfxMute}
-              className="text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100"
-              title={isSfxMuted() ? 'Unmute sounds' : 'Mute sounds'}
-            >
+            <Button variant="ghost" size="icon" onClick={toggleSfxMute} className="text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100" title="Mute sounds">
               {isSfxMuted() ? <VolumeX size={20} /> : <Volume2 size={20} />}
             </Button>
             <Button variant="ghost" size="icon" onClick={requestExit} className="text-taupe dark:text-zinc-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 -mr-2" title="Quit Match">
@@ -957,19 +884,12 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
           </div>
         )}
 
-        {/* Emote Bubbles */}
         {activeEmotes.map((emote) => {
           const sender = players.find(p => p.id === emote.playerId);
           if (!sender) return null;
           const isP1 = sender === players[0];
           return (
-            <div
-              key={emote.id}
-              className={`fixed z-[50] animate-in zoom-in-95 duration-200 pointer-events-none ${
-                isP1 ? 'bottom-[60%] left-1/2 -translate-x-1/2' : 'bottom-[60%] right-1/2 translate-x-1/2'
-              }`}
-              style={{ transform: isP1 ? 'translateX(-50%) translateY(0)' : 'translateX(50%) translateY(0)' }}
-            >
+            <div key={emote.id} className={`fixed z-[50] animate-in zoom-in-95 duration-200 pointer-events-none ${isP1 ? 'bottom-[60%] left-1/2 -translate-x-1/2' : 'bottom-[60%] right-1/2 translate-x-1/2'}`}>
               <div className="bg-white dark:bg-zinc-900 border-2 border-amber-300 dark:border-amber-800 rounded-2xl px-4 py-2 shadow-lg flex flex-col items-center gap-1">
                 <span className="text-3xl">{getEmoteEmoji(emote.emoteId)}</span>
                 <span className="text-xs font-bold text-umber dark:text-zinc-100">{getEmoteLabel(emote.emoteId)}</span>
@@ -978,21 +898,12 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
           );
         })}
 
-        {/* Emote Wheel */}
-        <EmoteWheel
-          isOpen={showEmoteWheel}
-          onClose={() => setShowEmoteWheel(false)}
-          onSelect={sendEmote}
-          disabled={emoteCooldown > 0}
-          cooldownMs={emoteCooldown}
-        />
-
+        <EmoteWheel isOpen={showEmoteWheel} onClose={() => setShowEmoteWheel(false)} onSelect={sendEmote} disabled={emoteCooldown > 0} cooldownMs={emoteCooldown} />
         {exitConfirmation}
       </div>
     );
   }
 
-  // --- PLAYING VIEW ---
   if (view === 'playing') {
     const currentQ = selectedDeck?.cards[currentQIndex];
     const p1 = players[0];
@@ -1000,37 +911,21 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
 
     return (
       <div className="w-full max-w-4xl mx-auto flex flex-col min-h-full pb-8 px-4 sm:px-6 relative animate-in fade-in duration-200 space-y-4">
-        {/* Top Arena Header */}
         <div className="bg-sand/90 dark:bg-zinc-950/90 backdrop-blur-md pb-4 border-b border-taupe/20 dark:border-zinc-800 flex justify-between items-center transition-colors shrink-0">
           <div>
             <p className="text-[10px] font-bold text-taupe dark:text-zinc-500 uppercase tracking-widest mb-1 flex items-center gap-2">
               <Zap size={12}/> Live Battle • Question {currentQIndex + 1} of {selectedDeck?.cards?.length || 0}
             </p>
-            <h2 className="text-lg md:text-xl font-bold text-umber dark:text-zinc-100 truncate max-w-[220px] sm:max-w-md">
-              {selectedDeck?.title}
-            </h2>
+            <h2 className="text-lg md:text-xl font-bold text-umber dark:text-zinc-100 truncate max-w-[220px] sm:max-w-md">{selectedDeck?.title}</h2>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
             <Badge variant="outline" className={`px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 font-mono font-bold text-sm md:text-base border transition-colors ${timeLeft < 5 ? 'text-rose-600 dark:text-rose-400 border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 animate-pulse' : 'text-umber dark:text-zinc-100 border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900'}`}>
               <Timer size={16} /> {timeLeft}s
             </Badge>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleSfxMute}
-              className="text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100"
-              title={isSfxMuted() ? 'Unmute sounds' : 'Mute sounds'}
-            >
+            <Button variant="ghost" size="icon" onClick={toggleSfxMute} className="text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100" title="Mute sounds">
               {isSfxMuted() ? <VolumeX size={20} /> : <Volume2 size={20} />}
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowEmoteWheel(true)}
-              disabled={emoteCooldown > 0}
-              className="text-taupe dark:text-zinc-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 disabled:opacity-50"
-              title={emoteCooldown > 0 ? `Emote cooldown: ${Math.ceil(emoteCooldown / 1000)}s` : 'Send Emote'}
-            >
+            <Button variant="ghost" size="icon" onClick={() => setShowEmoteWheel(true)} disabled={emoteCooldown > 0} className="text-taupe dark:text-zinc-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 disabled:opacity-50" title="Send Emote">
               <MessageCircleIcon size={20} />
             </Button>
             <Button variant="ghost" size="icon" onClick={requestExit} className="text-taupe dark:text-zinc-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30" title="Quit Match">
@@ -1039,43 +934,24 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
           </div>
         </div>
 
-        {/* Live Tug-of-War Score Bar between both contenders */}
         {p1 && p2 && (
           <div className="rounded-2xl border border-stone-200/80 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 p-3 shadow-2xs">
             <div className="flex items-center justify-between text-xs font-bold mb-1.5 px-1">
               <div className="flex items-center gap-2 truncate max-w-[140px] sm:max-w-[200px]">
-                {p1.avatar ? (
-                  <img src={p1.avatar} alt={p1.name} className="w-5 h-5 rounded-full object-cover border border-amber-500 shrink-0" />
-                ) : (
-                  <div className="w-5 h-5 rounded-full bg-amber-500 text-white text-[9px] flex items-center justify-center font-black shrink-0">1</div>
-                )}
+                {p1.avatar ? <img src={p1.avatar} alt={p1.name} className="w-5 h-5 rounded-full object-cover border border-amber-500 shrink-0" /> : <div className="w-5 h-5 rounded-full bg-amber-500 text-white text-[9px] flex items-center justify-center font-black shrink-0">1</div>}
                 <span className="text-umber dark:text-zinc-200 truncate">{p1.name} {p1.isMe && '(You)'}</span>
                 <span className="font-mono text-amber-600 dark:text-amber-400 shrink-0">{p1.score}</span>
               </div>
-
               <span className="text-[10px] uppercase font-black tracking-wider text-taupe dark:text-zinc-500">Live Match</span>
-
               <div className="flex items-center gap-2 truncate max-w-[140px] sm:max-w-[200px] justify-end">
                 <span className="font-mono text-stone-600 dark:text-zinc-400 shrink-0">{p2.score}</span>
                 <span className="text-umber dark:text-zinc-200 truncate">{p2.name} {p2.isMe && '(You)'}</span>
-                {p2.avatar ? (
-                  <img src={p2.avatar} alt={p2.name} className="w-5 h-5 rounded-full object-cover border border-stone-400 shrink-0" />
-                ) : (
-                  <div className="w-5 h-5 rounded-full bg-stone-500 text-white text-[9px] flex items-center justify-center font-black shrink-0">2</div>
-                )}
+                {p2.avatar ? <img src={p2.avatar} alt={p2.name} className="w-5 h-5 rounded-full object-cover border border-stone-400 shrink-0" /> : <div className="w-5 h-5 rounded-full bg-stone-500 text-white text-[9px] flex items-center justify-center font-black shrink-0">2</div>}
               </div>
             </div>
-            {/* Visual ratio bar */}
             <div className="h-1.5 w-full bg-stone-100 dark:bg-zinc-800 rounded-full overflow-hidden flex">
-              <div
-                className="bg-amber-500 transition-all duration-300"
-                style={{
-                  width: `${(p1.score + p2.score === 0) ? 50 : Math.max(10, Math.min(90, (p1.score / (p1.score + p2.score)) * 100))}%`
-                }}
-              />
-              <div
-                className="bg-stone-400 dark:bg-zinc-600 transition-all duration-300 flex-1"
-              />
+              <div className="bg-amber-500 transition-all duration-300" style={{ width: `${(p1.score + p2.score === 0) ? 50 : Math.max(10, Math.min(90, (p1.score / (p1.score + p2.score)) * 100))}%` }} />
+              <div className="bg-stone-400 dark:bg-zinc-600 transition-all duration-300 flex-1" />
             </div>
           </div>
         )}
@@ -1084,9 +960,7 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
           <div className="lg:col-span-2 flex flex-col">
             <Card className="rounded-3xl p-6 sm:p-8 shadow-md flex flex-col mb-4 bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800 min-h-[160px] animate-in slide-in-from-bottom-2 duration-300">
               <span className="text-[10px] font-bold uppercase tracking-widest text-taupe dark:text-zinc-500 mb-2">Identify definition</span>
-              <h3 className="text-xl md:text-2xl font-bold text-umber dark:text-zinc-100 leading-relaxed text-center my-auto">
-                "{currentQ?.term}"
-              </h3>
+              <h3 className="text-xl md:text-2xl font-bold text-umber dark:text-zinc-100 leading-relaxed text-center my-auto">"{currentQ?.term}"</h3>
             </Card>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -1123,7 +997,6 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
             )}
           </div>
 
-          {/* Status Sidebar */}
           <Card className="lg:col-span-1 rounded-3xl p-6 shadow-sm flex flex-col h-fit bg-white dark:bg-zinc-900 border-taupe/30 dark:border-zinc-800">
             <h3 className="font-bold text-umber dark:text-zinc-100 mb-4 flex items-center gap-2 border-b border-taupe/20 dark:border-zinc-800 pb-3">
               <Target size={18}/> Contender Status
@@ -1134,26 +1007,16 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
                 return (
                   <div key={i} className={`flex items-center justify-between p-3 rounded-xl border ${p.isMe ? 'bg-amber-50/60 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800' : 'bg-stone-50 dark:bg-zinc-950 border-stone-200 dark:border-zinc-800'}`}>
                     <div className="flex items-center gap-2.5">
-                      {p.avatar ? (
-                        <img src={p.avatar} alt={p.name} className="w-8 h-8 rounded-full object-cover border border-amber-500 shadow-2xs" />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-white dark:bg-zinc-800 border border-taupe/20 dark:border-zinc-700 text-umber dark:text-zinc-100 flex items-center justify-center font-bold text-xs uppercase shadow-sm">
-                          {p.name.substring(0, 2)}
-                        </div>
-                      )}
+                      {p.avatar ? <img src={p.avatar} alt={p.name} className="w-8 h-8 rounded-full object-cover border border-amber-500 shadow-2xs" /> : <div className="w-8 h-8 rounded-full bg-white dark:bg-zinc-800 border border-taupe/20 dark:border-zinc-700 text-umber dark:text-zinc-100 flex items-center justify-center font-bold text-xs uppercase shadow-sm">{p.name.substring(0, 2)}</div>}
                       <div>
                         <p className={`font-bold text-sm ${p.isMe ? 'text-amber-800 dark:text-amber-400' : 'text-umber dark:text-zinc-200'}`}>{p.name}</p>
                         <p className="text-[10px] text-taupe dark:text-zinc-400 font-mono">{p.score} pts</p>
                       </div>
                     </div>
                     {hasAnswered ? (
-                      <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                        <CheckCircle size={15} /> Locked
-                      </span>
+                      <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400"><CheckCircle size={15} /> Locked</span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-taupe dark:text-zinc-400">
-                        <RotateCw size={13} className="animate-spin text-amber-600" /> Thinking
-                      </span>
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-taupe dark:text-zinc-400"><RotateCw size={13} className="animate-spin text-amber-600" /> Thinking</span>
                     )}
                   </div>
                 );
@@ -1162,19 +1025,12 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
           </Card>
         </div>
 
-        {/* Emote Bubbles */}
         {activeEmotes.map((emote) => {
           const sender = players.find(p => p.id === emote.playerId);
           if (!sender) return null;
           const isP1 = sender === players[0];
           return (
-            <div
-              key={emote.id}
-              className={`fixed z-[50] animate-in zoom-in-95 duration-200 pointer-events-none ${
-                isP1 ? 'bottom-[60%] left-1/2 -translate-x-1/2' : 'bottom-[60%] right-1/2 translate-x-1/2'
-              }`}
-              style={{ transform: isP1 ? 'translateX(-50%) translateY(0)' : 'translateX(50%) translateY(0)' }}
-            >
+            <div key={emote.id} className={`fixed z-[50] animate-in zoom-in-95 duration-200 pointer-events-none ${isP1 ? 'bottom-[60%] left-1/2 -translate-x-1/2' : 'bottom-[60%] right-1/2 translate-x-1/2'}`}>
               <div className="bg-white dark:bg-zinc-900 border-2 border-amber-300 dark:border-amber-800 rounded-2xl px-4 py-2 shadow-lg flex flex-col items-center gap-1">
                 <span className="text-3xl">{getEmoteEmoji(emote.emoteId)}</span>
                 <span className="text-xs font-bold text-umber dark:text-zinc-100">{getEmoteLabel(emote.emoteId)}</span>
@@ -1183,38 +1039,12 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
           );
         })}
 
-        {/* Emote Wheel */}
-        <EmoteWheel
-          isOpen={showEmoteWheel}
-          onClose={() => setShowEmoteWheel(false)}
-          onSelect={sendEmote}
-          disabled={emoteCooldown > 0}
-          cooldownMs={emoteCooldown}
-        />
-
+        <EmoteWheel isOpen={showEmoteWheel} onClose={() => setShowEmoteWheel(false)} onSelect={sendEmote} disabled={emoteCooldown > 0} cooldownMs={emoteCooldown} />
         {exitConfirmation}
       </div>
     );
   }
 
-  // Match result sounds
-  useEffect(() => {
-    if (view !== 'results') return;
-    const finalStandings = [...players].sort((a, b) => b.score - a.score);
-    const winner = finalStandings[0];
-    const isWinner = winner?.isMe;
-    const isTie = finalStandings.length > 1 && finalStandings[0].score === finalStandings[1].score;
-
-    if (isTie) {
-      playSfx('match_draw');
-    } else if (isWinner) {
-      playSfx('match_victory');
-    } else {
-      playSfx('match_defeat');
-    }
-  }, [view, players]);
-
-  // --- ELEVATED BATTLE RESULTS PODIUM ARENA ---
   if (view === 'results') {
     const finalStandings = [...players].sort((a, b) => b.score - a.score);
     const winner = finalStandings[0];
@@ -1233,7 +1063,6 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
 
     return (
       <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 space-y-6 md:space-y-8 animate-in fade-in duration-300">
-        {/* Outcome Header Banner */}
         <Card className="relative overflow-hidden rounded-3xl border border-stone-200/90 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl p-6 sm:p-8 shadow-xl text-center">
           <div className="absolute -top-20 -left-20 w-52 h-52 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute -bottom-20 -right-20 w-52 h-52 bg-orange-500/15 rounded-full blur-3xl pointer-events-none" />
@@ -1244,114 +1073,52 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
           </div>
 
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-umber dark:text-zinc-100 tracking-tight">
-            {isTie
-              ? 'Deadlock Draw!'
-              : isWinner
-              ? 'Champion of the Arena!'
-              : `${winner?.name} Takes the Crown!`}
+            {isTie ? 'Deadlock Draw!' : isWinner ? 'Champion of the Arena!' : `${winner?.name} Takes the Crown!`}
           </h2>
 
           <p className="mt-2 text-sm sm:text-base text-taupe dark:text-zinc-400 max-w-xl mx-auto">
-            {isTie
-              ? `Both contenders posted matching scores across ${totalQuestions} questions.`
-              : isWinner
-              ? `You dominated the match with a decisive +${scoreGap.toLocaleString()} point lead!`
-              : `A fierce battle for "${selectedDeck?.title}". Ready for revenge?`}
+            {isTie ? `Both contenders posted matching scores across ${totalQuestions} questions.` : isWinner ? `You dominated the match with a decisive +${scoreGap.toLocaleString()} point lead!` : `A fierce battle for "${selectedDeck?.title}". Ready for revenge?`}
           </p>
 
-          {/* 3D Olympic Podium Arena */}
           <div className="flex items-end justify-center gap-4 sm:gap-8 pt-10 pb-2 max-w-lg mx-auto">
-            {/* 2nd Place Pedestal (Runner Up) */}
             {runnerUp && (
               <div className="flex flex-col items-center flex-1 max-w-[170px] animate-in slide-in-from-bottom-4 duration-500">
                 <div className="relative mb-2">
-                  {runnerUp.avatar ? (
-                    <img
-                      src={runnerUp.avatar}
-                      alt={runnerUp.name}
-                      className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-stone-300 dark:border-zinc-700 shadow-md"
-                    />
-                  ) : (
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-stone-100 dark:bg-zinc-800 border-2 border-stone-300 dark:border-zinc-700 text-stone-700 dark:text-zinc-300 flex items-center justify-center font-black text-xl shadow-md">
-                      {runnerUp.name ? runnerUp.name.slice(0, 2).toUpperCase() : 'P2'}
-                    </div>
-                  )}
-                  <span className="absolute -top-2 -left-2 w-7 h-7 rounded-full bg-stone-300 dark:bg-zinc-700 border-2 border-white dark:border-zinc-900 text-stone-800 dark:text-zinc-100 text-xs font-black flex items-center justify-center shadow-xs">
-                    2
-                  </span>
+                  {runnerUp.avatar ? <img src={runnerUp.avatar} alt={runnerUp.name} className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-stone-300 dark:border-zinc-700 shadow-md" /> : <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-stone-100 dark:bg-zinc-800 border-2 border-stone-300 dark:border-zinc-700 text-stone-700 dark:text-zinc-300 flex items-center justify-center font-black text-xl shadow-md">{runnerUp.name ? runnerUp.name.slice(0, 2).toUpperCase() : 'P2'}</div>}
+                  <span className="absolute -top-2 -left-2 w-7 h-7 rounded-full bg-stone-300 dark:bg-zinc-700 border-2 border-white dark:border-zinc-900 text-stone-800 dark:text-zinc-100 text-xs font-black flex items-center justify-center shadow-xs">2</span>
                 </div>
-
-                <p className="font-extrabold text-xs sm:text-sm text-umber dark:text-zinc-100 truncate w-full">
-                  {runnerUp.name} {runnerUp.isMe && '(You)'}
-                </p>
-                <p className="font-mono text-xs font-bold text-taupe dark:text-zinc-400 mb-2">
-                  {runnerUp.score.toLocaleString()} pts
-                </p>
-
-                {/* Silver Pedestal Step */}
+                <p className="font-extrabold text-xs sm:text-sm text-umber dark:text-zinc-100 truncate w-full">{runnerUp.name} {runnerUp.isMe && '(You)'}</p>
+                <p className="font-mono text-xs font-bold text-taupe dark:text-zinc-400 mb-2">{runnerUp.score.toLocaleString()} pts</p>
                 <div className="w-full h-28 sm:h-36 rounded-t-2xl bg-gradient-to-b from-stone-200 via-stone-300 to-stone-400 dark:from-zinc-800 dark:via-zinc-850 dark:to-zinc-900 border-t-4 border-stone-300 dark:border-zinc-700 flex flex-col items-center justify-center shadow-md p-2">
                   <Award size={24} className="text-stone-500 dark:text-zinc-400 mb-1" />
-                  <span className="text-[11px] font-black uppercase tracking-wider text-stone-700 dark:text-zinc-300">
-                    2nd Place
-                  </span>
+                  <span className="text-[11px] font-black uppercase tracking-wider text-stone-700 dark:text-zinc-300">2nd Place</span>
                 </div>
               </div>
             )}
 
-            {/* 1st Place Pedestal (Winner) */}
             {winner && (
               <div className="flex flex-col items-center flex-1 max-w-[190px] animate-in slide-in-from-bottom-6 duration-600">
                 <div className="relative mb-2">
-                  {/* Floating Golden Crown */}
-                  <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-amber-500 animate-bounce">
-                    <Crown size={22} fill="currentColor" />
-                  </div>
-                  {winner.avatar ? (
-                    <img
-                      src={winner.avatar}
-                      alt={winner.name}
-                      className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border-3 border-amber-500 shadow-xl shadow-amber-500/25"
-                    />
-                  ) : (
-                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-amber-100 dark:bg-amber-950/70 border-3 border-amber-500 text-amber-900 dark:text-amber-200 flex items-center justify-center font-black text-2xl shadow-xl">
-                      {winner.name ? winner.name.slice(0, 2).toUpperCase() : 'P1'}
-                    </div>
-                  )}
-                  <span className="absolute -top-1 -left-1 w-7 h-7 rounded-full bg-amber-500 text-white text-xs font-black flex items-center justify-center shadow-sm">
-                    1
-                  </span>
+                  <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-amber-500 animate-bounce"><Crown size={22} fill="currentColor" /></div>
+                  {winner.avatar ? <img src={winner.avatar} alt={winner.name} className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border-3 border-amber-500 shadow-xl shadow-amber-500/25" /> : <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-amber-100 dark:bg-amber-950/70 border-3 border-amber-500 text-amber-900 dark:text-amber-200 flex items-center justify-center font-black text-2xl shadow-xl">{winner.name ? winner.name.slice(0, 2).toUpperCase() : 'P1'}</div>}
+                  <span className="absolute -top-1 -left-1 w-7 h-7 rounded-full bg-amber-500 text-white text-xs font-black flex items-center justify-center shadow-sm">1</span>
                 </div>
-
-                <p className="font-extrabold text-sm sm:text-base text-umber dark:text-zinc-100 truncate w-full">
-                  {winner.name} {winner.isMe && '(You)'}
-                </p>
-                <p className="font-mono text-sm font-black text-amber-600 dark:text-amber-400 mb-2">
-                  {winner.score.toLocaleString()} pts
-                </p>
-
-                {/* Gold Pedestal Step */}
+                <p className="font-extrabold text-sm sm:text-base text-umber dark:text-zinc-100 truncate w-full">{winner.name} {winner.isMe && '(You)'}</p>
+                <p className="font-mono text-sm font-black text-amber-600 dark:text-amber-400 mb-2">{winner.score.toLocaleString()} pts</p>
                 <div className="w-full h-40 sm:h-48 rounded-t-2xl bg-gradient-to-b from-amber-400 via-amber-500 to-amber-600 dark:from-amber-600/90 dark:via-amber-700 dark:to-amber-900 border-t-4 border-amber-200 text-stone-950 dark:text-white flex flex-col items-center justify-center shadow-xl p-2">
                   <Trophy size={30} className="text-amber-900 dark:text-amber-200 mb-1" />
-                  <span className="text-xs font-black uppercase tracking-widest text-amber-950 dark:text-amber-100">
-                    Champion
-                  </span>
-                  <span className="text-[10px] font-bold opacity-80 mt-0.5">
-                    +{scoreGap.toLocaleString()} pts
-                  </span>
+                  <span className="text-xs font-black uppercase tracking-widest text-amber-950 dark:text-amber-100">Champion</span>
+                  <span className="text-[10px] font-bold opacity-80 mt-0.5">+{scoreGap.toLocaleString()} pts</span>
                 </div>
               </div>
             )}
           </div>
         </Card>
 
-        {/* Head-to-Head Tale of the Tape & Match Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Accuracy Breakdown */}
           <Card className="rounded-2xl border border-stone-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-xs">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-bold text-taupe dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Target size={14} className="text-amber-600" /> Match Accuracy
-              </span>
+              <span className="text-xs font-bold text-taupe dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1.5"><Target size={14} className="text-amber-600" /> Match Accuracy</span>
             </div>
             <div className="space-y-3">
               <div>
@@ -1373,12 +1140,9 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
             </div>
           </Card>
 
-          {/* Longest Streak */}
           <Card className="rounded-2xl border border-stone-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-xs">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-bold text-taupe dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Flame size={14} className="text-orange-500" /> Peak Combo Streak
-              </span>
+              <span className="text-xs font-bold text-taupe dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1.5"><Flame size={14} className="text-orange-500" /> Peak Combo Streak</span>
             </div>
             <div className="grid grid-cols-2 gap-2 text-center pt-1">
               <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60">
@@ -1396,64 +1160,37 @@ export function MultiplayerView({ navigateTo, myDecks, userDisplayName, userAvat
             </div>
           </Card>
 
-          {/* Match Summary */}
           <Card className="rounded-2xl border border-stone-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-xs">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-bold text-taupe dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Layers size={14} className="text-amber-600" /> Match Deck
-              </span>
+              <span className="text-xs font-bold text-taupe dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1.5"><Layers size={14} className="text-amber-600" /> Match Deck</span>
             </div>
             <p className="font-extrabold text-sm text-umber dark:text-zinc-100 line-clamp-1">{selectedDeck?.title}</p>
             <div className="flex items-center gap-2 mt-2 text-xs text-taupe dark:text-zinc-400">
               <span className="px-2 py-0.5 rounded-md bg-stone-100 dark:bg-zinc-800 font-semibold">{totalQuestions} Questions</span>
               <span className="px-2 py-0.5 rounded-md bg-stone-100 dark:bg-zinc-800 font-semibold">{totalPoints.toLocaleString()} Total Pts</span>
             </div>
-            <p className="mt-3 text-[11px] text-taupe dark:text-zinc-500 leading-snug">
-              Reviewing cards immediately after battles cements memory retention by up to 2.4x.
-            </p>
           </Card>
         </div>
 
-        {/* Stable Action Bar */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
           <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
             {isHost ? (
-              <Button
-                onClick={handleRematch}
-                className="h-12 px-6 rounded-xl bg-amber-600 hover:bg-amber-700 font-bold text-white shadow-md flex items-center gap-2 w-full sm:w-auto"
-              >
+              <Button onClick={handleRematch} className="h-12 px-6 rounded-xl bg-amber-600 hover:bg-amber-700 font-bold text-white shadow-md flex items-center gap-2 w-full sm:w-auto">
                 <RotateCw size={17} /> Play Rematch (Same Pin)
               </Button>
             ) : (
               <div className="h-12 px-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-bold flex items-center gap-2 w-full sm:w-auto justify-center">
-                <RotateCw size={14} className="animate-spin text-amber-600" />
-                Waiting for host to start rematch...
+                <RotateCw size={14} className="animate-spin text-amber-600" /> Waiting for host to start rematch...
               </div>
             )}
-
-            <Button
-              variant="outline"
-              onClick={handleStudyDeck}
-              className="h-12 px-5 rounded-xl border-stone-200 dark:border-zinc-800 font-bold text-umber dark:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 w-full sm:w-auto"
-            >
+            <Button variant="outline" onClick={handleStudyDeck} className="h-12 px-5 rounded-xl border-stone-200 dark:border-zinc-800 font-bold text-umber dark:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 w-full sm:w-auto">
               <BookOpen size={16} className="mr-2 text-amber-600" /> Study This Deck
             </Button>
-
-            <Button
-              variant="outline"
-              onClick={handleShareResult}
-              className="h-12 px-4 rounded-xl border-stone-200 dark:border-zinc-800 font-bold text-umber dark:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 w-full sm:w-auto"
-              title="Share match score"
-            >
+            <Button variant="outline" onClick={handleShareResult} className="h-12 px-4 rounded-xl border-stone-200 dark:border-zinc-800 font-bold text-umber dark:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 w-full sm:w-auto">
               <Share2 size={16} className="mr-1.5" /> Share
             </Button>
           </div>
-
-          <Button
-            variant="ghost"
-            onClick={confirmExit}
-            className="h-12 px-5 rounded-xl font-bold text-taupe dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 w-full sm:w-auto"
-          >
+          <Button variant="ghost" onClick={confirmExit} className="h-12 px-5 rounded-xl font-bold text-taupe dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 w-full sm:w-auto">
             Leave Match
           </Button>
         </div>
