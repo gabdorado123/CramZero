@@ -6,6 +6,7 @@
 let audioCtx = null;
 let masterGain = null;
 const sfxBuffers = new Map();
+const loadingSfx = new Set();
 const SFX_VOLUME_KEY = 'cramzero-sfx-volume';
 const SFX_MUTE_KEY = 'cramzero-sfx-mute';
 
@@ -27,7 +28,7 @@ export const SFX_NAMES = [
 /** Initialize AudioContext on first user interaction */
 export function initAudio() {
   if (audioCtx) {
-    if (audioCtx.state === 'suspended') audioCtx.resume();
+    resumeAudioContext();
     return audioCtx;
   }
 
@@ -43,9 +44,7 @@ export function initAudio() {
 
     // Resume on user interaction (required by browser policies)
     const resumeAudio = () => {
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
+      resumeAudioContext();
       document.removeEventListener('click', resumeAudio);
       document.removeEventListener('keydown', resumeAudio);
     };
@@ -57,6 +56,15 @@ export function initAudio() {
     console.warn('Web Audio API not available:', e);
     return null;
   }
+}
+
+function resumeAudioContext() {
+  if (audioCtx?.state === 'suspended') {
+    return audioCtx.resume().catch(error => {
+      console.warn('Unable to resume audio context:', error);
+    });
+  }
+  return Promise.resolve();
 }
 
 /** Get or create AudioContext */
@@ -163,33 +171,45 @@ export async function preloadAllSfx() {
 /** Play a sound effect by name */
 export function playSfx(name, options = {}) {
   const ctx = getAudioContext();
-  if (!ctx) return;
+  if (!ctx || !masterGain) return;
 
   const { volume = 1, rate = 1, loop = false } = options;
-  const buffer = sfxBuffers.get(name);
+  let buffer = sfxBuffers.get(name);
 
   if (!buffer) {
-    // Try to load on-demand
-    loadSfx(name).then(buf => {
-      if (buf) playSfx(name, options);
-    });
+    // Play the procedural fallback immediately. Network assets are optional and
+    // must not delay feedback after a user action.
+    buffer = generateToneBuffer(name);
+    if (!buffer) return;
+
+    if (!loadingSfx.has(name)) {
+      loadingSfx.add(name);
+      loadSfx(name).finally(() => loadingSfx.delete(name));
+    }
+  }
+
+  const startPlayback = () => {
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.playbackRate.value = rate;
+    source.loop = loop;
+
+    // Per-sound gain for individual volume control
+    const gainNode = ctx.createGain();
+    gainNode.gain.value = volume;
+
+    source.connect(gainNode);
+    gainNode.connect(masterGain);
+    source.start(0);
+    return source;
+  };
+
+  if (ctx.state === 'suspended') {
+    resumeAudioContext().then(startPlayback);
     return;
   }
 
-  const source = ctx.createBufferSource();
-  source.buffer = buffer;
-  source.playbackRate.value = rate;
-  source.loop = loop;
-
-  // Per-sound gain for individual volume control
-  const gainNode = ctx.createGain();
-  gainNode.gain.value = volume;
-
-  source.connect(gainNode);
-  gainNode.connect(masterGain);
-  source.start(0);
-
-  return source;
+  return startPlayback();
 }
 
 /** Set master volume (0-1) */

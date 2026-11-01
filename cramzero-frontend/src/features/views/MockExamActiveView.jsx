@@ -2,13 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import {
   CheckCircle, ChevronLeft, ChevronRight, X,
   Timer, AlertTriangle, Check, Layers, RotateCcw,
-  Sparkles, ArrowLeft, Target, ShieldCheck
+  Sparkles, ArrowLeft, Target, ShieldCheck, Volume2, VolumeX
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { recordAnalyticsEvent } from '@/lib/analytics';
-import { initAudio, playSfx } from '@/lib/sfx';
+import { initAudio, playSfx, isSfxMuted, toggleSfxMute } from '@/lib/sfx';
 
 export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
   const safeDeck = activeDeck || { title: "Loading Assessment...", cards: [] }; 
@@ -18,6 +18,7 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
   const [answers, setAnswers] = useState({});
   const [isFinished, setIsFinished] = useState(false);
   const [timeLeftSeconds, setTimeLeftSeconds] = useState(null);
+  const [isSoundMuted, setIsSoundMuted] = useState(() => isSfxMuted());
   const timerCuesPlayedRef = useRef(new Set());
 
   useEffect(() => {
@@ -186,6 +187,11 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
       const mins = parseInt(examConfig.timeMode.split(' ')[0], 10);
       setTimeLeftSeconds(mins * 60);
     }
+  };
+
+  const handleToggleSound = () => {
+    initAudio();
+    setIsSoundMuted(toggleSfxMute());
   };
 
   if (questions.length === 0) {
@@ -357,6 +363,16 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
               <span>{formatTime(timeLeftSeconds)}</span>
             </div>
           )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleToggleSound}
+            className="rounded-full text-stone-500 hover:text-amber-600 dark:text-zinc-400 dark:hover:text-amber-400"
+            title={isSoundMuted ? 'Enable sound effects' : 'Mute sound effects'}
+            aria-label={isSoundMuted ? 'Enable sound effects' : 'Mute sound effects'}
+          >
+            {isSoundMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}
+          </Button>
           <Button
             variant="ghost"
             size="sm"
