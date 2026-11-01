@@ -58,7 +58,7 @@ export function DeckDetailsView({
 
   // Share Deck Direct Link
   const handleShareDeck = () => {
-    const shareUrl = `${window.location.origin}?deck=${activeDeck.id}`;
+    const shareUrl = `${window.location.origin}${window.location.pathname}?deck=${activeDeck.id}`;
     navigator.clipboard.writeText(shareUrl);
     if (activeDeck.visibility !== 'Public') {
       toast.info('Share link copied!', {

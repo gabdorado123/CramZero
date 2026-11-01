@@ -256,7 +256,7 @@ export function HubDetailsView({ navigateTo, activeHub, setActiveHub, setMyHubs,
                   size="sm"
                   variant="ghost"
                   onClick={() => {
-                    navigator.clipboard.writeText(`${window.location.origin}?hub=${activeHub.inviteCode}`);
+                    navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?hub=${activeHub.inviteCode}`);
                     toast.success("Invite link copied to clipboard");
                   }}
                   title="Copy invite link"

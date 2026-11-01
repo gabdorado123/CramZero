@@ -64,14 +64,22 @@ const mockHubs = [
   { id: 'hub-2', name: 'Web Dev Portfolio Prep', description: 'Frontend, Backend, and Full-Stack interview prep.', role: 'Member', members: 12, decks: 5, inviteCode: 'WEB-DEV-99' }
 ];
 
+function getSharedRoute(search = '') {
+  const params = new URLSearchParams(search);
+  if (params.get('room')) return { type: 'room', value: params.get('room') };
+  if (params.get('hub')) return { type: 'hub', value: params.get('hub') };
+  if (params.get('deck')) return { type: 'deck', value: params.get('deck') };
+  return null;
+}
+
 export default function App() {
   const [currentView, setCurrentView] = useState(() => {
-    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('room')) {
-      return 'multiplayer';
-    }
-    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('hub')) {
-      return 'hubs';
-    }
+    const sharedRoute = typeof window !== 'undefined'
+      ? getSharedRoute(window.location.search)
+      : null;
+    if (sharedRoute?.type === 'room') return 'multiplayer';
+    if (sharedRoute?.type === 'hub') return 'hubs';
+    if (sharedRoute?.type === 'deck') return 'deck-details';
     return 'landing';
   });
   
@@ -255,26 +263,44 @@ export default function App() {
   };
   
   useEffect(() => {
-    const hubCode = new URLSearchParams(window.location.search).get('hub');
+    const sharedRoute = getSharedRoute(window.location.search);
+    const hubCode = sharedRoute?.type === 'hub' ? sharedRoute.value : null;
+    const deckId = sharedRoute?.type === 'deck' ? sharedRoute.value : null;
     const loadWorkspace = async () => {
-      const [decksResponse, hubsResponse] = await Promise.all([
-        fetch(`${API_BASE}/api/decks/?user_id=${encodeURIComponent(userId)}`),
-        hubCode
-          ? fetch(`${API_BASE}/api/study-hubs/join`, {
+      const decksPromise = fetch(`${API_BASE}/api/decks/?user_id=${encodeURIComponent(userId)}`);
+      const hubsPromise = hubCode
+        ? fetch(`${API_BASE}/api/study-hubs/join`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ invite_code: hubCode, user_id: userId, display_name: displayName }),
             })
-          : fetch(`${API_BASE}/api/study-hubs?user_id=${encodeURIComponent(userId)}`),
-      ]);
+        : fetch(`${API_BASE}/api/study-hubs?user_id=${encodeURIComponent(userId)}`);
+      const sharedDeckPromise = deckId
+        ? fetch(`${API_BASE}/api/decks/${encodeURIComponent(deckId)}?user_id=${encodeURIComponent(userId)}`)
+        : null;
+
+      const decksResponse = await decksPromise;
       const decks = await decksResponse.json();
-      const hubData = await hubsResponse.json();
       if (!decksResponse.ok) throw new Error('Could not load decks.');
+
+      const hubsResponse = await hubsPromise;
+      const hubData = await hubsResponse.json();
       if (!hubsResponse.ok) throw new Error(hubData.detail || 'Could not load study hubs.');
+
+      const sharedDeckResponse = sharedDeckPromise ? await sharedDeckPromise : null;
+      const sharedDeck = sharedDeckResponse ? await sharedDeckResponse.json() : null;
+      if (sharedDeckResponse && !sharedDeckResponse.ok) {
+        throw new Error(sharedDeck.detail || 'Could not load the shared deck.');
+      }
       setMyDecks(decks.reverse());
       const hubs = hubCode ? [hubData] : hubData;
       setMyHubs(hubs);
-      if (hubCode) {
+      if (deckId && sharedDeck) {
+        setActiveDeck(sharedDeck);
+        setHasActiveDeck(true);
+        setCurrentView('deck-details');
+        window.history.replaceState({}, '', window.location.pathname);
+      } else if (hubCode) {
         setActiveHub(hubData);
         setCurrentView('hub-details');
         window.history.replaceState({}, '', window.location.pathname);
@@ -638,5 +664,3 @@ export default function App() {
     </>
   );
 }
-
-

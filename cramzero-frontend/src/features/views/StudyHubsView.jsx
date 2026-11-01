@@ -96,7 +96,7 @@ export function StudyHubsView({ navigateTo, setActiveHub, myHubs, userId, displa
                 <CardFooter className="px-6 pb-6 pt-0 flex items-center gap-5 border-t border-stone-100 dark:border-zinc-800/80 pt-4 text-sm font-medium text-umber dark:text-zinc-300">
                   <span className="flex items-center gap-1.5 text-xs text-taupe dark:text-zinc-400"><BookOpen size={15} /> {hub.sharedDecks?.length ?? hub.decks ?? 0} Decks</span>
                   <span className="flex items-center gap-1.5 text-xs text-taupe dark:text-zinc-400"><Users size={15} /> {hub.members} Members</span>
-                  <Button variant="ghost" size="sm" title="Copy share link" onClick={(event) => { event.stopPropagation(); navigator.clipboard.writeText(`${window.location.origin}?hub=${hub.inviteCode}`); toast.success('Share link copied'); }} className="ml-auto h-8 gap-1.5 px-3 rounded-full text-xs font-semibold text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:text-blue-400 dark:hover:bg-blue-950/30"><LinkIcon size={13} /> Share link</Button>
+                  <Button variant="ghost" size="sm" title="Copy share link" onClick={(event) => { event.stopPropagation(); navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?hub=${hub.inviteCode}`); toast.success('Share link copied'); }} className="ml-auto h-8 gap-1.5 px-3 rounded-full text-xs font-semibold text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:text-blue-400 dark:hover:bg-blue-950/30"><LinkIcon size={13} /> Share link</Button>
                 </CardFooter>
               </Card>
             ))}
