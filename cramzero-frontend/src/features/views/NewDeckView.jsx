@@ -562,7 +562,7 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
             type="file" 
             ref={fileInputRef} 
             onChange={handleFileSelect} 
-            accept=".pdf,.pptx,.txt" 
+            accept=".pdf,.docx,.pptx,.txt" 
             className="hidden" 
           />
 
@@ -576,7 +576,7 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
                   Import Notes & Lecture Slides
                 </h3>
                 <p className="text-xs text-taupe dark:text-zinc-400">
-                  Upload a PDF, PowerPoint (.pptx), or text file to extract cards automatically.
+                  Upload a PDF, Word document (.docx), PowerPoint (.pptx), or text file to extract cards automatically.
                 </p>
               </div>
             </div>
@@ -611,7 +611,7 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
                     Click to browse or drop your file here
                   </p>
                   <p className="text-xs text-taupe dark:text-zinc-400 max-w-sm mx-auto">
-                    Supports PDF documents (.pdf), PowerPoint slide decks (.pptx), and plain text notes (.txt).
+                    Supports PDF documents (.pdf), Word documents (.docx), PowerPoint slide decks (.pptx), and plain text notes (.txt).
                   </p>
                 </div>
               )}
@@ -621,7 +621,7 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
             <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-stone-100 dark:bg-zinc-800/60 border border-stone-200/60 dark:border-zinc-700/60">
               <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-zinc-300">
                 <Info size={14} className="text-blue-500 shrink-0" />
-                <span>Supported: <strong>PDF, PPTX, TXT</strong> (up to 20MB)</span>
+                <span>Supported: <strong>PDF, DOCX, PPTX, TXT</strong> (up to 20MB)</span>
               </div>
               <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                 <Check size={12} strokeWidth={3} /> Gemini & Groq Failover Enabled

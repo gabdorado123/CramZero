@@ -100,7 +100,7 @@ export function LandingPageView({ navigateTo, hasProfileSetup, isDarkMode, setIs
             Upload files. Generate decks. <span className="text-taupe dark:text-zinc-500 underline decoration-umber/30 dark:decoration-zinc-700">Zero friction.</span>
           </h1>
           <p className="text-base md:text-lg text-taupe dark:text-zinc-400 leading-relaxed font-medium max-w-lg mx-auto lg:mx-0">
-            Transform heavy PDFs, PPTX slides, and lecture notes into smart flashcards and quizzes instantly using Google Gemini AI.
+            Transform heavy PDFs, Word documents (.docx), PPTX slides, and lecture notes into smart flashcards and quizzes instantly using Google Gemini AI.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 pt-2">
             <Button size="lg" onClick={handleLaunchApp} className="w-full sm:w-auto bg-umber dark:bg-zinc-100 text-sand dark:text-zinc-900 rounded-xl font-bold text-base hover:bg-umber/90 dark:hover:bg-zinc-300 shadow-md hover:scale-105 h-14 px-8">
@@ -146,7 +146,7 @@ export function LandingPageView({ navigateTo, hasProfileSetup, isDarkMode, setIs
               { id: 1, title: 'Flashcard Review', desc: 'Tap to flip cards. Self-rate confidence to train spaced repetition.' },
               { id: 2, title: 'Auto-generated Quizzes', desc: 'Multiple choice & identification questions generated straight from files.' },
               { id: 3, title: 'Professor Zero AI Tutor', desc: 'Chat with an AI that has complete context of your uploaded study material.' },
-              { id: 4, title: 'File Ingestion & Generation', desc: 'Drop PDFs, PPTX lecture slides, JSON or TXT to build decks instantly.' },
+              { id: 4, title: 'File Ingestion & Generation', desc: 'Drop PDFs, Word documents, PPTX lecture slides, JSON or TXT to build decks instantly.' },
             ].map((tab) => (
               <div key={tab.id} onClick={() => setActiveStudyTab(tab.id)} className={`p-4 md:p-5 rounded-2xl border cursor-pointer transition-all ${activeStudyTab === tab.id ? 'bg-white dark:bg-zinc-900 border-umber dark:border-zinc-600 shadow-md lg:translate-x-2' : 'bg-sand/40 dark:bg-zinc-900/40 border-taupe/20 dark:border-zinc-800 hover:bg-white/60 dark:hover:bg-zinc-800 text-taupe dark:text-zinc-400'}`}>
                 <div className="flex items-center gap-3 mb-1">
@@ -193,7 +193,7 @@ export function LandingPageView({ navigateTo, hasProfileSetup, isDarkMode, setIs
                 <div className="text-xs font-bold text-taupe dark:text-zinc-500 uppercase tracking-wider">Universal File Ingestion</div>
                 <div className="bg-sand/30 dark:bg-zinc-950 border border-taupe/20 dark:border-zinc-800 p-6 rounded-2xl flex flex-col items-center justify-center text-center">
                   <UploadCloud size={32} className="text-umber dark:text-zinc-400 mb-2" />
-                  <p className="font-bold text-umber dark:text-zinc-200 text-sm">Drop your .PDF, .PPTX, .JSON, or .TXT</p>
+                  <p className="font-bold text-umber dark:text-zinc-200 text-sm">Drop your .PDF, .DOCX, .PPTX, .JSON, or .TXT</p>
                   <p className="text-xs text-taupe dark:text-zinc-500 mt-1">Instant structural parsing & flashcard compilation</p>
                 </div>
               </div>
@@ -216,6 +216,7 @@ export function LandingPageView({ navigateTo, hasProfileSetup, isDarkMode, setIs
             </div>
             <div className="mt-8 flex gap-2 md:gap-3 relative z-10 flex-wrap">
               <span className="bg-sand/10 dark:bg-zinc-900/20 border border-sand/20 dark:border-zinc-900/30 px-3 py-1 rounded-lg text-xs font-bold">PDF Support</span>
+              <span className="bg-sand/10 dark:bg-zinc-900/20 border border-sand/20 dark:border-zinc-900/30 px-3 py-1 rounded-lg text-xs font-bold">Word DOCX</span>
               <span className="bg-sand/10 dark:bg-zinc-900/20 border border-sand/20 dark:border-zinc-900/30 px-3 py-1 rounded-lg text-xs font-bold">PowerPoint PPTX</span>
               <span className="bg-sand/10 dark:bg-zinc-900/20 border border-sand/20 dark:border-zinc-900/30 px-3 py-1 rounded-lg text-xs font-bold">JSON & TXT</span>
             </div>
@@ -274,7 +275,7 @@ export function LandingPageView({ navigateTo, hasProfileSetup, isDarkMode, setIs
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {[
             { q: "Do I need to create an account to start?", a: "No! You can start immediately as a guest on your current device, or create a free cloud account with email and password to sync your decks across all your devices." },
-            { q: "What file formats are supported for upload generation?", a: "You can upload PDF documents, PowerPoint (.pptx) presentation slides, plain text (.txt), and JSON exports." },
+            { q: "What file formats are supported for upload generation?", a: "You can upload PDF documents, Word documents (.docx), PowerPoint (.pptx) presentation slides, plain text (.txt), and JSON exports." },
             { q: "How do Study Hubs work?", a: "You can create a hub for your specific class. By sharing the invite link, classmates can join and any deck uploaded to the hub is instantly synced for everyone." },
             { q: "Is CramZero free for students?", a: "Yes, 100% free for all students with full access to flashcard reviews, quizzes, and multiplayer battle rooms." }
           ].map((faq, i) => (

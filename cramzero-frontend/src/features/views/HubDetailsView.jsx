@@ -547,14 +547,14 @@ export function HubDetailsView({ navigateTo, activeHub, setActiveHub, setMyHubs,
                   </div>
                   <div>
                     <p className="font-bold text-amber-900 dark:text-amber-300 text-sm">Generate from Document</p>
-                    <p className="text-xs text-amber-800/80 dark:text-amber-400/80">Upload PDF, PPTX, or TXT for AI parsing</p>
+                    <p className="text-xs text-amber-800/80 dark:text-amber-400/80">Upload PDF, DOCX, PPTX, or TXT for AI parsing</p>
                   </div>
                 </div>
 
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf,.pptx,.txt"
+                  accept=".pdf,.docx,.pptx,.txt"
                   onChange={handleGenerateAndShare}
                   className="hidden"
                 />

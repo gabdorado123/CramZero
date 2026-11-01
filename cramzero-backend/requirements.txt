@@ -10,3 +10,6 @@ reportlab
 python-multipart
 pypdf
 python-pptx
+python-docx
+python-docx
+

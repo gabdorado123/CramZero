@@ -41,7 +41,7 @@ Traditional educational technology platforms often burden students with strict s
 | **Home Dashboard** | `DashboardView.jsx` | Student overview showing daily cards reviewed, active streaks, recent decks, and one-click study actions. |
 | **Study Hub** | `StudyView.jsx` | Launchpad for study sessions with adaptive viewport formatting across phones, tablets, and desktops. |
 | **Deck Library** | `DecksView.jsx` | Personal decks repository alongside community public deck search, filtering, and one-click cloning. |
-| **New Deck Creator** | `NewDeckView.jsx` | Multi-source deck builder: natural language prompts, document upload (`.pdf`, `.pptx`, `.txt`), or manual card entry. |
+| **New Deck Creator** | `NewDeckView.jsx` | Multi-source deck builder: natural language prompts, document upload (`.pdf`, `.docx`, `.pptx`, `.txt`), or manual card entry. |
 | **Deck Details** | `DeckDetailsView.jsx` | Full deck card list, audio readout player, contextual AI tutor chat, visibility toggling, and PDF export. |
 | **Flashcard Mode** | `FlashcardModeView.jsx` | 3D flip flashcard review with Spaced Repetition confidence rating (Easy, Medium, Hard) and keyboard shortcuts. |
 | **Interactive Quiz** | `QuizSetupView.jsx` | Multi-format assessments: Multiple Choice, True/False, Identification, and Matching pairs with instant feedback. |
@@ -85,10 +85,11 @@ Document Generation:    [File Upload] ──> [Gemini Files API] ──Failover�
 ## 5. Document Text Extraction Pipeline
 
 When users upload study materials to `/api/generate-deck-from-file/`:
-- **PDF Documents (`.pdf`):** Processed via `pypdf.PdfReader` with page-by-page text stream aggregation.
+- **PDF Documents (`.pdf`):** Processed via Gemini Files API (primary) or `pypdf.PdfReader` (fallback) with page-by-page text stream aggregation.
+- **Word Documents (`.docx`):** Extracted via `python-docx` — paragraphs and table cells (with merged-cell deduplication). Zipfile/XML fallback if python-docx fails.
 - **PowerPoint Decks (`.pptx`):** Extracted via `python-pptx.Presentation`, iterating across all slides, shapes, text frames, and bullet paragraphs.
-- **Plain Text (`.txt`):** Decoded with automatic encoding detection (`utf-8`, `utf-8-sig`, `latin-1`, `cp1252`).
-- **Context Bounds:** Extracted document text is truncated safely to 25,000 characters to protect inference tokens and maintain sub-second response times.
+- **Plain Text (`.txt`):** Processed via Gemini Files API (primary) or decoded with automatic encoding detection (`utf-8`, `utf-8-sig`, `latin-1`, `cp1252`) (fallback).
+- **Context Bounds:** Extracted document text is truncated safely to 25,000–30,000 characters to protect inference tokens and maintain sub-second response times.
 
 ---
 

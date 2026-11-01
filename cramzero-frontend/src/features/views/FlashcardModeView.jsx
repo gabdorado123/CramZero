@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-  Clock, Shuffle, Maximize, RotateCcw, Check, Sparkles, ArrowLeft,
+  Clock, Shuffle, Maximize, Minimize, RotateCcw, Check, Sparkles, ArrowLeft,
   ChevronLeft, ChevronRight, RotateCw, Layers, Award, Keyboard
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,16 @@ export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
   const [autoSpeed, setAutoSpeed] = useState(0);
   const [progress, setProgress] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const containerRef = useRef(null);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   useEffect(() => {
     if (autoSpeed === 0) { setProgress(0); return; }
@@ -144,70 +153,120 @@ export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isFlipped, currentIndex, isFinished, safeDeck]);
 
-  const toggleFullscreen = () => document.fullscreenElement ? document.exitFullscreen() : containerRef.current?.requestFullscreen().catch(e => console.log(e));
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(e => console.log(e));
+    } else {
+      containerRef.current?.requestFullscreen().catch(e => console.log(e));
+    }
+  };
 
   const totalCards = safeDeck.cards?.length || 1;
   const progressPercentage = isFinished ? 100 : Math.round(((currentIndex + 1) / totalCards) * 100);
 
   return (
-    <div className="min-h-full flex-1 w-full flex flex-col items-center justify-center p-4 md:p-8">
-      <div ref={containerRef} className="max-w-3xl w-full mx-auto my-auto flex flex-col items-center animate-in fade-in duration-300 bg-white dark:bg-zinc-950 p-5 md:p-8 rounded-3xl border border-stone-200/90 dark:border-zinc-800 shadow-sm">
+    <div className="w-full flex-1 flex flex-col items-center justify-start py-3 sm:py-6 px-3 sm:px-6">
+      <div 
+        ref={containerRef} 
+        className={`w-full max-w-2xl mx-auto flex flex-col items-center animate-in fade-in duration-300 ${
+          isFullscreen ? 'h-screen max-w-3xl justify-center bg-[#FBF9F5] dark:bg-zinc-950 p-6 sm:p-10' : ''
+        }`}
+      >
         
         {/* Controls Toolbar with Deck Title Context */}
-        <div className="w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 border-b border-stone-200/60 dark:border-zinc-800/80 pb-4">
-          <div className="flex flex-wrap items-center gap-2 md:gap-3">
+        <div className="w-full flex items-center justify-between gap-2 sm:gap-3 mb-3 pb-3 border-b border-stone-200/70 dark:border-zinc-800">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
             <Button 
               variant="ghost" 
               size="icon" 
               onClick={() => navigateTo('deck-details')} 
-              className="text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 hover:bg-stone-100 dark:hover:bg-zinc-800 rounded-xl h-9 w-9 shrink-0"
+              className="text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 hover:bg-stone-200/60 dark:hover:bg-zinc-800 rounded-xl h-9 w-9 shrink-0 transition-colors"
               title="Return to Deck Details"
             >
               <ArrowLeft size={18}/>
             </Button>
 
-            {/* Deck Title Breadcrumb */}
-            <span className="hidden sm:inline-block font-extrabold text-xs text-umber dark:text-zinc-200 max-w-[160px] md:max-w-[210px] truncate" title={safeDeck.title}>
+            {/* Deck Title */}
+            <span className="font-bold text-sm sm:text-base text-stone-900 dark:text-zinc-100 truncate" title={safeDeck.title}>
               {safeDeck.title}
             </span>
-
-            <div className="flex flex-wrap gap-1.5 sm:border-l sm:border-stone-200 dark:sm:border-zinc-800 sm:pl-3">
-              <Button variant="outline" size="sm" onClick={cycleAutoSpeed} disabled={isFinished} className={`h-8 text-xs font-bold rounded-lg border transition-all ${autoSpeed > 0 ? 'bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800 shadow-xs' : 'border-stone-200 dark:border-zinc-800 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 bg-transparent'}`}>
-                <Clock size={13} className="mr-1.5 text-amber-600" /> {autoSpeed > 0 ? `${autoSpeed}s` : 'Auto'}
-              </Button>
-              <Button variant="outline" size="sm" onClick={toggleShuffle} className={`h-8 text-xs font-bold rounded-lg border transition-all ${isShuffled ? 'bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800 shadow-xs' : 'border-stone-200 dark:border-zinc-800 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 bg-transparent'}`}>
-                <Shuffle size={13} className="mr-1.5 text-amber-600" /> Shuffle
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleReset} className="h-8 text-xs font-bold rounded-lg border-stone-200 dark:border-zinc-800 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 bg-transparent">
-                <RotateCcw size={13} className="mr-1.5" /> Reset
-              </Button>
-              <Button variant="outline" size="sm" onClick={toggleFullscreen} className="hidden md:flex h-8 text-xs font-bold rounded-lg border-stone-200 dark:border-zinc-800 text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-100 bg-transparent">
-                <Maximize size={13} className="mr-1.5" /> Focus
-              </Button>
-            </div>
-            
-            <Badge variant="secondary" className="font-bold tracking-wide rounded-lg text-xs bg-stone-100 dark:bg-zinc-800 text-umber dark:text-zinc-200 border border-stone-200/50 dark:border-zinc-700/50 px-2.5 py-1">
-              {isFinished ? `Completed (${totalCards}/${totalCards})` : `Card ${currentIndex + 1} / ${totalCards}`}
-            </Badge>
           </div>
 
-          <div>
-            <Button onClick={() => setIsTutorOpen(true)} className="h-8.5 bg-amber-500 hover:bg-amber-600 text-white border-0 text-xs font-bold shadow-xs rounded-xl px-3.5 flex items-center gap-1.5 transition-all hover:shadow-md">
-              <Sparkles size={14} /> Ask AI
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={cycleAutoSpeed} 
+              disabled={isFinished} 
+              className={`h-8 px-2 sm:px-2.5 text-xs font-semibold rounded-lg border transition-all ${
+                autoSpeed > 0 
+                  ? 'bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800 shadow-2xs' 
+                  : 'border-stone-200 dark:border-zinc-800 text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 bg-white/70 dark:bg-zinc-900/70'
+              }`}
+              title={autoSpeed > 0 ? `Auto-advancing cards (${autoSpeed}s)` : 'Enable auto speed'}
+            >
+              <Clock size={13} className="mr-1 text-amber-600 dark:text-amber-400" />
+              <span>{autoSpeed > 0 ? `${autoSpeed}s` : 'Auto'}</span>
+            </Button>
+
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={toggleShuffle} 
+              className={`h-8 px-2 sm:px-2.5 text-xs font-semibold rounded-lg border transition-all ${
+                isShuffled 
+                  ? 'bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800 shadow-2xs' 
+                  : 'border-stone-200 dark:border-zinc-800 text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 bg-white/70 dark:bg-zinc-900/70'
+              }`}
+              title={isShuffled ? 'Cards shuffled (Click to restore order)' : 'Shuffle cards'}
+            >
+              <Shuffle size={13} className="mr-1 text-amber-600 dark:text-amber-400" />
+              <span className="hidden sm:inline">Shuffle</span>
+            </Button>
+
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleReset} 
+              className="h-8 px-2 sm:px-2.5 text-xs font-semibold rounded-lg border-stone-200 dark:border-zinc-800 text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 bg-white/70 dark:bg-zinc-900/70 transition-colors"
+              title="Reset progress to beginning"
+            >
+              <RotateCcw size={13} className="mr-1" />
+              <span className="hidden sm:inline">Reset</span>
+            </Button>
+
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={toggleFullscreen} 
+              className="hidden md:flex h-8 px-2.5 text-xs font-semibold rounded-lg border-stone-200 dark:border-zinc-800 text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 bg-white/70 dark:bg-zinc-900/70 transition-colors"
+              title={isFullscreen ? 'Exit Focus Mode' : 'Enter Focus Mode'}
+            >
+              {isFullscreen ? <Minimize size={13} className="mr-1" /> : <Maximize size={13} className="mr-1" />}
+              <span>{isFullscreen ? 'Exit' : 'Focus'}</span>
+            </Button>
+
+            <Button 
+              onClick={() => setIsTutorOpen(true)} 
+              className="h-8 bg-amber-500 hover:bg-amber-600 text-white border-0 text-xs font-bold shadow-2xs rounded-lg px-2.5 sm:px-3 flex items-center gap-1.5 transition-all hover:shadow-xs"
+              title="Open AI Tutor"
+            >
+              <Sparkles size={13} />
+              <span>Ask AI</span>
             </Button>
           </div>
         </div>
 
         {/* Deck Progress Bar Line */}
-        <div className="w-full mb-6">
-          <div className="flex justify-between items-center text-[11px] font-bold text-taupe dark:text-zinc-400 mb-1.5 px-0.5">
-            <span className="flex items-center gap-1.5 uppercase tracking-wider">
+        <div className="w-full mb-3 sm:mb-4">
+          <div className="flex justify-between items-center text-xs font-bold text-stone-500 dark:text-zinc-400 mb-1.5 px-0.5">
+            <span className="flex items-center gap-2 tracking-wide font-medium">
               <span className={`w-2 h-2 rounded-full ${isFinished ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></span>
-              Deck Progress
+              <span>{isFinished ? 'Session Completed' : `Card ${currentIndex + 1} of ${totalCards}`}</span>
             </span>
-            <span className="font-mono text-umber dark:text-zinc-200">{progressPercentage}%</span>
+            <span className="font-mono text-xs text-stone-700 dark:text-zinc-300 font-bold">{progressPercentage}%</span>
           </div>
-          <div className="w-full bg-stone-100 dark:bg-zinc-900 h-2 rounded-full overflow-hidden p-0.5 border border-stone-200/60 dark:border-zinc-800">
+          <div className="w-full bg-stone-200/60 dark:bg-zinc-800 h-2 rounded-full overflow-hidden p-0.5 border border-stone-200/80 dark:border-zinc-800">
             <div 
               className={`h-full rounded-full transition-all duration-300 ease-out shadow-xs ${isFinished ? 'bg-gradient-to-r from-emerald-500 to-teal-500' : 'bg-gradient-to-r from-amber-500 to-amber-600'}`}
               style={{ width: `${progressPercentage}%` }}
@@ -217,7 +276,7 @@ export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
 
         {isFinished ? (
           /* Finished State Screen */
-          <div className="w-full max-w-xl flex flex-col items-center text-center py-6 px-4 animate-in zoom-in-95 fade-in duration-300">
+          <div className="w-full max-w-xl flex flex-col items-center text-center py-6 px-4 animate-in zoom-in-95 fade-in duration-300 my-auto">
             <div className="relative mb-5">
               <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-300/40 dark:border-amber-500/30 flex items-center justify-center shadow-lg shadow-amber-500/10">
                 <Award size={44} className="animate-bounce" />
@@ -231,20 +290,20 @@ export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
               Session Completed
             </Badge>
 
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-umber dark:text-zinc-100 mb-2 tracking-tight">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-stone-900 dark:text-zinc-100 mb-2 tracking-tight">
               Deck Completed!
             </h2>
-            <p className="text-taupe dark:text-zinc-400 text-sm max-w-md mx-auto mb-6 leading-relaxed">
-              You've reviewed all <span className="font-bold text-umber dark:text-zinc-200">{totalCards} flashcards</span> in this deck. Review again to strengthen your recall or return to your decks.
+            <p className="text-stone-500 dark:text-zinc-400 text-sm max-w-md mx-auto mb-6 leading-relaxed">
+              You've reviewed all <span className="font-bold text-stone-900 dark:text-zinc-200">{totalCards} flashcards</span> in this deck. Review again to strengthen your recall or return to your decks.
             </p>
 
             <div className="w-full grid grid-cols-2 gap-3 mb-6">
-              <div className="bg-stone-50 dark:bg-zinc-900 border border-stone-200/80 dark:border-zinc-800/80 p-4 rounded-2xl text-center shadow-2xs">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-taupe dark:text-zinc-500 mb-1">Cards Mastered</p>
-                <p className="text-2xl font-black text-umber dark:text-zinc-100">{totalCards}</p>
+              <div className="bg-white dark:bg-zinc-900 border border-stone-200/80 dark:border-zinc-800/80 p-4 rounded-2xl text-center shadow-xs">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-zinc-500 mb-1">Cards Mastered</p>
+                <p className="text-2xl font-black text-stone-900 dark:text-zinc-100">{totalCards}</p>
               </div>
-              <div className="bg-stone-50 dark:bg-zinc-900 border border-stone-200/80 dark:border-zinc-800/80 p-4 rounded-2xl text-center shadow-2xs">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-taupe dark:text-zinc-500 mb-1">Completion</p>
+              <div className="bg-white dark:bg-zinc-900 border border-stone-200/80 dark:border-zinc-800/80 p-4 rounded-2xl text-center shadow-xs">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-zinc-500 mb-1">Completion</p>
                 <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">100%</p>
               </div>
             </div>
@@ -259,7 +318,7 @@ export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
               <Button 
                 onClick={() => navigateTo('decks')}
                 variant="outline"
-                className="flex-1 h-12 rounded-full font-bold bg-white dark:bg-zinc-900 border-stone-200 dark:border-zinc-800 text-umber dark:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 shadow-2xs flex items-center justify-center gap-2"
+                className="flex-1 h-12 rounded-full font-bold bg-white dark:bg-zinc-900 border-stone-200 dark:border-zinc-800 text-stone-800 dark:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 shadow-2xs flex items-center justify-center gap-2"
               >
                 <Layers size={16} /> Back to Library
               </Button>
@@ -275,7 +334,7 @@ export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
               <span className="text-stone-300 dark:text-zinc-700">•</span>
               <button 
                 onClick={() => navigateTo('deck-details')}
-                className="text-xs font-semibold text-taupe dark:text-zinc-400 hover:text-umber dark:hover:text-zinc-200 transition-colors inline-flex items-center gap-1.5"
+                className="text-xs font-semibold text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200 transition-colors inline-flex items-center gap-1.5"
               >
                 Return to Deck Overview
               </button>
@@ -284,24 +343,34 @@ export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
         ) : (
           <>
             {/* 3D Flashcard Flipper */}
-            <div className="card-scene w-full max-w-xl h-[clamp(280px,46vh,420px)] shrink-0 cursor-pointer select-none" onClick={() => { setIsFlipped(!isFlipped); setProgress(0); }}>
+            <div className="card-scene w-full h-[clamp(260px,40vh,380px)] shrink-0 cursor-pointer select-none" onClick={() => { setIsFlipped(!isFlipped); setProgress(0); }}>
               <div className={`card-flipper ${isFlipped ? 'is-flipped' : ''}`}>
-                <div className="card-face card-front group bg-white dark:bg-zinc-900 border border-stone-200/90 dark:border-zinc-800 p-6 md:p-8 text-center rounded-3xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between overflow-hidden relative">
-                  <span className="self-start text-[11px] font-extrabold text-taupe dark:text-zinc-500 tracking-widest uppercase">
-                    Term
-                  </span>
-                  <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-umber dark:text-zinc-100 px-2 sm:px-4 leading-relaxed my-auto overflow-y-auto max-h-[180px] sm:max-h-[240px] no-scrollbar">
-                    {currentCard?.term}
-                  </h3>
+                
+                {/* Front Face */}
+                <div className="card-face card-front group bg-white dark:bg-zinc-900 border border-stone-200/90 dark:border-zinc-800 p-6 md:p-8 text-center rounded-3xl shadow-md hover:shadow-lg transition-all flex flex-col justify-between overflow-hidden relative">
+                  <div className="w-full flex items-center justify-between">
+                    <span className="text-[11px] font-extrabold text-stone-400 dark:text-zinc-500 tracking-widest uppercase">
+                      Term
+                    </span>
+                    <span className="text-[11px] font-semibold text-stone-400 dark:text-zinc-500">
+                      {currentIndex + 1} / {totalCards}
+                    </span>
+                  </div>
+
+                  <div className="my-auto px-2 sm:px-6 w-full">
+                    <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-stone-900 dark:text-zinc-100 leading-relaxed overflow-y-auto max-h-[170px] sm:max-h-[220px] no-scrollbar">
+                      {currentCard?.term}
+                    </h3>
+                  </div>
                   
                   {/* Inside Below Card: Auto-flip countdown or click prompt */}
                   <div className="w-full self-center">
                     {autoSpeed > 0 ? (
-                      <div className="w-full pt-2">
-                        <div className="flex items-center justify-between text-[11px] font-bold text-amber-700 dark:text-amber-400 mb-1.5 px-0.5">
+                      <div className="w-full max-w-xs mx-auto">
+                        <div className="flex items-center justify-between text-[11px] font-bold text-amber-700 dark:text-amber-400 mb-1 px-0.5">
                           <span className="flex items-center gap-1.5">
                             <RotateCw size={11} className="animate-spin text-amber-600" />
-                            Auto-flipping definition...
+                            Flipping to definition...
                           </span>
                           <span className="font-mono text-[11px]">{Math.round(progress)}%</span>
                         </div>
@@ -313,26 +382,35 @@ export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
                         </div>
                       </div>
                     ) : (
-                      <Badge variant="outline" className="text-xs font-semibold text-taupe dark:text-zinc-400 border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-800/50 rounded-full px-3 py-1">
+                      <Badge variant="outline" className="text-xs font-medium text-stone-500 dark:text-zinc-400 border-stone-200 dark:border-zinc-800 bg-stone-50/80 dark:bg-zinc-800/60 rounded-full px-3.5 py-1 transition-colors group-hover:bg-amber-50 group-hover:text-amber-800 group-hover:border-amber-200 dark:group-hover:bg-amber-950/40 dark:group-hover:text-amber-300">
                         Click or press Space to reveal definition
                       </Badge>
                     )}
                   </div>
                 </div>
                 
-                <div className="card-face card-back group bg-[#FAF7F2] dark:bg-zinc-900 border border-amber-200/80 dark:border-amber-900/40 p-5 sm:p-6 md:p-8 text-center rounded-3xl shadow-sm flex flex-col justify-between overflow-hidden relative">
-                  <span className="self-start text-[11px] font-extrabold text-amber-700 dark:text-amber-500 tracking-widest uppercase">
-                    Definition
-                  </span>
-                  <h3 className="text-base sm:text-xl md:text-2xl font-medium text-umber dark:text-zinc-200 px-2 sm:px-4 leading-relaxed my-auto overflow-y-auto max-h-[180px] sm:max-h-[240px] no-scrollbar">
-                    {currentCard?.definition}
-                  </h3>
+                {/* Back Face */}
+                <div className="card-face card-back group bg-[#FFFDF9] dark:bg-zinc-900 border border-amber-300/60 dark:border-amber-900/40 p-6 md:p-8 text-center rounded-3xl shadow-md hover:shadow-lg transition-all flex flex-col justify-between overflow-hidden relative">
+                  <div className="w-full flex items-center justify-between">
+                    <span className="text-[11px] font-extrabold text-amber-700 dark:text-amber-500 tracking-widest uppercase">
+                      Definition
+                    </span>
+                    <span className="text-[11px] font-semibold text-amber-700/60 dark:text-amber-500/60">
+                      {currentIndex + 1} / {totalCards}
+                    </span>
+                  </div>
+
+                  <div className="my-auto px-2 sm:px-6 w-full">
+                    <h3 className="text-base sm:text-lg md:text-xl font-medium text-stone-800 dark:text-zinc-200 leading-relaxed overflow-y-auto max-h-[170px] sm:max-h-[220px] no-scrollbar">
+                      {currentCard?.definition}
+                    </h3>
+                  </div>
                   
                   {/* Inside Below Card: Auto-flip countdown or click prompt */}
                   <div className="w-full self-center">
                     {autoSpeed > 0 ? (
-                      <div className="w-full pt-2">
-                        <div className="flex items-center justify-between text-[11px] font-bold text-amber-700 dark:text-amber-400 mb-1.5 px-0.5">
+                      <div className="w-full max-w-xs mx-auto">
+                        <div className="flex items-center justify-between text-[11px] font-bold text-amber-700 dark:text-amber-400 mb-1 px-0.5">
                           <span className="flex items-center gap-1.5">
                             <RotateCw size={11} className="animate-spin text-amber-600" />
                             Next card in...
@@ -347,29 +425,30 @@ export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
                         </div>
                       </div>
                     ) : (
-                      <Badge variant="outline" className="text-xs font-semibold text-taupe dark:text-zinc-400 border-stone-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-800/50 rounded-full px-3 py-1">
+                      <Badge variant="outline" className="text-xs font-medium text-stone-500 dark:text-zinc-400 border-stone-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-800/60 rounded-full px-3.5 py-1 transition-colors group-hover:bg-amber-50 group-hover:text-amber-800 group-hover:border-amber-200 dark:group-hover:bg-amber-950/40 dark:group-hover:text-amber-300">
                         Click or press Space to flip back
                       </Badge>
                     )}
                   </div>
                 </div>
+
               </div>
             </div>
 
             {/* Bottom Actions / Navigation Controls */}
-            <div className="h-16 mt-6 flex items-center justify-center w-full max-w-xl shrink-0">
+            <div className="h-14 mt-4 flex items-center justify-center w-full max-w-xl shrink-0">
               {!isFlipped ? (
-                <div className="flex items-center gap-5 sm:gap-6">
+                <div className="flex items-center gap-4 sm:gap-6">
                   <button 
                     onClick={handlePrev} 
                     disabled={currentIndex === 0} 
                     aria-label="Previous card"
-                    className="w-12 h-12 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-umber dark:text-zinc-100 shadow-xs hover:shadow-md hover:bg-stone-50 dark:hover:bg-zinc-800 flex items-center justify-center transition-all disabled:opacity-30 disabled:pointer-events-none hover:scale-105 active:scale-95"
+                    className="w-11 h-11 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-800 dark:text-zinc-100 shadow-2xs hover:shadow-md hover:bg-stone-50 dark:hover:bg-zinc-800 flex items-center justify-center transition-all disabled:opacity-30 disabled:pointer-events-none hover:scale-105 active:scale-95"
                     title="Previous Card (← Arrow)"
                   >
-                    <ChevronLeft size={24}/>
+                    <ChevronLeft size={22}/>
                   </button>
-                  <span className="text-xs font-bold text-taupe dark:text-zinc-500 min-w-16 text-center">
+                  <span className="text-xs font-bold text-stone-500 dark:text-zinc-400 min-w-20 text-center tracking-wide">
                     {currentIndex + 1} of {totalCards}
                   </span>
                   {currentIndex === totalCards - 1 ? (
@@ -377,52 +456,52 @@ export function FlashcardModeView({ navigateTo, activeDeck, setIsTutorOpen }) {
                       onClick={handleNext} 
                       aria-label="Finish review"
                       title="Finish review"
-                      className="h-12 px-5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold flex items-center gap-2 shadow-xs hover:shadow-md transition-all hover:scale-105 active:scale-95"
+                      className="h-11 px-5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-2 shadow-2xs hover:shadow-md transition-all hover:scale-105 active:scale-95"
                     >
                       <span>Finish</span>
-                      <Check size={18} strokeWidth={2.5} />
+                      <Check size={16} strokeWidth={2.5} />
                     </button>
                   ) : (
                     <button 
                       onClick={handleNext} 
                       aria-label="Next card"
-                      className="w-12 h-12 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-umber dark:text-zinc-100 shadow-xs hover:shadow-md hover:bg-stone-50 dark:hover:bg-zinc-800 flex items-center justify-center transition-all disabled:opacity-30 disabled:pointer-events-none hover:scale-105 active:scale-95"
+                      className="w-11 h-11 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-800 dark:text-zinc-100 shadow-2xs hover:shadow-md hover:bg-stone-50 dark:hover:bg-zinc-800 flex items-center justify-center transition-all disabled:opacity-30 disabled:pointer-events-none hover:scale-105 active:scale-95"
                       title="Next Card (→ Arrow)"
                     >
-                      <ChevronRight size={24}/>
+                      <ChevronRight size={22}/>
                     </button>
                   )}
                 </div>
               ) : (
-                <div className="flex gap-2 md:gap-3 w-full animate-in slide-in-from-bottom-2 duration-200">
+                <div className="flex items-center gap-2 sm:gap-3 w-full animate-in slide-in-from-bottom-2 duration-200">
                   <Button 
                     onClick={() => handleRate('hard')} 
-                    className="flex-1 h-12 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900 rounded-xl font-bold hover:bg-rose-100 dark:hover:bg-rose-900/60 shadow-xs"
+                    className="flex-1 h-11 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900 rounded-xl font-bold shadow-2xs transition-all hover:scale-102 active:scale-98"
                     title="Press 1"
                   >
-                    Hard <span className="opacity-70 text-xs ml-1">(1)</span>
+                    Hard <kbd className="ml-1 px-1 py-0.5 rounded bg-rose-200/60 dark:bg-rose-900/80 text-[10px] font-mono">1</kbd>
                   </Button>
                   <Button 
                     variant="outline" 
                     onClick={() => handleRate('good')} 
-                    className="flex-1 h-12 rounded-xl font-bold bg-white dark:bg-zinc-900 border-stone-200 dark:border-zinc-800 text-umber dark:text-zinc-300 hover:bg-stone-50 dark:hover:bg-zinc-800 shadow-xs"
+                    className="flex-1 h-11 bg-stone-50 hover:bg-stone-100 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-stone-800 dark:text-zinc-200 border-stone-200 dark:border-zinc-800 rounded-xl font-bold shadow-2xs transition-all hover:scale-102 active:scale-98"
                     title="Press 2"
                   >
-                    Good <span className="opacity-70 text-xs ml-1">(2)</span>
+                    Good <kbd className="ml-1 px-1 py-0.5 rounded bg-stone-200 dark:bg-zinc-800 text-[10px] font-mono">2</kbd>
                   </Button>
                   <Button 
                     onClick={() => handleRate('easy')} 
-                    className="flex-1 h-12 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900 rounded-xl font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/60 shadow-xs"
+                    className="flex-1 h-11 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900 rounded-xl font-bold shadow-2xs transition-all hover:scale-102 active:scale-98"
                     title="Press 3"
                   >
-                    Easy <span className="opacity-70 text-xs ml-1">(3)</span>
+                    Easy <kbd className="ml-1 px-1 py-0.5 rounded bg-emerald-200/60 dark:bg-emerald-900/80 text-[10px] font-mono">3</kbd>
                   </Button>
                 </div>
               )}
             </div>
 
             {/* Desktop Keyboard Shortcuts Helper */}
-            <div className="hidden sm:flex items-center justify-center gap-4 text-[11px] font-medium text-taupe dark:text-zinc-500 mt-3 pt-2 border-t border-stone-200/50 dark:border-zinc-800/50">
+            <div className="hidden sm:flex items-center justify-center gap-4 text-[11px] font-medium text-stone-500 dark:text-zinc-500 mt-3 pt-2">
               <span className="flex items-center gap-1.5">
                 <kbd className="px-1.5 py-0.5 rounded bg-stone-100 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 font-mono text-[10px] text-stone-700 dark:text-zinc-300">Space</kbd>
                 Flip

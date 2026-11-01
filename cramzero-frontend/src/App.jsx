@@ -387,38 +387,44 @@ export default function App() {
           <OnboardingTour currentView={currentView} navigateTo={handleNavigate} />
 
           <main className="flex-1 flex flex-col relative overflow-hidden"> 
-            <header className="px-3 sm:px-4 md:px-8 py-2 sm:py-2.5 border-b border-stone-200/70 dark:border-zinc-800/80 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md sticky top-0 z-20 transition-colors shrink-0 shadow-2xs">
-          <div className="flex items-center justify-between gap-2 sm:gap-3">
-            <div className="flex min-w-0 items-center gap-2 sm:gap-4 md:gap-5">
-              <div className="flex items-center gap-2 cursor-pointer group shrink-0" onClick={() => handleNavigate('landing')}>
-                <img src="/cramzero-logo.svg" alt="CramZero" className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl group-hover:scale-105 transition-transform" />
-                <h1 className="text-lg sm:text-xl font-bold text-umber dark:text-zinc-100 hidden sm:block tracking-tight">CramZero</h1>
-              </div>
+            <header className="px-3 sm:px-4 md:px-6 lg:px-8 py-2 sm:py-2.5 border-b border-stone-200/70 dark:border-zinc-800/80 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md sticky top-0 z-20 transition-colors shrink-0 shadow-2xs">
+          <div className="flex items-center justify-between gap-2 md:gap-4">
+            {/* Brand Logo & Name (Protected with shrink-0, cannot collapse) */}
+            <div className="flex items-center gap-2 cursor-pointer group shrink-0" onClick={() => handleNavigate('landing')}>
+              <img src="/cramzero-logo.svg" alt="CramZero" className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl group-hover:scale-105 transition-transform" />
+              <h1 className="text-lg sm:text-xl font-bold text-umber dark:text-zinc-100 hidden sm:block tracking-tight select-none">CramZero</h1>
             </div>
+
+            {/* Desktop Navigation Dock (Centered with flex-1 min-w-0, cannot overlap logo or push right controls) */}
             {showNavDock && (
-              <PrimaryNavigation items={navItems} currentView={currentView} onNavigate={handleNavigate} />
+              <div className="hidden md:flex flex-1 justify-center min-w-0 px-1 sm:px-2">
+                <PrimaryNavigation items={navItems} currentView={currentView} onNavigate={handleNavigate} />
+              </div>
             )}
-            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+
+            {/* Right Action Controls */}
+            <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
               <UsageTracker userId={userId} />
 
               {/* User Profile Avatar Pill */}
               <button
                 onClick={() => handleNavigate('profile')}
-                className="flex items-center gap-2 p-1 pl-1.5 pr-2.5 rounded-full bg-stone-100 hover:bg-stone-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-stone-200/80 dark:border-zinc-800 transition-all text-xs font-bold text-stone-800 dark:text-zinc-200 shadow-2xs hover:scale-102"
+                className="flex items-center gap-1.5 sm:gap-2 p-1 pl-1.5 pr-2 sm:pr-2.5 rounded-full bg-stone-100 hover:bg-stone-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-stone-200/80 dark:border-zinc-800 transition-all text-xs font-bold text-stone-800 dark:text-zinc-200 shadow-2xs hover:scale-102"
                 title="View Profile & Account"
               >
                 <div className="relative w-6 h-6 rounded-full overflow-hidden bg-amber-200/80 shrink-0">
                   <img src={avatarUrl || 'https://api.dicebear.com/7.x/notionists/svg?seed=Felix&backgroundColor=e5ddd3'} alt={displayName} className="w-full h-full object-cover" />
                 </div>
-                <span className="hidden sm:inline max-w-[85px] truncate">{displayName}</span>
+                <span className="hidden md:inline max-w-[70px] lg:max-w-[85px] truncate">{displayName}</span>
               </button>
 
-              <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-stone-100 dark:bg-zinc-900 border border-stone-200/80 dark:border-zinc-800 transition-colors">
+              <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full bg-stone-100 dark:bg-zinc-900 border border-stone-200/80 dark:border-zinc-800 transition-colors">
                 <Sun size={13} className="text-amber-600 dark:text-zinc-500" />
                 <Switch checked={isDarkMode} onCheckedChange={setIsDarkMode} className="data-[state=checked]:bg-indigo-500 scale-90 sm:scale-100" />
                 <Moon size={13} className="text-taupe dark:text-indigo-400" />
               </div>
-              <Button variant="ghost" size="sm" onClick={() => handleNavigate('landing')} className="hidden font-bold text-taupe hover:text-umber dark:text-zinc-400 dark:hover:text-zinc-100 lg:flex">
+
+              <Button variant="ghost" size="sm" onClick={() => handleNavigate('landing')} className="hidden font-bold text-taupe hover:text-umber dark:text-zinc-400 dark:hover:text-zinc-100 xl:flex">
                 Exit Workspace
               </Button>
             </div>

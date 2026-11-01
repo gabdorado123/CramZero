@@ -117,7 +117,7 @@ export function DashboardView({ navigateTo, setHasActiveDeck, setActiveDeck, myD
                   Upload Notes or Slides
                 </h4>
                 <p className="text-taupe dark:text-zinc-400 text-xs sm:text-sm leading-relaxed mb-6">
-                  Drop in your PDF, PowerPoint (.pptx), or plain text (.txt) lecture materials to synthesize flashcards automatically.
+                  Drop in your PDF, Word document (.docx), PowerPoint (.pptx), or plain text (.txt) lecture materials to synthesize flashcards automatically.
                 </p>
               </div>
               <Button variant="outline" className="w-full h-11 rounded-xl border-stone-200 dark:border-zinc-800 hover:border-blue-400 text-umber dark:text-zinc-200 font-bold text-xs bg-white dark:bg-zinc-900 group-hover:shadow-md transition-all">

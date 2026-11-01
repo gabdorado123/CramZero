@@ -47,7 +47,7 @@ export function CreateHubView({ navigateTo, myHubs, setMyHubs, myDecks, setMyDec
       return;
     }
     if (selectedDeckOption === 'generate' && generationMode === 'file' && !selectedFile) {
-      toast.error('Choose a file', { description: 'Select a PDF, PPTX, or TXT file before creating the hub.' });
+      toast.error('Choose a file', { description: 'Select a PDF, DOCX, PPTX, or TXT file before creating the hub.' });
       return;
     }
     if (selectedDeckOption === 'generate' && generationMode === 'prompt' && !aiTopic.trim()) {
@@ -149,7 +149,7 @@ export function CreateHubView({ navigateTo, myHubs, setMyHubs, myDecks, setMyDec
                 <div className="flex items-center gap-2 text-umber dark:text-zinc-100 font-bold"><Library size={18} /> Select Existing</div><span className="text-xs text-taupe dark:text-zinc-500">Search from your created or saved decks</span>
               </button>
               <button type="button" onClick={() => setSelectedDeckOption('generate')} className={`p-4 border rounded-xl text-left transition-colors flex flex-col gap-2 ${selectedDeckOption === 'generate' ? 'border-amber-600 dark:border-amber-500 bg-amber-100 dark:bg-amber-900/50 shadow-inner' : 'border-amber-600/30 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/30 hover:bg-amber-50 dark:hover:bg-amber-900/50'}`}>
-                <div className="flex items-center gap-2 text-amber-700 dark:text-amber-500 font-bold"><UploadCloud size={18} /> Generate via File</div><span className="text-xs text-taupe dark:text-zinc-500">Upload .PDF, .PPTX, or .TXT to build</span>
+                <div className="flex items-center gap-2 text-amber-700 dark:text-amber-500 font-bold"><UploadCloud size={18} /> Generate via File</div><span className="text-xs text-taupe dark:text-zinc-500">Upload .PDF, .DOCX, .PPTX, or .TXT to build</span>
               </button>
             </div>
             {selectedDeckOption === 'existing' && (
@@ -169,7 +169,7 @@ export function CreateHubView({ navigateTo, myHubs, setMyHubs, myDecks, setMyDec
                 </div>
                 {generationMode === 'file' ? (
                   <>
-                    <input ref={fileInputRef} type="file" accept=".pdf,.pptx,.txt" onChange={(event) => setSelectedFile(event.target.files?.[0] || null)} className="hidden" />
+                    <input ref={fileInputRef} type="file" accept=".pdf,.docx,.pptx,.txt" onChange={(event) => setSelectedFile(event.target.files?.[0] || null)} className="hidden" />
                     <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className="h-11 rounded-lg border-amber-600/40 text-amber-800 dark:border-amber-700 dark:text-amber-400">{selectedFile ? 'Choose another file' : 'Choose file'}</Button>
                     <p className="mt-2 truncate text-xs text-amber-800/70 dark:text-amber-400/70">{selectedFile?.name || 'No file selected yet.'}</p>
                   </>
