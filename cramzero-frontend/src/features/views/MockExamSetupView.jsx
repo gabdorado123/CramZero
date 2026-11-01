@@ -22,6 +22,7 @@ import { Bubble, BubbleContent, BubbleGroup, BubbleReactions } from '@/component
 import { Marker, MarkerContent } from '@/components/ui/marker';
 import { Message, MessageAvatar, MessageContent, MessageFooter } from '@/components/ui/message';
 import ReactMarkdown from 'react-markdown';
+import { initAudio } from '@/lib/sfx';
 
 export function MockExamSetupView({ navigateTo, activeDeck, setExamConfig }) {
   const safeDeck = activeDeck || { title: "Loading Assessment..." };
@@ -29,6 +30,7 @@ export function MockExamSetupView({ navigateTo, activeDeck, setExamConfig }) {
   const [timeLimit, setTimeLimit] = useState('60 mins');
 
   const handleStart = () => {
+    initAudio();
     setExamConfig({ count: qCount, timeMode: timeLimit, isMock: true });
     navigateTo('mock-exam-active');
   };

@@ -13,6 +13,7 @@ const SFX_MUTE_KEY = 'cramzero-sfx-mute';
 export const SFX_NAMES = [
   // Countdown
   'countdown_3', 'countdown_2', 'countdown_1', 'countdown_go',
+  'timer_warning', 'timer_expired',
   // Answers
   'answer_correct', 'answer_incorrect', 'answer_locked',
   // Round/Match
@@ -25,7 +26,10 @@ export const SFX_NAMES = [
 
 /** Initialize AudioContext on first user interaction */
 export function initAudio() {
-  if (audioCtx) return audioCtx;
+  if (audioCtx) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
 
   try {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -115,6 +119,8 @@ function getToneConfig(name) {
     countdown_2: { freq: 160, duration: 0.3, decay: 8, volume: 0.5, fmDepth: 0, fmRate: 0 },
     countdown_1: { freq: 220, duration: 0.3, decay: 8, volume: 0.5, fmDepth: 0, fmRate: 0 },
     countdown_go: { freq: 300, duration: 0.5, decay: 5, volume: 0.6, fmDepth: 100, fmRate: 10 },
+    timer_warning: { freq: 260, duration: 0.18, decay: 14, volume: 0.35, fmDepth: 20, fmRate: 8 },
+    timer_expired: { freq: 110, duration: 0.8, decay: 3, volume: 0.5, fmDepth: 25, fmRate: 3 },
 
     // Answers
     answer_correct: { freq: 523, duration: 0.4, decay: 6, volume: 0.4, fmDepth: 50, fmRate: 15 }, // C5 + chime

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   CheckCircle, ChevronLeft, ChevronRight, X,
   Timer, AlertTriangle, Check, Layers, RotateCcw,
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { recordAnalyticsEvent } from '@/lib/analytics';
+import { initAudio, playSfx } from '@/lib/sfx';
 
 export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
   const safeDeck = activeDeck || { title: "Loading Assessment...", cards: [] }; 
@@ -17,6 +18,7 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
   const [answers, setAnswers] = useState({});
   const [isFinished, setIsFinished] = useState(false);
   const [timeLeftSeconds, setTimeLeftSeconds] = useState(null);
+  const timerCuesPlayedRef = useRef(new Set());
 
   useEffect(() => {
     if (!safeDeck.cards || safeDeck.cards.length === 0) return;
@@ -104,6 +106,7 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
     setCurrentIndex(0);
     setAnswers({});
     setIsFinished(false);
+    timerCuesPlayedRef.current.clear();
 
     if (timeMode !== 'No Limit') {
       const mins = parseInt(timeMode.split(' ')[0], 10);
@@ -117,8 +120,22 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
     if (timeLeftSeconds === null || isFinished) return;
     
     if (timeLeftSeconds <= 0) {
+      playSfx('timer_expired', { volume: 0.7 });
       setIsFinished(true);
       return;
+    }
+
+    const timerCue = {
+      10: 'timer_warning',
+      5: 'timer_warning',
+      3: 'countdown_3',
+      2: 'countdown_2',
+      1: 'countdown_1',
+    }[timeLeftSeconds];
+
+    if (timerCue && !timerCuesPlayedRef.current.has(timeLeftSeconds)) {
+      timerCuesPlayedRef.current.add(timeLeftSeconds);
+      playSfx(timerCue, { volume: 0.55 });
     }
 
     const timerId = setInterval(() => {
@@ -137,13 +154,17 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
 
   const handleSelect = (opt) => {
     if (answers[currentIndex] !== undefined || isFinished) return;
+    initAudio();
+    const isCorrect = opt === questions[currentIndex]?.answer;
+    playSfx('answer_locked', { volume: 0.35 });
+    playSfx(isCorrect ? 'answer_correct' : 'answer_incorrect', { volume: 0.65 });
     setAnswers(prev => ({ ...prev, [currentIndex]: opt }));
     recordAnalyticsEvent({
       type: 'quiz_answer',
       deckId: safeDeck.id || 'unknown-deck',
       deckTitle: safeDeck.title || 'Untitled deck',
       term: questions[currentIndex]?.question || `Question ${currentIndex + 1}`,
-      correct: opt === questions[currentIndex]?.answer,
+      correct: isCorrect,
       mode: examConfig?.isMock ? 'mock-exam' : 'quiz',
     });
   };
@@ -160,6 +181,7 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
     setCurrentIndex(0);
     setAnswers({});
     setIsFinished(false);
+    timerCuesPlayedRef.current.clear();
     if (examConfig?.timeMode && examConfig?.timeMode !== 'No Limit') {
       const mins = parseInt(examConfig.timeMode.split(' ')[0], 10);
       setTimeLeftSeconds(mins * 60);

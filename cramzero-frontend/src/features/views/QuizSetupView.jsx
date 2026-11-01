@@ -22,12 +22,14 @@ import { Bubble, BubbleContent, BubbleGroup, BubbleReactions } from '@/component
 import { Marker, MarkerContent } from '@/components/ui/marker';
 import { Message, MessageAvatar, MessageContent, MessageFooter } from '@/components/ui/message';
 import ReactMarkdown from 'react-markdown';
+import { initAudio } from '@/lib/sfx';
 
 export function QuizSetupView({ navigateTo, activeDeck, setExamConfig }) {
   const [qCount, setQCount] = useState(10);
   const [qType, setQType] = useState('mc'); // 'mc', 'tf', 'mixed'
 
   const handleStart = (isRandom) => {
+    initAudio();
     setExamConfig({ count: qCount, timeMode: 'No Limit', isMock: false, questionType: qType, isRandom });
     navigateTo('mock-exam-active');
   };
