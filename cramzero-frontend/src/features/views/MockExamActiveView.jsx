@@ -220,36 +220,37 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
     const feedback = percentage >= 80 ? "Outstanding Mastery!" : percentage >= 60 ? "Good Effort!" : "Keep Reviewing!";
 
     return (
-      <div className="w-full max-w-3xl mx-auto py-8 px-4 flex flex-col animate-in fade-in duration-300">
-        <Card className="p-8 md:p-12 text-center bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border border-stone-200/90 dark:border-zinc-800 shadow-xl rounded-3xl mb-8">
-          <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-emerald-500/20">
-            <CheckCircle size={40} />
+      <div className="w-full max-w-3xl mx-auto py-4 sm:py-6 md:py-8 px-3 sm:px-4 flex flex-col animate-in fade-in duration-300">
+        <Card className="p-5 sm:p-7 md:p-12 text-center bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border border-stone-200/90 dark:border-zinc-800 shadow-xl rounded-3xl mb-5 sm:mb-8">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-5 md:mb-6 shadow-sm border border-emerald-500/20">
+            <CheckCircle size={32} className="sm:hidden" />
+            <CheckCircle size={40} className="hidden sm:block" />
           </div>
-          <h2 className="text-3xl md:text-4xl font-black text-stone-900 dark:text-zinc-100 mb-2">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-stone-900 dark:text-zinc-100 mb-1 sm:mb-2">
             Assessment Complete
           </h2>
-          <p className="text-stone-500 dark:text-zinc-400 font-medium text-lg mb-8">{feedback}</p>
+          <p className="text-stone-500 dark:text-zinc-400 font-medium text-base sm:text-lg mb-4 sm:mb-6 md:mb-8">{feedback}</p>
           
-          <div className="bg-stone-50/80 dark:bg-zinc-950 border border-stone-200/80 dark:border-zinc-800 rounded-2xl p-6 mb-8 max-w-xs mx-auto shadow-inner">
+          <div className="bg-stone-50/80 dark:bg-zinc-950 border border-stone-200/80 dark:border-zinc-800 rounded-2xl p-4 sm:p-5 md:p-6 mb-4 sm:mb-6 md:mb-8 max-w-xs mx-auto shadow-inner">
             <p className="text-xs font-bold text-stone-400 dark:text-zinc-500 uppercase tracking-widest mb-1">Final Score</p>
             <div className="flex items-baseline justify-center gap-2 text-stone-900 dark:text-zinc-100">
-              <span className="text-6xl font-black tracking-tight">{finalScore}</span>
-              <span className="text-2xl font-bold text-stone-400 dark:text-zinc-600">/ {questions.length}</span>
+              <span className="text-5xl sm:text-6xl font-black tracking-tight">{finalScore}</span>
+              <span className="text-xl sm:text-2xl font-bold text-stone-400 dark:text-zinc-600">/ {questions.length}</span>
             </div>
             <p className="font-bold text-emerald-600 dark:text-emerald-400 mt-2">{percentage}% Accuracy</p>
           </div>
           
-          <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-md mx-auto">
+          <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 justify-center max-w-md mx-auto">
             <Button
               variant="outline"
               onClick={handleRestart}
-              className="h-12 px-6 rounded-full font-bold text-stone-700 dark:text-zinc-300 border-stone-200 dark:border-zinc-800 hover:bg-stone-100 dark:hover:bg-zinc-800"
+              className="h-10 sm:h-12 px-5 sm:px-6 rounded-full font-bold text-stone-700 dark:text-zinc-300 border-stone-200 dark:border-zinc-800 hover:bg-stone-100 dark:hover:bg-zinc-800"
             >
               <RotateCcw size={16} className="mr-2" /> Retake Test
             </Button>
             <Button
               onClick={() => navigateTo('deck-details')}
-              className="bg-stone-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-stone-800 dark:hover:bg-zinc-200 font-bold rounded-full h-12 px-8 shadow-md"
+              className="bg-stone-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-stone-800 dark:hover:bg-zinc-200 font-bold rounded-full h-10 sm:h-12 px-6 sm:px-8 shadow-md"
             >
               Return to Deck
             </Button>
