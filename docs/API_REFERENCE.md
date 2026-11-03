@@ -2,6 +2,8 @@
 
 The backend API is implemented with **FastAPI**. It includes CORS support for production deployments, OpenAPI interactive documentation at `/docs`, and JSON schema validation powered by Pydantic.
 
+Protected endpoints require `Authorization: Bearer <access_token>`. The token is returned by the authentication endpoints and must not be replaced with a caller-supplied user ID for authorization.
+
 ---
 
 ## Base URLs
@@ -23,6 +25,14 @@ Checks server status and backend readiness.
 
 ### `GET /api/rate-limits/`
 Returns current usage counts and maximum daily allowances for the client.
+
+### XP and leaderboard endpoints
+
+| `POST` | `/api/users/{user_id}/quiz-xp` | Idempotently award quiz XP using an `event_id` |
+| `GET` | `/api/leaderboards?scope=global` | Return the global XP leaderboard |
+| `GET` | `/api/leaderboards?scope=university&university=...` | Return a university XP leaderboard |
+| `GET` | `/api/users/{user_id}/collectibles` | Return XP total and unlocked collectible tiers |
+| `GET` | `/api/quiz-usage-policy?user_id=...` | Return ranked daily quiz usage rewards |
 - **Query Parameters:**
   - `user_id` *(optional, string)*
 - **Response:**
@@ -61,7 +71,8 @@ Creates a cross-device cloud account using email and password. Automatically mig
     "email": "student@university.edu",
     "display_name": "Alex Cruz",
     "avatar_url": "https://api.dicebear.com/7.x/notionists/svg?seed=Chloe",
-    "is_guest": false
+    "is_guest": false,
+    "access_token": "..."
   }
   ```
 
@@ -94,7 +105,8 @@ Initializes a lightweight student identity for local-first guest usage without p
     "email": null,
     "display_name": "Guest Scholar",
     "avatar_url": "https://api.dicebear.com/7.x/notionists/svg?seed=Felix",
-    "is_guest": true
+    "is_guest": true,
+    "access_token": "..."
   }
   ```
 
@@ -118,6 +130,7 @@ Updates profile information, display names, avatar URLs, education details, visi
 ### `GET /api/auth/me`
 Returns the current user profile used by the frontend to rehydrate account and education state after startup.
 - **Query Parameters:** `user_id` *(required, string)*
+- **Authentication:** Existing users must provide the bearer token issued for that user. A token is returned when a new local guest identity is initialized.
 - **Response:** `schemas.UserResponse`, including `bio`, `profile_visibility`, `education_level`, and `university`.
 
 ---
@@ -166,7 +179,7 @@ Marks one notification as read.
 - **Query Parameters:** `user_id` *(required, string)*
 
 ### `GET /api/universities`
-Searches the supported Philippine university communities and returns member counts.
+Searches Philippine university communities and returns only institutions with at least one public learner profile using that university. The separate `/api/universities/catalog` endpoint remains the full catalog for profile and onboarding selection.
 - **Query Parameters:**
   - `query` *(optional, string)* - Matches institution name, short name, or city.
   - `limit` *(optional, integer)* - Capped by the server at 500.
@@ -283,8 +296,9 @@ Generates a flashcard deck from a natural language topic or study prompt using d
 Uploads a `.pdf`, `.pptx`, or `.txt` document to generate a deck. If Gemini file upload or generation fails, seamlessly extracts text via Python (`pypdf`, `python-pptx`) and synthesizes through Groq.
 - **Form Data Parameters:**
   - `file`: Multipart file upload (.pdf, .pptx, .txt)
-  - `card_count`: Integer (e.g. 10)
-  - `user_id`: String (optional)
+  - `card_count`: Integer from 1 to 50 (e.g. 10)
+  - `user_id`: String matching the authenticated user
+- **Limits:** Uploads are capped at 20 MB.
 - **Response `(200 OK)`:** `schemas.DeckCreate`
 
 ### `POST /api/decks/{deck_id}/readout`

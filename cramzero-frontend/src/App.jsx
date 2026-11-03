@@ -50,10 +50,12 @@ import { MockExamActiveView } from '@/features/views/MockExamActiveView';
 import { MultiplayerView } from '@/features/views/MultiplayerView';
 import { SocialView } from '@/features/views/SocialView';
 import { NotificationsView } from '@/features/views/NotificationsView';
+import { getInAppNotifications, IN_APP_NOTIFICATIONS_UPDATED } from '@/lib/inAppNotifications';
 import { OnboardingTour } from '@/components/OnboardingTour';
 import { speakWithElevenLabs } from '@/lib/elevenlabs';
 import { recordAnalyticsEvent } from '@/lib/analytics';
 import { API_BASE } from '@/lib/api';
+import { CoreState } from '@/components/ui/core-state';
 
 // --- MOCK DATA FOR HUBS AND COMMUNITY ---
 const communityDatabase = [
@@ -106,12 +108,57 @@ export default function App() {
   const [isEducationProfileLoaded, setIsEducationProfileLoaded] = useState(false);
   const [isEducationSetupDismissed, setIsEducationSetupDismissed] = useState(false);
   const [isGuest, setIsGuest] = useState(() => localStorage.getItem('cramzero-is-guest') !== 'false');
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const notificationBaselineRef = useRef(null);
 
   const [hasProfileSetup, setHasProfileSetup] = useState(() => {
     return localStorage.getItem('cramzero-has-profile-setup') === 'true' || !!localStorage.getItem('cramzero-user-email');
   });
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('prompt');
+
+  useEffect(() => {
+    if (!userId) return undefined;
+    let cancelled = false;
+    const refreshNotifications = async () => {
+      try {
+        const [serverResponse, localNotifications] = await Promise.all([
+          fetch(`${API_BASE}/api/notifications?user_id=${encodeURIComponent(userId)}`),
+          Promise.resolve(getInAppNotifications()),
+        ]);
+        if (!serverResponse.ok) return;
+        const serverNotifications = await serverResponse.json();
+        if (cancelled) return;
+        const unreadServer = serverNotifications.filter(notification => !notification.is_read);
+        const unreadLocal = localNotifications.filter(notification => !notification.is_read);
+        setUnreadNotificationCount(unreadServer.length + unreadLocal.length);
+        const currentIds = new Set(unreadServer.map(notification => String(notification.id)));
+        if (notificationBaselineRef.current === null) {
+          notificationBaselineRef.current = currentIds;
+          return;
+        }
+        unreadServer
+          .filter(notification => !notificationBaselineRef.current.has(String(notification.id)))
+          .forEach(notification => {
+            toast.info('New follower', {
+              description: notification.message,
+              duration: 4500,
+            });
+          });
+        notificationBaselineRef.current = currentIds;
+      } catch (error) {
+        console.warn('Could not refresh notification status:', error);
+      }
+    };
+    refreshNotifications();
+    const interval = setInterval(refreshNotifications, 30000);
+    window.addEventListener(IN_APP_NOTIFICATIONS_UPDATED, refreshNotifications);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      window.removeEventListener(IN_APP_NOTIFICATIONS_UPDATED, refreshNotifications);
+    };
+  }, [userId]);
 
   const handleAuthClose = () => {
     setShowAuthModal(false);
@@ -122,6 +169,9 @@ export default function App() {
   };
 
   const handleAuthSuccess = (userData) => {
+    if (userData.accessToken) {
+      localStorage.setItem('cramzero-access-token', userData.accessToken);
+    }
     if (userData.id) {
       setUserId(userData.id);
       localStorage.setItem('cramzero-user-id', userData.id);
@@ -184,6 +234,9 @@ export default function App() {
         if (!response.ok) throw new Error('Could not load your profile.');
         const profile = await response.json();
         if (cancelled) return;
+        if (profile.access_token) {
+          localStorage.setItem('cramzero-access-token', profile.access_token);
+        }
 
         const serverLevel = profile.education_level || '';
         const serverUniversity = profile.university || '';
@@ -229,6 +282,7 @@ export default function App() {
     localStorage.setItem('cramzero-is-guest', 'true');
     setHasProfileSetup(false);
     localStorage.removeItem('cramzero-has-profile-setup');
+    localStorage.removeItem('cramzero-access-token');
     toast.success('Signed out successfully');
 
     // Redirect to landing page only, without prompting any modals
@@ -249,6 +303,8 @@ export default function App() {
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState([]);
   const [isChatLoading, setIsChatLoading] = useState(false);
+  const [isOffline, setIsOffline] = useState(() => typeof navigator !== 'undefined' && !navigator.onLine);
+  const [workspaceError, setWorkspaceError] = useState('');
 
   // --- DARK MODE STATE & EFFECT ---
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -259,6 +315,29 @@ export default function App() {
     }
     return false;
   });
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    const handleSessionExpired = () => {
+      localStorage.setItem('cramzero-session-draft', JSON.stringify({
+        path: window.location.pathname,
+        hash: window.location.hash,
+        savedAt: new Date().toISOString(),
+      }));
+      setAuthModalMode('login');
+      setShowAuthModal(true);
+      toast.warning('Your session expired', { description: 'Sign in again to continue. Your current route was saved.' });
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('cramzero-session-expired', handleSessionExpired);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('cramzero-session-expired', handleSessionExpired);
+    };
+  }, []);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -331,6 +410,7 @@ export default function App() {
     const hubCode = sharedRoute?.type === 'hub' ? sharedRoute.value : null;
     const deckId = sharedRoute?.type === 'deck' ? sharedRoute.value : null;
     const loadWorkspace = async () => {
+        setWorkspaceError('');
       const decksPromise = fetch(`${API_BASE}/api/decks/?user_id=${encodeURIComponent(userId)}`);
       const hubsPromise = hubCode
         ? fetch(`${API_BASE}/api/study-hubs/join`, {
@@ -375,6 +455,7 @@ export default function App() {
     loadWorkspace()
       .catch(err => {
         console.error("Backend offline or error:", err);
+        setWorkspaceError(err.message || 'Could not load your workspace.');
         setTimeout(() => setIsBooting(false), 800);
       });
   }, [userId, displayName]);
@@ -428,7 +509,7 @@ export default function App() {
     { id: 'decks', label: 'Library', icon: Library },
     { id: 'hubs', label: 'Hubs', icon: Share2 },
     { id: 'social', label: 'People', icon: Users },
-    { id: 'notifications', label: 'Inbox', icon: Inbox },
+    { id: 'notifications', label: 'Inbox', icon: Inbox, badge: unreadNotificationCount },
     { id: 'analytics', label: 'Stats', icon: BarChart2 },
     { id: 'multiplayer', label: 'Play', icon: Zap },
     { id: 'codespace', label: 'CodeSpace', icon: Code },
@@ -498,16 +579,18 @@ export default function App() {
           onOpenAuth={(m) => { setAuthModalMode(m || 'prompt'); setShowAuthModal(true); }}
         />
       ) : (
-        <div className="flex h-screen h-[100dvh] w-full overflow-hidden bg-slate-50 font-sans text-slate-900 transition-colors dark:bg-zinc-950 dark:text-zinc-100">
+        <div className="cz-game-shell flex h-screen h-[100dvh] w-full overflow-hidden font-sans text-slate-900 transition-colors dark:text-zinc-100">
           <OnboardingTour currentView={currentView} navigateTo={handleNavigate} />
 
-          <main className="flex-1 flex flex-col relative overflow-hidden"> 
-            <header className="sticky top-0 z-20 shrink-0 border-b border-slate-200/80 bg-white/90 px-3 py-2.5 shadow-[0_1px_18px_rgb(38_57_77/0.06)] backdrop-blur-xl transition-colors dark:border-zinc-800/80 dark:bg-zinc-950/90 sm:px-4 md:px-6 lg:px-8">
+          <main className="cz-app-main flex flex-1 flex-col relative overflow-hidden">
+            <header className="cz-game-header sticky top-0 z-20 shrink-0 px-3 py-2.5 backdrop-blur-xl transition-colors sm:px-4 md:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-2 md:gap-4">
             {/* Brand Logo & Name (Protected with shrink-0, cannot collapse) */}
             <div className="flex items-center gap-2 cursor-pointer group shrink-0" onClick={() => handleNavigate('landing')}>
-              <img src="/cramzero-logo.svg" alt="CramZero" className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl group-hover:scale-105 transition-transform" />
-              <h1 className="text-lg sm:text-xl font-bold text-umber dark:text-zinc-100 hidden sm:block tracking-tight select-none">CramZero</h1>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border-[3px] border-umber bg-amber-100 p-1 shadow-[0_3px_0_#26394d] transition-transform group-hover:-rotate-3 group-hover:scale-105 dark:border-amber-300 dark:bg-amber-200">
+                <img src="/cramzero-logo.svg" alt="CramZero" className="h-full w-full" />
+              </div>
+              <h1 className="hidden select-none text-lg font-black tracking-tight text-umber dark:text-zinc-100 sm:block">CramZero</h1>
             </div>
 
             {/* Desktop Navigation Dock (Centered with flex-1 min-w-0, cannot overlap logo or push right controls) */}
@@ -519,12 +602,14 @@ export default function App() {
 
             {/* Right Action Controls */}
             <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-              <UsageTracker userId={userId} />
+              <div className="cz-usage-trigger">
+                <UsageTracker userId={userId} />
+              </div>
 
               {/* User Profile Avatar Pill */}
               <button
                 onClick={() => handleNavigate('profile')}
-                className="cz-interactive flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 p-1 pl-1.5 pr-2 text-xs font-bold text-slate-800 shadow-2xs hover:bg-sky-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800 sm:pr-2.5"
+                className="cz-interactive flex items-center gap-1.5 rounded-2xl border-[3px] border-umber bg-amber-100 p-1 pl-1.5 pr-2 text-xs font-black text-slate-800 shadow-[0_3px_0_#26394d] hover:bg-amber-200 dark:border-amber-300 dark:bg-amber-950 dark:text-zinc-100 dark:hover:bg-amber-900 sm:pr-2.5"
                 title="View Profile & Account"
               >
                 <div className="relative w-6 h-6 rounded-full overflow-hidden bg-amber-200/80 shrink-0">
@@ -533,7 +618,7 @@ export default function App() {
                 <span className="hidden md:inline max-w-[70px] lg:max-w-[85px] truncate">{displayName}</span>
               </button>
 
-              <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full bg-stone-100 dark:bg-zinc-900 border border-stone-200/80 dark:border-zinc-800 transition-colors">
+              <div className="cz-theme-toggle flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full bg-stone-100 dark:bg-zinc-900 border border-stone-200/80 dark:border-zinc-800 transition-colors">
                 <Sun size={13} className="text-amber-600 dark:text-zinc-500" />
                 <Switch checked={isDarkMode} onCheckedChange={setIsDarkMode} className="data-[state=checked]:bg-indigo-500 scale-90 sm:scale-100" />
                 <Moon size={13} className="text-taupe dark:text-indigo-400" />
@@ -547,7 +632,18 @@ export default function App() {
 
         </header>
 
-        <div key={currentView} className={`flex-1 w-full overflow-y-auto no-scrollbar scroll-touch flex flex-col ${showNavDock ? 'pb-24 md:pb-6' : 'pb-6'} bg-gradient-to-b from-slate-50 via-white to-sky-50/40 dark:from-zinc-950 dark:via-zinc-950 dark:to-slate-950 animate-in fade-in duration-300`}>
+        <div key={currentView} className={`cz-view-scroll flex-1 w-full overflow-y-auto no-scrollbar scroll-touch flex flex-col ${showNavDock ? 'pb-24 md:pb-6' : 'pb-6'} bg-transparent animate-in fade-in duration-300`}>
+          {isOffline && (
+            <div className="mx-4 mt-4 flex items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100" role="status">
+              <span><strong>You’re offline.</strong> Saved content remains available; network actions will resume when you reconnect.</span>
+              <button type="button" className="font-bold underline" onClick={() => window.location.reload()}>Retry</button>
+            </div>
+          )}
+          {workspaceError && myDecks.length === 0 && (
+            <div className="mx-auto w-full max-w-2xl p-4 sm:p-8">
+              <CoreState type={isOffline ? 'offline' : 'error'} title={isOffline ? 'Workspace is offline' : 'Workspace could not load'} description={isOffline ? 'Check your connection, then retry.' : workspaceError} actionLabel="Try again" onAction={() => window.location.reload()} />
+            </div>
+          )}
           {/* Main Views */}
           {currentView === 'dashboard' && <DashboardView navigateTo={handleNavigate} setHasActiveDeck={setHasActiveDeck} setActiveDeck={setActiveDeck} myDecks={myDecks} displayName={displayName} />}
           {currentView === 'study' && <StudyView navigateTo={handleNavigate} hasActiveDeck={hasActiveDeck} setHasActiveDeck={setHasActiveDeck} setActiveDeck={setActiveDeck} myDecks={myDecks} />}
@@ -593,7 +689,7 @@ export default function App() {
           {/* Wired Active Assessment Views */}
           {currentView === 'quiz-setup' && <QuizSetupView navigateTo={handleNavigate} activeDeck={activeDeck} setExamConfig={setExamConfig} />}
           {currentView === 'mock-exam-setup' && <MockExamSetupView navigateTo={handleNavigate} activeDeck={activeDeck} setExamConfig={setExamConfig} />}
-          {currentView === 'mock-exam-active' && <MockExamActiveView navigateTo={handleNavigate} activeDeck={activeDeck} examConfig={examConfig} />}
+          {currentView === 'mock-exam-active' && <MockExamActiveView navigateTo={handleNavigate} activeDeck={activeDeck} examConfig={examConfig} userId={userId} />}
         </div>
 
         {/* Mobile Bottom Navigation Bar */}
@@ -604,18 +700,18 @@ export default function App() {
 
       {/* Action Overlays for major creations */}
       {(isBooting || isActionLoading) && (
-        <div className="fixed inset-0 z-[100] bg-black/35 dark:bg-black/65 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in duration-300 p-4">
-          <div className="bg-white/92 dark:bg-zinc-900/92 backdrop-blur-2xl border border-stone-200/90 dark:border-white/10 rounded-3xl p-8 shadow-2xl shadow-stone-900/20 max-w-sm w-full flex flex-col items-center text-center animate-in zoom-in-95 duration-200">
-            <div className="relative mb-5">
-              <div className="w-16 h-16 bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/20 rounded-2xl p-3 flex items-center justify-center">
+        <div className="cz-loading-backdrop fixed inset-0 z-[100] flex flex-col items-center justify-center animate-in fade-in duration-300 p-4">
+          <div className="cz-loading-card max-w-sm w-full flex flex-col items-center text-center animate-in zoom-in-95 duration-200">
+            <div className="cz-loading-mark relative mb-6">
+              <div className="cz-loading-logo flex items-center justify-center">
                 <img src="/cramzero-logo.svg" alt="CramZero" className="w-full h-full" />
               </div>
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center shadow-md">
-                <RotateCw size={12} className="text-white animate-spin" />
+              <div className="cz-loading-orbit absolute -bottom-2 -right-2 flex items-center justify-center shadow-md">
+                <RotateCw size={14} className="text-white animate-spin" />
               </div>
             </div>
-            <h2 className="text-lg font-bold text-stone-900 dark:text-zinc-100 mb-1 tracking-tight">Preparing your workspace</h2>
-            <p className="text-stone-500 dark:text-zinc-400 text-xs font-semibold animate-pulse leading-relaxed">{actionMessage || 'Organizing your workspace'}</p>
+            <h2 className="cz-loading-title mb-2">CramZero is cooking <span className="cz-loading-emoji" aria-hidden="true">🔎</span></h2>
+            <p className="cz-loading-subtitle animate-pulse">{actionMessage || 'Firing up the engines'}</p>
           </div>
         </div>
       )}
@@ -627,8 +723,8 @@ export default function App() {
           style={{ viewTransitionName: 'zero-ai-tutor-fab' }}
           className={`fixed ${showNavDock ? 'bottom-20 md:bottom-8' : 'bottom-5 md:bottom-8'} right-4 md:right-8 h-12 px-4 rounded-full bg-stone-900/95 dark:bg-zinc-100 text-white dark:text-zinc-950 backdrop-blur-xl border border-white/20 dark:border-black/10 shadow-2xl shadow-stone-900/25 hover:scale-105 active:scale-95 transition-all z-40 flex items-center gap-2.5 duration-300 ease-in-out group`}
         >
-          <div className="relative flex items-center justify-center">
-            <MessageCircle size={18} />
+          <div className="relative flex h-7 w-7 items-center justify-center rounded-full bg-white p-0.5">
+            <img src="/zero-ai-avatar.webp" alt="" className="h-full w-full object-contain" />
             <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-500 border border-stone-900 dark:border-zinc-100 rounded-full animate-pulse"></span>
           </div>
           <span className="text-xs font-bold tracking-tight">Ask Zero</span>
@@ -644,8 +740,8 @@ export default function App() {
             <div className="p-4 border-b border-stone-200/70 dark:border-zinc-800/80 bg-stone-50/70 dark:bg-zinc-900/80 backdrop-blur-md flex justify-between items-center shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className="relative">
-                  <div className="w-8 h-8 rounded-xl bg-amber-500/15 dark:bg-amber-500/25 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                    <Sparkles size={16} />
+                  <div className="w-9 h-9 rounded-xl bg-white dark:bg-zinc-900 p-1 border border-amber-300/60 dark:border-amber-800 shadow-sm">
+                    <img src="/zero-ai-avatar.webp" alt="" className="h-full w-full object-contain" />
                   </div>
                   <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white dark:border-zinc-900"></span>
                 </div>
@@ -671,7 +767,7 @@ export default function App() {
                     <MessageAvatar className="shrink-0 mt-auto">
                       <Avatar className="w-8 h-8 md:w-9 md:h-9 shadow-sm border border-taupe/20 dark:border-zinc-700">
                         <AvatarFallback className={`w-full h-full flex items-center justify-center font-bold text-[10px] md:text-xs rounded-full ${msg.role === 'ai' ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-500' : 'bg-umber dark:bg-zinc-200 text-sand dark:text-zinc-900'}`}>
-                          {msg.role === 'ai' ? <img src="/zero-ai-logo.svg" alt="Zero AI" className="w-full h-full" /> : 'ME'}
+                          {msg.role === 'ai' ? <img src="/zero-ai-avatar.webp" alt="Zero AI" className="w-full h-full object-contain" /> : 'ME'}
                         </AvatarFallback>
                       </Avatar>
                     </MessageAvatar>
@@ -744,18 +840,18 @@ export default function App() {
       )}
 
       {isBooting && (
-        <div className="fixed inset-0 z-[100] bg-sand dark:bg-zinc-950 flex flex-col items-center justify-center animate-in fade-in duration-200">
-          <div className="relative mb-6">
-            <div className="absolute inset-0 bg-amber-200 dark:bg-amber-900 blur-xl rounded-full animate-pulse"></div>
-            <div className="w-20 h-20 bg-white dark:bg-zinc-900 border border-taupe/20 dark:border-zinc-800 rounded-3xl shadow-xl flex items-center justify-center relative z-10 animate-bounce p-3">
+        <div className="cz-loading-screen fixed inset-0 z-[110] flex flex-col items-center justify-center animate-in fade-in duration-200">
+          <div className="cz-loading-mark relative mb-7">
+            <div className="cz-loading-glow absolute inset-0 rounded-full animate-pulse"></div>
+            <div className="cz-loading-logo relative z-10 flex items-center justify-center animate-bounce">
               <img src="/cramzero-logo.svg" alt="CramZero" className="w-full h-full" />
             </div>
-            <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center shadow-lg z-20">
+            <div className="cz-loading-orbit absolute -bottom-2 -right-2 flex items-center justify-center shadow-lg z-20">
               <RotateCw size={16} className="text-white animate-spin" />
             </div>
           </div>
-          <h2 className="text-2xl md:text-3xl font-black text-umber dark:text-zinc-100 mb-2 tracking-tight">CramZero is cooking  🍳</h2>
-          <p className="text-taupe dark:text-zinc-400 text-sm font-medium animate-pulse">Firing up the engines</p>
+          <h2 className="cz-loading-title">CramZero is cooking <span className="cz-loading-emoji inline-block animate-bounce" aria-hidden="true">🔎</span></h2>
+          <p className="cz-loading-subtitle animate-pulse">Firing up the engines</p>
         </div>
       )}
     </>

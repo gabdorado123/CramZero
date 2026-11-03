@@ -1,14 +1,8 @@
-from pydantic import BaseModel
-from typing import List, Optional
-from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime
 
 # ... (keep all your existing schemas) ...
-
-class GenerateRequest(BaseModel):
-    topic: str
 
 # --- CARD SCHEMAS ---
 class CardBase(BaseModel):
@@ -85,6 +79,7 @@ class UserResponse(BaseModel):
     profile_visibility: str = "Public"
     education_level: Optional[str] = None
     university: Optional[str] = None
+    access_token: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -117,13 +112,19 @@ class ProfileResponse(BaseModel):
 
 class GenerateRequest(BaseModel):
     topic: str
-    card_count: int = 10
+    card_count: int = Field(default=10, ge=1, le=50)
     user_id: Optional[str] = None
 
 class ChatRequest(BaseModel):
     message: str
     context: str
     user_id: Optional[str] = None
+
+
+class QuizXPRequest(BaseModel):
+    event_id: str
+    amount: int = Field(default=10, ge=10, le=10)
+    source: str = "quiz"
 
 
 class StudyHubCreate(BaseModel):

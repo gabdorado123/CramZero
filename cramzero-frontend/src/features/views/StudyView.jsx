@@ -116,7 +116,7 @@ export function StudyView({ navigateTo, setHasActiveDeck, setActiveDeck, myDecks
             
             {/* Hero Progress Banners */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-              <Card data-tour="study-review" className="lg:col-span-8 p-6 sm:p-8 bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 rounded-3xl shadow-xl flex flex-col justify-between border-none">
+              <Card data-tour="study-review" className="cz-color-card--navy lg:col-span-8 p-6 sm:p-8 rounded-3xl shadow-xl flex flex-col justify-between border-none">
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-widest text-stone-400 dark:text-zinc-500">Today's review</p>

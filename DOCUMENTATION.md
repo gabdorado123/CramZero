@@ -136,10 +136,12 @@ The Community area supports both learner-to-learner discovery and university-bas
 - **Live Philippine universities:** The selector displays institution name, short name, city, and logo from an OpenAlex-backed catalog. If OpenAlex is unavailable, the backend falls back to the public Hipo university-domain dataset and retains the last successful response in memory. It has loading, retry, no-result, and stale-request protection states.
 - **Provider-safe saving:** Profile saves normalize known aliases but preserve fresh live-provider university names when the frontend and backend catalog caches refresh at different times.
 - **University community pages:** Each supported institution has public member and deck listings plus a leaderboard scored from public decks and followers.
+- **Community filtering:** The university directory in Community shows only institutions with at least one public learner profile using that university. The profile/onboarding selector still searches the full live catalog.
 
 ## 9. Motivation, Mastery & UI System
 
 - **Mastery checks:** Quiz sessions can eliminate incorrect options, show hints, reveal explanations, and repeat missed questions until the learner answers correctly.
+- **Quiz resources:** Each knowledge-check session has seven hearts for incorrect answers and five shared hint keys for Hint/Reveal. Quiz resource usage is capped at 30 heart uses and 30 hint-key uses per local calendar day. Running out of session hearts ends the session with feedback; wrong answers require an explanation pause before continuing.
 - **Local progression:** Study events calculate XP, learner levels, review totals, correct-answer totals, active study days, and unlocked collectibles in the rewards panel.
 - **Responsive Gizmo-inspired UI:** The application uses rounded cards, pill navigation, sky-blue active states, violet/blue reward gradients, elevated mobile navigation, responsive spacing, and explicit loading/error/empty/completion states.
 - **Accessibility and device support:** Interactive controls retain visible focus states, touch-friendly sizing, and mobile/tablet/desktop layouts.

@@ -47,7 +47,7 @@ export function StudyRewardsPanel({ events, deckCount, displayName = 'You' }) {
 
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
-      <Card className="overflow-hidden rounded-3xl border-0 bg-gradient-to-br from-violet-600 via-indigo-600 to-blue-600 text-white shadow-lg lg:col-span-3">
+      <Card className="cz-color-card--quest overflow-hidden rounded-3xl border-0 shadow-lg lg:col-span-3">
         <CardContent className="relative p-6 sm:p-7">
           <div className="absolute -right-8 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
           <div className="relative flex items-start justify-between gap-4">

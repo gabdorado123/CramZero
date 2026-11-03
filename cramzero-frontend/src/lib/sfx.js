@@ -9,6 +9,15 @@ const sfxBuffers = new Map();
 const loadingSfx = new Set();
 const SFX_VOLUME_KEY = 'cramzero-sfx-volume';
 const SFX_MUTE_KEY = 'cramzero-sfx-mute';
+const DEFAULT_SFX_VOLUME = 0.7;
+
+/** Keep sound enabled for first-time quiz sessions without overriding a user's mute choice. */
+export function ensureSfxEnabledByDefault() {
+  if (localStorage.getItem(SFX_MUTE_KEY) === null) {
+    localStorage.setItem(SFX_MUTE_KEY, 'false');
+    localStorage.setItem(SFX_VOLUME_KEY, String(DEFAULT_SFX_VOLUME));
+  }
+}
 
 /** List of all sound effect names to preload */
 export const SFX_NAMES = [
@@ -17,6 +26,8 @@ export const SFX_NAMES = [
   'timer_warning', 'timer_expired',
   // Answers
   'answer_correct', 'answer_incorrect', 'answer_locked',
+  'quiz_start', 'quiz_next', 'heart_lost', 'hint_used', 'explanation_open',
+  'quiz_complete', 'quiz_hearts_empty',
   // Round/Match
   'round_end', 'match_victory', 'match_defeat', 'match_draw',
   // Emotes (generic + specific)
@@ -40,7 +51,7 @@ export function initAudio() {
     // Restore volume from localStorage
     const savedVolume = Number(localStorage.getItem(SFX_VOLUME_KEY));
     const savedMute = localStorage.getItem(SFX_MUTE_KEY) === 'true';
-    masterGain.gain.value = savedMute ? 0 : (isNaN(savedVolume) ? 0.7 : savedVolume);
+    masterGain.gain.value = savedMute ? 0 : (isNaN(savedVolume) ? DEFAULT_SFX_VOLUME : savedVolume);
 
     // Resume on user interaction (required by browser policies)
     const resumeAudio = () => {
@@ -134,6 +145,13 @@ function getToneConfig(name) {
     answer_correct: { freq: 523, duration: 0.4, decay: 6, volume: 0.4, fmDepth: 50, fmRate: 15 }, // C5 + chime
     answer_incorrect: { freq: 200, duration: 0.5, decay: 4, volume: 0.4, fmDepth: 50, fmRate: 5 },  // Low buzz
     answer_locked: { freq: 800, duration: 0.1, decay: 20, volume: 0.3, fmDepth: 0, fmRate: 0 },   // Sharp click
+    quiz_start: { freq: 392, duration: 0.45, decay: 5, volume: 0.32, fmDepth: 80, fmRate: 8 },
+    quiz_next: { freq: 660, duration: 0.18, decay: 12, volume: 0.2, fmDepth: 30, fmRate: 10 },
+    heart_lost: { freq: 150, duration: 0.38, decay: 7, volume: 0.32, fmDepth: 35, fmRate: 4 },
+    hint_used: { freq: 740, duration: 0.28, decay: 9, volume: 0.25, fmDepth: 90, fmRate: 13 },
+    explanation_open: { freq: 466, duration: 0.3, decay: 7, volume: 0.22, fmDepth: 70, fmRate: 9 },
+    quiz_complete: { freq: 784, duration: 0.8, decay: 4, volume: 0.4, fmDepth: 120, fmRate: 8 },
+    quiz_hearts_empty: { freq: 130, duration: 0.85, decay: 2.5, volume: 0.42, fmDepth: 40, fmRate: 3 },
 
     // Round/Match
     round_end: { freq: 440, duration: 0.3, decay: 10, volume: 0.4, fmDepth: 0, fmRate: 0 },      // A4 ding
@@ -186,6 +204,7 @@ export function playSfx(name, options = {}) {
       loadingSfx.add(name);
       loadSfx(name).finally(() => loadingSfx.delete(name));
     }
+
   }
 
   const startPlayback = () => {
@@ -210,6 +229,13 @@ export function playSfx(name, options = {}) {
   }
 
   return startPlayback();
+}
+
+/** Play a short musical cue as layered SFX without blocking the UI. */
+export function playSfxSequence(sequence) {
+  sequence.forEach(({ name, delay = 0, options = {} }) => {
+    window.setTimeout(() => playSfx(name, options), delay);
+  });
 }
 
 /** Set master volume (0-1) */

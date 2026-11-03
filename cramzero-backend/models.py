@@ -43,6 +43,25 @@ class Notification(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 
+class UserXP(Base):
+    __tablename__ = "user_xp"
+
+    user_id = Column(String(64), primary_key=True, index=True)
+    total_xp = Column(Integer, nullable=False, default=0)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class QuizXPEvent(Base):
+    __tablename__ = "quiz_xp_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_id = Column(String(120), unique=True, nullable=False, index=True)
+    user_id = Column(String(64), nullable=False, index=True)
+    amount = Column(Integer, nullable=False)
+    source = Column(String(40), nullable=False, default="quiz")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
 class Deck(Base):
     __tablename__ = "decks"
 

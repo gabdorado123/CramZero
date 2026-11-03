@@ -26,12 +26,19 @@ import { initAudio } from '@/lib/sfx';
 
 export function MockExamSetupView({ navigateTo, activeDeck, setExamConfig }) {
   const safeDeck = activeDeck || { title: "Loading Assessment..." };
-  const [qCount, setQCount] = useState(25);
+  const availableCards = Math.max(0, activeDeck?.cards?.length || 0);
+  const lengthOptions = [5, 10, 25, 50, 75, 100]
+    .filter(option => option < availableCards)
+    .concat(availableCards > 0 ? [availableCards] : [])
+    .filter((option, index, options) => options.indexOf(option) === index)
+    .sort((a, b) => a - b);
+  const defaultCount = lengthOptions[lengthOptions.length - 1] || 0;
+  const [qCount, setQCount] = useState(defaultCount);
   const [timeLimit, setTimeLimit] = useState('60 mins');
 
   const handleStart = () => {
     initAudio();
-    setExamConfig({ count: qCount, timeMode: timeLimit, isMock: true });
+    setExamConfig({ count: Math.min(qCount, availableCards), timeMode: timeLimit, isMock: true });
     navigateTo('mock-exam-active');
   };
 
@@ -50,7 +57,7 @@ export function MockExamSetupView({ navigateTo, activeDeck, setExamConfig }) {
         <div>
           <h4 className="font-bold text-lg text-umber dark:text-zinc-100 mb-3 flex items-center gap-2">Exam Length</h4>
           <div className="flex flex-wrap sm:flex-nowrap gap-2 sm:gap-3">
-            {[10, 25, 50, 75, 100].map(num => (
+            {lengthOptions.map(num => (
               <Button 
                 key={num}
                 variant="outline"

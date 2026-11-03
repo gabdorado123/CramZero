@@ -34,6 +34,14 @@ Interactive quizzes dynamically format study deck terms into varying cognitive a
 - **Mastery loop:** Incorrect options can be eliminated instead of ending the question, and missed questions return later in the same session.
 - **Hints and explanations:** Hint narrows the available choices; Explain reveals why the correct answer is correct and can be opened during the question.
 - **Completion feedback:** The session reports mastery progress, attempts, retry status, and explanations after successful answers.
+- **Session resources:** Each session starts with 7 hearts; every incorrect answer uses one. Learners also receive 5 hint keys shared by Hint and Reveal actions.
+- **Daily resource usage:** Across sessions, learners can use up to 30 hearts and 30 hint keys per local calendar day. Usage is stored locally and resets automatically the next day.
+- **XP rewards:** Correct quiz answers award 10 XP, which is synchronized to the account and used for global and university leaderboards.
+- **Leaderboard rewards:** Ranks 1–5 receive unlimited daily AI and quiz usage. Ranks 6–20 receive 50% additional daily usage. The best global or university rank applies.
+- **Collectibles:** XP unlocks character cards at 0, 100, 500, 1,500, and 4,000 XP across Common, Rare, Epic, Mythic, and Legendary tiers.
+- **Resource exhaustion:** When all hearts are used, the session ends with a clear explanation and a retake option.
+- **Guided retry pause:** After an incorrect answer, the learner must open Explain before continuing; the explanation remains visible for a 3-second reading pause.
+- **XP feedback:** Correct answers show a visible `+10 XP` reward, while hint usage shows the key spent.
 
 ---
 

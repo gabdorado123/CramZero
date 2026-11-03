@@ -44,6 +44,8 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
 
   const handleSelectCustom = () => {
     setIsCustomCount(true);
+    setCardCountInput('');
+    setCardCount(0);
   };
 
   const handleCardCountChange = (val) => {
@@ -57,9 +59,8 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
   const handleCardCountBlur = () => {
     const num = parseInt(cardCountInput, 10);
     if (isNaN(num) || num < 1) {
-      setCardCountInput('10');
-      setCardCount(10);
-      setIsCustomCount(false);
+      setCardCountInput('');
+      setCardCount(0);
     } else if (num > 50) {
       setCardCountInput('50');
       setCardCount(50);
@@ -187,6 +188,11 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
   };
 
   const handleProcessFile = async () => {
+    if (isCustomCount && (!cardCountInput || cardCount < 1)) {
+      toast.info('Choose how many cards to extract first.');
+      return;
+    }
+
     if (!selectedFile) {
       fileInputRef.current?.click();
       return;
@@ -254,7 +260,7 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
               <span className="text-xs text-taupe dark:text-zinc-400 font-semibold">{previewDeck.cards?.length || 0} Flashcards</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-umber dark:text-zinc-100 tracking-tight flex items-center gap-2">
-              <Sparkles className="text-amber-500" size={24} /> Review Flashcards
+              <img src="/cramzero-logo.svg" alt="" className="h-7 w-7 object-contain" /> Review Flashcards
             </h2>
           </div>
           <div className="flex items-center gap-2.5 w-full sm:w-auto">
@@ -327,10 +333,10 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
       : ['Understanding your topic', 'Organizing key ideas', 'Writing recall cards'];
     const activeStep = progress < 35 ? 0 : progress < 75 ? 1 : 2;
     return (
-      <div className="my-auto flex w-full max-w-2xl flex-col items-center justify-center px-4 py-10 text-center animate-in fade-in duration-300 sm:py-16">
-        <div className="relative mb-6 flex h-24 w-24 items-center justify-center rounded-[2rem] border border-amber-500/30 bg-gradient-to-br from-amber-300/30 to-violet-500/20 text-amber-600 shadow-xl shadow-amber-500/10 dark:text-amber-400">
+      <div className="mx-auto my-auto flex w-full max-w-2xl flex-col items-center justify-center px-4 py-10 text-center animate-in fade-in duration-300 sm:py-16">
+        <div className="relative mb-6 flex h-24 w-24 items-center justify-center rounded-[2rem] border border-amber-500/30 bg-gradient-to-br from-amber-300/30 to-violet-500/20 p-3 shadow-xl shadow-amber-500/10">
           <div className="absolute inset-2 rounded-[1.4rem] border border-white/60 dark:border-white/10" />
-          <Sparkles size={34} className="animate-pulse" />
+          <img src="/zero-ai-cartoon.webp" alt="Zero AI cartoon guide" className="relative h-full w-full object-contain animate-pulse" />
         </div>
         <Badge className="mb-3 rounded-full border border-amber-300/60 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">
           {generatingMode === 'file' ? 'Document mode' : 'Zero AI mode'}
@@ -507,7 +513,7 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
                   Deck Size
                 </label>
                 <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
-                  {cardCount} cards selected
+                  {isCustomCount && cardCount < 1 ? 'Enter a card count' : `${cardCount} cards selected`}
                 </span>
               </div>
 
@@ -572,7 +578,7 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
               
               <Button 
                 type="submit" 
-                disabled={!aiTopic.trim()} 
+                disabled={!aiTopic.trim() || cardCount < 1}
                 className="w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl h-11 px-7 shadow-xs hover:shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 <Sparkles size={16} /> Generate {cardCount} Flashcards
@@ -662,7 +668,7 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
                   Number of Cards to Extract
                 </label>
                 <span className="text-xs font-semibold text-blue-700 dark:text-blue-400">
-                  {cardCount} cards selected
+                  {isCustomCount && cardCount < 1 ? 'Enter a card count' : `${cardCount} cards selected`}
                 </span>
               </div>
 

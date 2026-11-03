@@ -1,12 +1,38 @@
 import { useState, useEffect, useRef } from 'react';
-import { Gauge, Sparkles, Layers, FileText, X, RotateCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Gauge, Sparkles, Layers, FileText, X, RotateCw, CheckCircle2, AlertCircle, Heart, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { API_BASE } from '@/lib/api';
 
+const DAILY_HEART_LIMIT = 30;
+const DAILY_KEY_LIMIT = 30;
+const DAILY_USAGE_STORAGE_KEY = 'cramzero-quiz-daily-usage';
+
+const getTodayKey = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
+const readQuizUsage = () => {
+  try {
+    const stored = JSON.parse(localStorage.getItem(DAILY_USAGE_STORAGE_KEY) || 'null');
+    if (stored?.date === getTodayKey()) {
+      return {
+        hearts: Number.isFinite(stored.hearts) ? stored.hearts : 0,
+        keys: Number.isFinite(stored.keys) ? stored.keys : 0,
+      };
+    }
+  } catch (error) {
+    console.warn('Could not load quiz usage status:', error);
+  }
+  return { hearts: 0, keys: 0 };
+};
+
 export function UsageTracker({ userId }) {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [quizUsage, setQuizUsage] = useState(readQuizUsage);
+  const [quizPolicy, setQuizPolicy] = useState({ hearts: DAILY_HEART_LIMIT, keys: DAILY_KEY_LIMIT, unlimited: false });
   const [usage, setUsage] = useState({
     deck_generation: { used: 0, limit: 5, remaining: 5, label: 'deck generations' },
     chat: { used: 0, limit: 30, remaining: 30, label: 'Zero AI chats' },
@@ -23,6 +49,17 @@ export function UsageTracker({ userId }) {
         const data = await res.json();
         setUsage(data);
       }
+      if (userId) {
+        const policyResponse = await fetch(`${API_BASE}/api/quiz-usage-policy?user_id=${encodeURIComponent(userId)}`);
+        if (policyResponse.ok) {
+          const policy = await policyResponse.json();
+          setQuizPolicy({
+            hearts: policy.hearts,
+            keys: policy.keys,
+            unlimited: policy.unlimited,
+          });
+        }
+      }
     } catch (err) {
       console.warn('Could not load rate limit status:', err);
     } finally {
@@ -36,6 +73,18 @@ export function UsageTracker({ userId }) {
     const interval = setInterval(fetchUsage, 60000);
     return () => clearInterval(interval);
   }, [userId]);
+
+  useEffect(() => {
+    const refreshQuizUsage = () => setQuizUsage(readQuizUsage());
+    window.addEventListener('cramzero-quiz-usage-updated', refreshQuizUsage);
+    window.addEventListener('storage', refreshQuizUsage);
+    const interval = setInterval(refreshQuizUsage, 60000);
+    return () => {
+      window.removeEventListener('cramzero-quiz-usage-updated', refreshQuizUsage);
+      window.removeEventListener('storage', refreshQuizUsage);
+      clearInterval(interval);
+    };
+  }, []);
 
   // Close popover when clicking outside
   useEffect(() => {
@@ -55,6 +104,7 @@ export function UsageTracker({ userId }) {
   const readoutData = usage.readout || { used: 0, limit: 10, remaining: 10 };
 
   const getProgressColor = (used, limit) => {
+    if (!limit) return 'bg-sky-500';
     const ratio = used / limit;
     if (ratio >= 1) return 'bg-rose-500';
     if (ratio >= 0.7) return 'bg-amber-500';
@@ -122,13 +172,13 @@ export function UsageTracker({ userId }) {
                   <Layers size={13} className="text-amber-500" /> Deck Generations
                 </span>
                 <span className="font-mono text-[11px] text-stone-600 dark:text-zinc-400">
-                  <strong className="text-stone-900 dark:text-zinc-100">{deckData.used}</strong> / {deckData.limit} used ({deckData.remaining} left)
+                  {deckData.unlimited ? <strong className="text-sky-600 dark:text-sky-400">Unlimited</strong> : <><strong className="text-stone-900 dark:text-zinc-100">{deckData.used}</strong> / {deckData.limit} used ({deckData.remaining} left)</>}
                 </span>
               </div>
               <div className="w-full bg-stone-100 dark:bg-zinc-800 h-2 rounded-full overflow-hidden p-0.5">
                 <div
                   className={`h-full rounded-full transition-all duration-300 ${getProgressColor(deckData.used, deckData.limit)}`}
-                  style={{ width: `${Math.min(100, (deckData.used / deckData.limit) * 100)}%` }}
+                  style={{ width: `${deckData.unlimited ? 100 : Math.min(100, (deckData.used / deckData.limit) * 100)}%` }}
                 />
               </div>
             </div>
@@ -137,16 +187,16 @@ export function UsageTracker({ userId }) {
             <div>
               <div className="flex justify-between items-center text-xs mb-1.5 font-medium">
                 <span className="flex items-center gap-1.5 font-bold text-stone-800 dark:text-zinc-200">
-                  <Sparkles size={13} className="text-blue-500" /> Zero AI Chats
+                  <img src="/zero-ai-avatar.webp" alt="" className="h-4 w-4 object-contain" /> Zero AI Chats
                 </span>
                 <span className="font-mono text-[11px] text-stone-600 dark:text-zinc-400">
-                  <strong className="text-stone-900 dark:text-zinc-100">{chatData.used}</strong> / {chatData.limit} used ({chatData.remaining} left)
+                  {chatData.unlimited ? <strong className="text-sky-600 dark:text-sky-400">Unlimited</strong> : <><strong className="text-stone-900 dark:text-zinc-100">{chatData.used}</strong> / {chatData.limit} used ({chatData.remaining} left)</>}
                 </span>
               </div>
               <div className="w-full bg-stone-100 dark:bg-zinc-800 h-2 rounded-full overflow-hidden p-0.5">
                 <div
                   className={`h-full rounded-full transition-all duration-300 ${getProgressColor(chatData.used, chatData.limit)}`}
-                  style={{ width: `${Math.min(100, (chatData.used / chatData.limit) * 100)}%` }}
+                  style={{ width: `${chatData.unlimited ? 100 : Math.min(100, (chatData.used / chatData.limit) * 100)}%` }}
                 />
               </div>
             </div>
@@ -158,13 +208,45 @@ export function UsageTracker({ userId }) {
                   <FileText size={13} className="text-emerald-500" /> Study Guide PDFs
                 </span>
                 <span className="font-mono text-[11px] text-stone-600 dark:text-zinc-400">
-                  <strong className="text-stone-900 dark:text-zinc-100">{readoutData.used}</strong> / {readoutData.limit} used ({readoutData.remaining} left)
+                  {readoutData.unlimited ? <strong className="text-sky-600 dark:text-sky-400">Unlimited</strong> : <><strong className="text-stone-900 dark:text-zinc-100">{readoutData.used}</strong> / {readoutData.limit} used ({readoutData.remaining} left)</>}
                 </span>
+              </div>
+
+              {/* Knowledge Check Resources */}
+              <div className="border-t border-stone-100 pt-4 dark:border-zinc-800">
+                <div className="mb-1.5 flex items-center justify-between text-xs font-medium">
+                  <span className="flex items-center gap-1.5 font-bold text-stone-800 dark:text-zinc-200">
+                    <Heart size={13} className="text-rose-500" fill="currentColor" /> Knowledge Check Hearts
+                  </span>
+                  <span className="font-mono text-[11px] text-stone-600 dark:text-zinc-400">
+                    {quizPolicy.unlimited ? <strong className="text-sky-600 dark:text-sky-400">Unlimited</strong> : <><strong className="text-stone-900 dark:text-zinc-100">{quizUsage.hearts}</strong> / {quizPolicy.hearts} used ({Math.max(0, quizPolicy.hearts - quizUsage.hearts)} left)</>}
+                  </span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-stone-100 p-0.5 dark:bg-zinc-800">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${getProgressColor(quizUsage.hearts, quizPolicy.hearts)}`}
+                    style={{ width: `${quizPolicy.unlimited ? 100 : Math.min(100, (quizUsage.hearts / quizPolicy.hearts) * 100)}%` }}
+                  />
+                </div>
+                <div className="mb-1.5 mt-3 flex items-center justify-between text-xs font-medium">
+                  <span className="flex items-center gap-1.5 font-bold text-stone-800 dark:text-zinc-200">
+                    <KeyRound size={13} className="text-amber-500" /> Hint Keys
+                  </span>
+                  <span className="font-mono text-[11px] text-stone-600 dark:text-zinc-400">
+                    {quizPolicy.unlimited ? <strong className="text-sky-600 dark:text-sky-400">Unlimited</strong> : <><strong className="text-stone-900 dark:text-zinc-100">{quizUsage.keys}</strong> / {quizPolicy.keys} used ({Math.max(0, quizPolicy.keys - quizUsage.keys)} left)</>}
+                  </span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-stone-100 p-0.5 dark:bg-zinc-800">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${getProgressColor(quizUsage.keys, quizPolicy.keys)}`}
+                    style={{ width: `${quizPolicy.unlimited ? 100 : Math.min(100, (quizUsage.keys / quizPolicy.keys) * 100)}%` }}
+                  />
+                </div>
               </div>
               <div className="w-full bg-stone-100 dark:bg-zinc-800 h-2 rounded-full overflow-hidden p-0.5">
                 <div
                   className={`h-full rounded-full transition-all duration-300 ${getProgressColor(readoutData.used, readoutData.limit)}`}
-                  style={{ width: `${Math.min(100, (readoutData.used / readoutData.limit) * 100)}%` }}
+                  style={{ width: `${readoutData.unlimited ? 100 : Math.min(100, (readoutData.used / readoutData.limit) * 100)}%` }}
                 />
               </div>
             </div>
@@ -182,4 +264,3 @@ export function UsageTracker({ userId }) {
     </div>
   );
 }
-

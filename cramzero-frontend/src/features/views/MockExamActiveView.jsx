@@ -1,16 +1,45 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-  CheckCircle, ChevronLeft, ChevronRight, X,
+  CheckCircle, ChevronLeft, ChevronRight, X, Heart, KeyRound,
   Timer, Check, Layers, RotateCcw,
-  Sparkles, ArrowLeft, Target, ShieldCheck, Volume2, VolumeX
+  Sparkles, ArrowLeft, Target, ShieldCheck, Volume2, VolumeX, Flame
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
+import { addInAppNotification } from '@/lib/inAppNotifications';
 import { recordAnalyticsEvent } from '@/lib/analytics';
-import { initAudio, playSfx, isSfxMuted, toggleSfxMute } from '@/lib/sfx';
+import { ensureSfxEnabledByDefault, initAudio, playSfx, playSfxSequence, isSfxMuted, toggleSfxMute } from '@/lib/sfx';
+import { API_BASE } from '@/lib/api';
 
-export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
+const SESSION_HEART_LIMIT = 7;
+const SESSION_KEY_LIMIT = 5;
+const DAILY_HEART_LIMIT = 30;
+const DAILY_KEY_LIMIT = 30;
+const DAILY_USAGE_STORAGE_KEY = 'cramzero-quiz-daily-usage';
+
+const getTodayKey = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
+const readDailyUsage = () => {
+  try {
+    const stored = JSON.parse(localStorage.getItem(DAILY_USAGE_STORAGE_KEY) || 'null');
+    if (stored?.date === getTodayKey()) {
+      return {
+        hearts: Number.isFinite(stored.hearts) ? stored.hearts : 0,
+        keys: Number.isFinite(stored.keys) ? stored.keys : 0,
+      };
+    }
+  } catch (error) {
+    console.warn('Unable to read quiz daily usage; resetting counters.', error);
+  }
+  return { hearts: 0, keys: 0 };
+};
+
+export function MockExamActiveView({ navigateTo, activeDeck, examConfig, userId }) {
   const safeDeck = activeDeck || { title: "Loading Assessment...", cards: [] }; 
   
   const [questions, setQuestions] = useState([]);
@@ -18,13 +47,53 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
   const [answers, setAnswers] = useState({});
   const [eliminatedOptions, setEliminatedOptions] = useState({});
   const [attempts, setAttempts] = useState({});
+  const [missedQuestions, setMissedQuestions] = useState([]);
   const [feedbackState, setFeedbackState] = useState({});
   const [hintVisible, setHintVisible] = useState({});
   const [explanationVisible, setExplanationVisible] = useState({});
   const [isFinished, setIsFinished] = useState(false);
   const [timeLeftSeconds, setTimeLeftSeconds] = useState(null);
+  const [hearts, setHearts] = useState(SESSION_HEART_LIMIT);
+  const [hintKeys, setHintKeys] = useState(SESSION_KEY_LIMIT);
+  const [dailyUsage, setDailyUsage] = useState(readDailyUsage);
+  const [dailyLimits, setDailyLimits] = useState({ hearts: DAILY_HEART_LIMIT, keys: DAILY_KEY_LIMIT, unlimited: false });
+  const [xpFeedback, setXpFeedback] = useState(null);
+  const [perfectStreak, setPerfectStreak] = useState(0);
+  const [successOverlay, setSuccessOverlay] = useState(null);
+  const [sessionEndReason, setSessionEndReason] = useState('');
   const [isSoundMuted, setIsSoundMuted] = useState(() => isSfxMuted());
   const timerCuesPlayedRef = useRef(new Set());
+  const autoAdvanceTimerRef = useRef(null);
+  const successOverlayTimerRef = useRef(null);
+  const dailyHeartLimit = dailyLimits.hearts ?? Number.POSITIVE_INFINITY;
+  const dailyKeyLimit = dailyLimits.keys ?? Number.POSITIVE_INFINITY;
+
+  useEffect(() => {
+    if (!userId) return;
+    fetch(`${API_BASE}/api/quiz-usage-policy?user_id=${encodeURIComponent(userId)}`)
+      .then(response => response.ok ? response.json() : Promise.reject(new Error('Could not load usage rewards.')))
+      .then(policy => setDailyLimits({
+        hearts: policy.hearts,
+        keys: policy.keys,
+        unlimited: policy.unlimited,
+      }))
+      .catch(error => console.warn('Could not load quiz usage rewards:', error));
+  }, [userId]);
+
+  const consumeDailyUsage = (resource) => {
+    const current = readDailyUsage();
+    const limit = resource === 'hearts' ? dailyHeartLimit : dailyKeyLimit;
+    if (current[resource] >= limit) return false;
+
+    const next = { ...current, [resource]: current[resource] + 1 };
+    localStorage.setItem(DAILY_USAGE_STORAGE_KEY, JSON.stringify({
+      date: getTodayKey(),
+      ...next,
+    }));
+    window.dispatchEvent(new Event('cramzero-quiz-usage-updated'));
+    setDailyUsage(next);
+    return true;
+  };
 
   useEffect(() => {
     if (!safeDeck.cards || safeDeck.cards.length === 0) return;
@@ -116,11 +185,34 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
     setAnswers({});
     setEliminatedOptions({});
     setAttempts({});
+    setMissedQuestions([]);
     setFeedbackState({});
     setHintVisible({});
     setExplanationVisible({});
     setIsFinished(false);
+    setHearts(SESSION_HEART_LIMIT);
+    setHintKeys(SESSION_KEY_LIMIT);
+    setDailyUsage(readDailyUsage());
+    setXpFeedback(null);
+    setPerfectStreak(0);
+    setSuccessOverlay(null);
+    setSessionEndReason('');
+    ensureSfxEnabledByDefault();
+    initAudio();
+    setIsSoundMuted(isSfxMuted());
+    playSfxSequence([
+      { name: 'quiz_start', options: { volume: 0.7 } },
+      { name: 'countdown_go', delay: 150, options: { volume: 0.45 } },
+    ]);
     timerCuesPlayedRef.current.clear();
+    if (autoAdvanceTimerRef.current) {
+      clearTimeout(autoAdvanceTimerRef.current);
+      autoAdvanceTimerRef.current = null;
+    }
+    if (successOverlayTimerRef.current) {
+      clearTimeout(successOverlayTimerRef.current);
+      successOverlayTimerRef.current = null;
+    }
 
     if (timeMode !== 'No Limit') {
       const mins = parseInt(timeMode.split(' ')[0], 10);
@@ -129,6 +221,11 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
       setTimeLeftSeconds(null);
     }
   }, [safeDeck.cards, examConfig?.count, examConfig?.isMock, examConfig?.timeMode, examConfig?.questionType, examConfig?.isRandom]);
+
+  useEffect(() => () => {
+    if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
+    if (successOverlayTimerRef.current) clearTimeout(successOverlayTimerRef.current);
+  }, []);
 
   useEffect(() => {
     if (timeLeftSeconds === null || isFinished) return;
@@ -170,17 +267,106 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
     if (answers[currentIndex] !== undefined || isFinished || eliminatedOptions[currentIndex]?.includes(opt)) return;
     initAudio();
     const isCorrect = opt === questions[currentIndex]?.answer;
+    if (!isCorrect && readDailyUsage().hearts >= dailyHeartLimit) {
+      toast.warning('Daily hearts used', {
+        description: 'You have used all 30 heart uses for today. Try again tomorrow.',
+      });
+      addInAppNotification({ type: 'limit', message: 'Daily heart limit reached', description: 'You used all 30 heart uses for today.' });
+      setSessionEndReason('You reached today’s limit of 30 heart uses. Come back tomorrow to keep learning.');
+      setIsFinished(true);
+      return;
+    }
+    const isPerfectAnswer = isCorrect
+      && (attempts[currentIndex] || 0) === 0
+      && !hintVisible[currentIndex]
+      && feedbackState[currentIndex] !== 'wrong';
     playSfx('answer_locked', { volume: 0.35 });
     playSfx(isCorrect ? 'answer_correct' : 'answer_incorrect', { volume: 0.65 });
     setAttempts(prev => ({ ...prev, [currentIndex]: (prev[currentIndex] || 0) + 1 }));
     setFeedbackState(prev => ({ ...prev, [currentIndex]: isCorrect ? 'correct' : 'wrong' }));
     if (isCorrect) {
-      setAnswers(prev => ({ ...prev, [currentIndex]: opt }));
+    setMissedQuestions(prev => prev.filter(index => index !== currentIndex));
     } else {
+    setMissedQuestions(prev => prev.includes(currentIndex) ? prev : [...prev, currentIndex]);
+    }
+    setXpFeedback({ amount: isCorrect ? 10 : 0, key: `${currentIndex}-${Date.now()}` });
+    window.setTimeout(() => setXpFeedback(null), 1200);
+    if (isCorrect) {
+      if (isPerfectAnswer) {
+        const nextStreak = perfectStreak + 1;
+        setPerfectStreak(nextStreak);
+        setSuccessOverlay({ streak: nextStreak, key: `${currentIndex}-${Date.now()}` });
+        if (successOverlayTimerRef.current) clearTimeout(successOverlayTimerRef.current);
+        successOverlayTimerRef.current = window.setTimeout(() => {
+          setSuccessOverlay(null);
+          successOverlayTimerRef.current = null;
+        }, 1700);
+      }
+      toast.success('Correct answer!', {
+        description: isPerfectAnswer ? 'Perfect! No hint or mistake used. +10 XP.' : '+10 XP earned.',
+        duration: 1800,
+      });
+      addInAppNotification({
+        type: isPerfectAnswer ? 'perfect' : 'correct',
+        message: isPerfectAnswer ? 'Perfect answer streak' : 'Correct answer',
+        description: isPerfectAnswer ? `You answered perfectly with a ${perfectStreak + 1}-answer streak.` : '+10 XP earned.',
+      });
+      if (userId) {
+        fetch(`${API_BASE}/api/users/${encodeURIComponent(userId)}/quiz-xp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event_id: `quiz-${userId}-${Date.now()}-${currentIndex}`,
+            amount: 10,
+            source: examConfig?.isMock ? 'mock-exam' : 'quiz',
+          }),
+        }).catch(error => console.warn('Could not sync quiz XP:', error));
+      }
+      playSfxSequence([
+        { name: 'answer_correct', options: { volume: 0.7 } },
+        { name: 'quiz_next', delay: 180, options: { volume: 0.45 } },
+      ]);
+      setAnswers(prev => ({ ...prev, [currentIndex]: opt }));
+      autoAdvanceTimerRef.current = setTimeout(() => {
+        setCurrentIndex(index => {
+          if (index >= questions.length - 1) {
+            const remainingMissed = missedQuestions.filter(questionIndex => questionIndex !== index);
+            if (remainingMissed.length > 0) return remainingMissed[0];
+            setIsFinished(true);
+            return index;
+          }
+          return index + 1;
+        });
+        autoAdvanceTimerRef.current = null;
+      }, 3000);
+    } else {
+      if (!consumeDailyUsage('hearts')) {
+        toast.warning('Daily hearts used', {
+          description: 'You have used all 30 heart uses for today. Try again tomorrow.',
+        });
+        addInAppNotification({ type: 'limit', message: 'Daily heart limit reached', description: 'You used all 30 heart uses for today.' });
+        setSessionEndReason('You reached today’s limit of 30 heart uses. Come back tomorrow to keep learning.');
+        setIsFinished(true);
+        return;
+      }
+      setPerfectStreak(0);
+      toast.error('Heart lost', {
+        description: `${Math.max(hearts - 1, 0)} session hearts remaining.`,
+        duration: 1800,
+      });
+      addInAppNotification({ type: 'heart', message: 'Heart lost', description: `${Math.max(hearts - 1, 0)} session hearts remaining.` });
+      playSfx('heart_lost', { volume: 0.7 });
+      const remainingHearts = hearts - 1;
+      setHearts(remainingHearts);
       setEliminatedOptions(prev => ({
         ...prev,
         [currentIndex]: [...(prev[currentIndex] || []), opt],
       }));
+      if (remainingHearts <= 0) {
+        playSfx('quiz_hearts_empty', { volume: 0.85 });
+        setSessionEndReason(`You used all ${SESSION_HEART_LIMIT} session hearts. Review the explanations and try the session again.`);
+        setIsFinished(true);
+      }
     }
     recordAnalyticsEvent({
       type: 'quiz_answer',
@@ -193,7 +379,15 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
   };
 
   const handleHint = () => {
-    if (answeredCurrent || isFinished) return;
+    if (answeredCurrent || isFinished || hintKeys <= 0 || dailyUsage.keys >= dailyKeyLimit) {
+      if (dailyUsage.keys >= dailyKeyLimit) {
+        toast.warning('Daily hint keys used', {
+          description: 'You have used all 30 hint-key uses for today. Try again tomorrow.',
+        });
+        addInAppNotification({ type: 'limit', message: 'Daily hint-key limit reached', description: 'You used all 30 hint-key uses for today.' });
+      }
+      return;
+    }
     const currentOptions = questions[currentIndex]?.options || [];
     const removableOption = currentOptions.find(
       option => option !== questions[currentIndex]?.answer && !eliminatedOptions[currentIndex]?.includes(option)
@@ -205,39 +399,106 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
     }));
     setHintVisible(prev => ({ ...prev, [currentIndex]: true }));
     setFeedbackState(prev => ({ ...prev, [currentIndex]: 'hint' }));
+    setHintKeys(keys => keys - 1);
+    consumeDailyUsage('keys');
+    toast.info('Hint used', {
+      description: `${hintKeys - 1} session hint keys remaining.`,
+      duration: 1600,
+    });
+    addInAppNotification({ type: 'hint', message: 'Hint used', description: `${hintKeys - 1} session hint keys remaining.` });
+    setPerfectStreak(0);
+    playSfx('hint_used', { volume: 0.65 });
+    setXpFeedback({ amount: 0, label: '−1 key', key: `hint-${Date.now()}` });
+    window.setTimeout(() => setXpFeedback(null), 1200);
   };
 
   const handleReveal = () => {
-    if (answeredCurrent || isFinished) return;
+    if (answeredCurrent || isFinished || hintKeys <= 0 || dailyUsage.keys >= dailyKeyLimit) {
+      if (dailyUsage.keys >= dailyKeyLimit) {
+        toast.warning('Daily hint keys used', {
+          description: 'You have used all 30 hint-key uses for today. Try again tomorrow.',
+        });
+        addInAppNotification({ type: 'limit', message: 'Daily hint-key limit reached', description: 'You used all 30 hint-key uses for today.' });
+      }
+      return;
+    }
     const currentQuestion = questions[currentIndex];
     const distractors = (currentQuestion?.options || []).filter(option => option !== currentQuestion.answer);
     setEliminatedOptions(prev => ({ ...prev, [currentIndex]: distractors }));
     setHintVisible(prev => ({ ...prev, [currentIndex]: true }));
     setFeedbackState(prev => ({ ...prev, [currentIndex]: 'hint' }));
+    setHintKeys(keys => keys - 1);
+    consumeDailyUsage('keys');
+    toast.info('Answer revealed', {
+      description: `${hintKeys - 1} session hint keys remaining.`,
+      duration: 1600,
+    });
+    addInAppNotification({ type: 'hint', message: 'Answer revealed', description: `${hintKeys - 1} session hint keys remaining.` });
+    setPerfectStreak(0);
+    playSfx('hint_used', { volume: 0.65 });
+    setXpFeedback({ amount: 0, label: '−1 key', key: `reveal-${Date.now()}` });
+    window.setTimeout(() => setXpFeedback(null), 1200);
   };
 
   const handleExplain = () => {
     if (isFinished) return;
+    playSfx('explanation_open', { volume: 0.55 });
     setExplanationVisible(prev => ({ ...prev, [currentIndex]: true }));
+    if (!answeredCurrent && feedbackState[currentIndex] === 'wrong') {
+      autoAdvanceTimerRef.current = setTimeout(() => {
+        setCurrentIndex(index => {
+          if (index >= questions.length - 1) {
+            if (missedQuestions.length > 0) return missedQuestions[0];
+            playSfxSequence([
+              { name: 'quiz_complete', options: { volume: 0.8 } },
+              { name: 'match_victory', delay: 180, options: { volume: 0.45 } },
+            ]);
+            setIsFinished(true);
+            return index;
+          }
+          return index + 1;
+        });
+        autoAdvanceTimerRef.current = null;
+      }, 3000);
+    }
   };
 
   const handleNext = () => {
+    if (autoAdvanceTimerRef.current) {
+      clearTimeout(autoAdvanceTimerRef.current);
+      autoAdvanceTimerRef.current = null;
+    }
+    if (!answeredCurrent && feedbackState[currentIndex] === 'wrong' && !explanationVisible[currentIndex]) return;
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(prev => prev + 1);
+    } else if (missedQuestions.length > 0) {
+      setCurrentIndex(missedQuestions[0]);
     } else {
       setIsFinished(true);
     }
   };
 
   const handleRestart = () => {
+    if (autoAdvanceTimerRef.current) {
+      clearTimeout(autoAdvanceTimerRef.current);
+      autoAdvanceTimerRef.current = null;
+    }
     setCurrentIndex(0);
     setAnswers({});
     setEliminatedOptions({});
     setAttempts({});
+    setMissedQuestions([]);
     setFeedbackState({});
     setHintVisible({});
     setExplanationVisible({});
     setIsFinished(false);
+    setHearts(SESSION_HEART_LIMIT);
+    setHintKeys(SESSION_KEY_LIMIT);
+    setDailyUsage(readDailyUsage());
+    setPerfectStreak(0);
+    setSuccessOverlay(null);
+    setSessionEndReason('');
+    setXpFeedback(null);
     timerCuesPlayedRef.current.clear();
     if (examConfig?.timeMode && examConfig?.timeMode !== 'No Limit') {
       const mins = parseInt(examConfig.timeMode.split(' ')[0], 10);
@@ -286,6 +547,11 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
             Assessment Complete
           </h2>
           <p className="text-stone-500 dark:text-zinc-400 font-medium text-base sm:text-lg mb-4 sm:mb-6 md:mb-8">{feedback}</p>
+          {sessionEndReason && (
+            <div className="mx-auto mb-5 max-w-lg rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800 dark:border-rose-900/70 dark:bg-rose-950/30 dark:text-rose-300">
+              {sessionEndReason}
+            </div>
+          )}
           
           <div className="bg-stone-50/80 dark:bg-zinc-950 border border-stone-200/80 dark:border-zinc-800 rounded-2xl p-4 sm:p-5 md:p-6 mb-4 sm:mb-6 md:mb-8 max-w-xs mx-auto shadow-inner">
             <p className="text-xs font-bold text-stone-400 dark:text-zinc-500 uppercase tracking-widest mb-1">Final Score</p>
@@ -391,10 +657,38 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
 
   return (
   <div className="min-h-full w-full bg-slate-50/80 dark:bg-zinc-950">
-    <div className="mx-auto flex w-full max-w-4xl flex-col px-4 pb-8 pt-3 sm:px-6 md:pt-5 animate-in fade-in duration-300">
+    {successOverlay && (
+      <div
+        key={successOverlay.key}
+        className="pointer-events-none fixed inset-0 z-[80] flex items-center justify-center px-5 animate-in fade-in duration-200"
+        role="status"
+        aria-live="polite"
+      >
+        <div className="relative overflow-hidden rounded-[2rem] border border-emerald-300/70 bg-white/95 px-8 py-7 text-center shadow-2xl shadow-emerald-900/20 backdrop-blur-xl dark:border-emerald-500/30 dark:bg-zinc-900/95">
+          <div className="absolute -left-8 -top-8 h-24 w-24 rounded-full bg-emerald-300/30 blur-2xl dark:bg-emerald-500/20" />
+          <div className="absolute -bottom-10 -right-6 h-28 w-28 rounded-full bg-amber-300/30 blur-2xl dark:bg-amber-500/20" />
+          <div className="relative mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 ring-8 ring-emerald-500/10 dark:bg-emerald-950/70 dark:text-emerald-400">
+            {successOverlay.streak > 1 ? <Flame size={32} fill="currentColor" /> : <Sparkles size={32} />}
+          </div>
+          <p className="relative text-2xl font-black tracking-tight text-stone-900 dark:text-zinc-100">
+            {successOverlay.streak > 1 ? 'Perfect streak!' : 'Perfect answer!'}
+          </p>
+          <p className="relative mt-1 text-sm font-bold text-emerald-600 dark:text-emerald-400">
+            +10 XP · no hints or mistakes
+          </p>
+          {successOverlay.streak > 1 && (
+            <div className="relative mt-3 inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
+              <Flame size={14} fill="currentColor" />
+              {successOverlay.streak} in a row
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+    <div className="mx-auto flex w-full max-w-4xl flex-col px-3 pb-8 pt-2 sm:px-6 sm:pb-8 md:pt-3 animate-in fade-in duration-300">
       
     {/* Gizmo-style session header */}
-    <div className="flex items-center gap-3 border-b border-slate-200/80 pb-3 dark:border-zinc-800">
+    <div className="flex shrink-0 items-center gap-3 border-b border-slate-200/80 pb-2 dark:border-zinc-800">
       <Button variant="ghost" size="icon" onClick={() => setIsFinished(true)} className="rounded-full text-slate-700 hover:bg-slate-200 dark:text-zinc-200 dark:hover:bg-zinc-800" aria-label="Exit test">
         <X size={21} />
       </Button>
@@ -435,7 +729,7 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
         </div>
       </div>
 
-      <div className="mt-4 flex items-center gap-3">
+      <div className="mt-2 flex shrink-0 items-center gap-2">
         <button type="button" onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))} disabled={currentIndex === 0} className="rounded-full bg-white p-2.5 text-slate-600 shadow-sm ring-1 ring-slate-200 disabled:opacity-40 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-zinc-800" aria-label="Previous question"><ChevronLeft size={18} /></button>
         <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-zinc-800">
         <div
@@ -443,17 +737,28 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
           style={{ width: `${((currentIndex + (answeredCurrent ? 1 : 0)) / questions.length) * 100}%` }}
         />
         </div>
-        <button type="button" onClick={() => answeredCurrent && handleNext()} disabled={!answeredCurrent} className="rounded-full bg-white p-2.5 text-slate-600 shadow-sm ring-1 ring-slate-200 disabled:opacity-40 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-zinc-800" aria-label="Next question"><ChevronRight size={18} /></button>
+        <button type="button" onClick={handleNext} disabled={!answeredCurrent && !(feedbackState[currentIndex] === 'wrong' && explanationVisible[currentIndex])} className="rounded-full bg-white p-2.5 text-slate-600 shadow-sm ring-1 ring-slate-200 disabled:opacity-40 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-zinc-800" aria-label="Next question"><ChevronRight size={18} /></button>
       </div>
 
-      <div className="mx-auto mt-4 flex w-full max-w-md items-center justify-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-600 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
+      <div className="mx-auto mt-2 flex w-full max-w-md items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
         <span className="text-sky-600">{masteredCount} mastered</span><span className="text-slate-300">•</span><span>{Object.values(attempts).reduce((sum, count) => sum + count, 0)} attempts</span><span className="ml-auto rounded-full bg-slate-100 px-3 py-1 text-slate-700 dark:bg-zinc-800 dark:text-zinc-200">+{masteredCount * 10} XP</span>
+      </div>
+      <div className="mx-auto mt-2 flex items-center justify-center gap-3 text-xs font-black">
+        <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-3 py-1.5 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300" aria-label={`${hearts} session hearts remaining; ${dailyLimits.unlimited ? 'unlimited' : `${dailyHeartLimit - dailyUsage.hearts} daily heart uses remaining`}`}>
+          <Heart size={14} fill="currentColor" /> {hearts}/{SESSION_HEART_LIMIT}
+          <span className="ml-1 text-[10px] opacity-70">{dailyLimits.unlimited ? 'unlimited today' : `today ${dailyUsage.hearts}/${dailyHeartLimit}`}</span>
+        </span>
+        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1.5 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300" aria-label={`${hintKeys} session hint keys remaining; ${dailyLimits.unlimited ? 'unlimited' : `${dailyKeyLimit - dailyUsage.keys} daily key uses remaining`}`}>
+          <KeyRound size={14} /> {hintKeys}/{SESSION_KEY_LIMIT}
+          <span className="ml-1 text-[10px] opacity-70">{dailyLimits.unlimited ? 'unlimited today' : `today ${dailyUsage.keys}/${dailyKeyLimit}`}</span>
+        </span>
+        {xpFeedback && <span key={xpFeedback.key} className="animate-in fade-in slide-in-from-bottom-1 text-emerald-600 dark:text-emerald-400">{xpFeedback.label || `+${xpFeedback.amount} XP`}</span>}
       </div>
 
       {/* Question Card Container */}
-      <Card className="mx-auto mt-5 w-full max-w-3xl rounded-[1.75rem] border-2 border-sky-500/90 bg-white p-5 shadow-[0_12px_35px_rgb(14_165_233/0.10)] dark:bg-zinc-900 sm:p-8 md:p-9">
+      <Card className="mx-auto mt-3 w-full max-w-3xl rounded-[1.5rem] border-2 border-sky-500/90 bg-white p-4 shadow-[0_12px_35px_rgb(14_165_233/0.10)] dark:bg-zinc-900 sm:p-5 md:p-6">
         {/* Meta badges */}
-        <div className="flex items-center justify-between gap-2 mb-4">
+        <div className="mb-2 flex items-center justify-between gap-2">
           <Badge className="bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-0 rounded-full text-[11px] font-bold tracking-wide px-3 py-1">
             {answeredCurrent ? '✓ Mastered' : currentQ.scenario || 'Concept Verification'}
           </Badge>
@@ -469,7 +774,7 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
         </div>
 
         {/* Question Text */}
-        <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-stone-900 dark:text-zinc-100 leading-relaxed mb-6">
+        <h3 className="mb-3 text-base font-bold leading-snug text-stone-900 dark:text-zinc-100 sm:text-lg md:text-xl">
           {currentQ.question}
         </h3>
 
@@ -560,7 +865,7 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
           </div>
         ) : (
           /* MULTIPLE CHOICE 4 OPTIONS */
-          <div className="space-y-3 my-2">
+          <div className="my-1 grid gap-2 sm:grid-cols-2">
             {currentQ.options.map((opt, i) => {
               const isEliminated = eliminatedOptions[currentIndex]?.includes(opt);
               const isCorrect = opt === currentQ.answer;
@@ -590,12 +895,12 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
                   key={i} 
                   disabled={answeredCurrent || isEliminated}
                   onClick={() => handleSelect(opt)}
-                  className={`w-full p-4 md:p-5 rounded-2xl border-2 text-left transition-all flex items-start gap-3.5 ${bgClass}`}
+                  className={`w-full min-h-[4.25rem] p-3 md:p-3.5 rounded-xl border-2 text-left transition-all flex items-start gap-2.5 ${bgClass}`}
                 >
                   <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold transition-colors ${circleClass}`}>
                     {showCorrect ? <Check size={14} /> : showIncorrect ? <X size={14} /> : letters[i] || (i + 1)}
                   </div>
-                  <p className={`text-sm md:text-base leading-relaxed ${textClass}`}>{opt}</p>
+                  <p className={`text-xs leading-snug sm:text-sm ${textClass}`}>{opt}</p>
                 </button>
               );
             })}
@@ -603,7 +908,7 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
         )}
 
         {!answeredCurrent && (
-          <div className="mt-5 space-y-3">
+          <div className="mt-3 space-y-2">
             <div className="flex items-start gap-2.5">
               <Sparkles size={17} className="mt-0.5 shrink-0 text-violet-600 dark:text-violet-400" />
               <div>
@@ -620,17 +925,17 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
                 )}
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              <Button type="button" variant="outline" onClick={handleHint} className="h-10 rounded-full border-slate-200 bg-white text-xs font-bold text-slate-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"><Sparkles size={14} className="mr-1.5 text-sky-500" />Hint</Button>
-              <Button type="button" variant="outline" onClick={handleReveal} className="h-10 rounded-full border-slate-200 bg-white text-xs font-bold text-slate-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"><Target size={14} className="mr-1.5 text-blue-500" />Reveal</Button>
-              <Button type="button" variant="outline" onClick={handleExplain} className="h-10 rounded-full border-slate-200 bg-white text-xs font-bold text-slate-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"><Sparkles size={14} className="mr-1.5 text-violet-500" />Explain</Button>
+            <div className="grid grid-cols-3 gap-1.5">
+              <Button type="button" variant="outline" disabled={hintKeys <= 0 || dailyUsage.keys >= dailyKeyLimit} onClick={handleHint} className="h-9 rounded-full border-slate-200 bg-white px-2 text-[11px] font-bold text-slate-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"><Sparkles size={13} className="mr-1 text-sky-500" />Hint</Button>
+              <Button type="button" variant="outline" disabled={hintKeys <= 0 || dailyUsage.keys >= dailyKeyLimit} onClick={handleReveal} className="h-9 rounded-full border-slate-200 bg-white px-2 text-[11px] font-bold text-stone-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"><Target size={13} className="mr-1 text-blue-500" />Reveal</Button>
+              <Button type="button" variant="outline" onClick={handleExplain} className="h-9 rounded-full border-slate-200 bg-white px-2 text-[11px] font-bold text-slate-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"><Sparkles size={13} className="mr-1 text-violet-500" />Explain</Button>
             </div>
           </div>
         )}
 
         {/* Immediate Explanation Feedback Box when Answered */}
         {(answeredCurrent || explanationVisible[currentIndex]) && currentQ.explanation && (
-          <div className={`mt-5 p-4 rounded-2xl border text-sm animate-in fade-in duration-200 ${
+          <div className={`mt-3 p-3 rounded-xl border text-sm animate-in fade-in duration-200 ${
             'bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-300/60 dark:border-emerald-800/60 text-emerald-900 dark:text-emerald-300'
           }`}>
             <p className="font-semibold flex items-center gap-1.5 mb-1 text-xs sm:text-sm">
@@ -641,22 +946,22 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
         )}
 
         {/* Integrated Navigation Footer (Inside Card: Never overlaps any choice!) */}
-        <div className="mt-8 pt-6 border-t border-stone-200/80 dark:border-zinc-800 flex items-center justify-between gap-3">
+        <div className="mt-4 flex items-center justify-between gap-3 border-t border-stone-200/80 pt-4 dark:border-zinc-800">
           <Button
             variant="outline"
             onClick={() => setCurrentIndex(prev => prev - 1)}
             disabled={currentIndex === 0}
-            className="h-12 px-5 sm:px-6 rounded-2xl font-bold text-sm bg-stone-50 dark:bg-zinc-800/60 text-stone-600 dark:text-zinc-300 hover:text-stone-900 dark:hover:text-white border-stone-200 dark:border-zinc-700 transition-all disabled:opacity-30"
+            className="h-10 px-4 rounded-xl font-bold text-xs bg-stone-50 dark:bg-zinc-800/60 text-stone-600 dark:text-zinc-300 hover:text-stone-900 dark:hover:text-white border-stone-200 dark:border-zinc-700 transition-all disabled:opacity-30"
           >
             <ChevronLeft size={18} className="mr-1.5" /> Previous
           </Button>
 
           <Button
             onClick={handleNext}
-            disabled={!answeredCurrent}
-            className="h-12 px-6 sm:px-8 rounded-2xl font-bold text-sm bg-stone-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-stone-800 dark:hover:bg-zinc-200 shadow-md transition-all disabled:opacity-40"
+            disabled={!answeredCurrent && !(feedbackState[currentIndex] === 'wrong' && explanationVisible[currentIndex])}
+            className="h-10 px-5 sm:px-7 rounded-xl font-bold text-xs bg-stone-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-stone-800 dark:hover:bg-zinc-200 shadow-md transition-all disabled:opacity-40"
           >
-            {currentIndex === questions.length - 1 ? "Finish Assessment" : "Next Question"}
+            {currentIndex === questions.length - 1 ? "Finish Assessment" : feedbackState[currentIndex] === 'wrong' ? "Continue" : "Next Question"}
             <ChevronRight size={18} className="ml-1.5" />
           </Button>
         </div>

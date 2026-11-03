@@ -66,7 +66,7 @@ export function LandingPageView({ navigateTo, hasProfileSetup, isDarkMode, setIs
             <img src="/cramzero-logo.svg" alt="CramZero" className="w-9 h-9 rounded-xl group-hover:scale-105 transition-transform" />
             CramZero
           </div>
-          <nav className="hidden md:flex items-center gap-8 font-medium text-umber/80 dark:text-zinc-300 text-sm">
+          <nav className="hidden lg:flex items-center gap-8 font-medium text-umber/80 dark:text-zinc-300 text-sm">
             <a href="#study-ways" className="hover:text-umber dark:hover:text-zinc-100 transition-colors">Interactive Modes</a>
             <a href="#architecture" className="hover:text-umber dark:hover:text-zinc-100 transition-colors">Ecosystem</a>
             <a href="#faq" className="hover:text-umber dark:hover:text-zinc-100 transition-colors">Architecture & FAQ</a>

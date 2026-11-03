@@ -220,7 +220,7 @@ export function DeckDetailsView({
         <CardContent className="p-5 md:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex gap-4 items-center">
             <div className="relative">
-              <img src="/zero-ai-logo.svg" alt="Zero AI" className="w-12 h-12 rounded-2xl p-1 bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs shrink-0" />
+              <img src="/zero-ai-avatar.webp" alt="Zero AI" className="w-12 h-12 rounded-2xl p-1 bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs shrink-0 object-contain" />
               <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-zinc-900 rounded-full"></span>
             </div>
             <div>
@@ -266,7 +266,7 @@ export function DeckDetailsView({
           </CardFooter>
         </Card>
 
-        <Card onClick={() => navigateTo('mock-exam-setup')} className="bg-gradient-to-br from-rose-600 via-rose-600 to-rose-700 dark:from-rose-900 dark:to-rose-950 border border-rose-500/50 dark:border-rose-700/50 shadow-md hover:shadow-2xl cursor-pointer transition-all duration-300 group flex flex-col justify-between relative overflow-hidden rounded-3xl hover:-translate-y-1">
+        <Card onClick={() => navigateTo('mock-exam-setup')} className="cz-color-card--exam shadow-md hover:shadow-2xl cursor-pointer transition-all duration-300 group flex flex-col justify-between relative overflow-hidden rounded-3xl hover:-translate-y-1">
           <div className="absolute -right-4 -bottom-4 p-4 opacity-10 pointer-events-none group-hover:scale-110 transition-transform">
             <Timer size={120} className="text-white"/>
           </div>

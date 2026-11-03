@@ -54,10 +54,12 @@ export function AuthModal({
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   if (!isOpen) return null;
 
   const currentAvatar = showCustomAvatar && customAvatarUrl.trim() ? customAvatarUrl.trim() : selectedAvatar;
+  const fieldError = (name) => fieldErrors[name] ? <p className="mt-1 text-xs font-semibold text-rose-600 dark:text-rose-400">{fieldErrors[name]}</p> : null;
 
   const filteredAvatars = avatarCategory === 'all' 
     ? PRESET_AVATARS 
@@ -66,18 +68,13 @@ export function AuthModal({
   // Handle registration
   const handleRegister = async (e) => {
     e.preventDefault();
-    if (!displayName.trim()) {
-      toast.error('Please enter a display name');
-      return;
-    }
-    if (!email.trim() || !email.includes('@')) {
-      toast.error('Please enter a valid email address');
-      return;
-    }
-    if (password.length < 6) {
-      toast.error('Password must be at least 6 characters');
-      return;
-    }
+    const errors = {
+      displayName: !displayName.trim() ? 'Enter a display name.' : '',
+      email: !email.trim() || !email.includes('@') ? 'Enter a valid email address.' : '',
+      password: password.length < 6 ? 'Use at least 6 characters.' : '',
+    };
+    setFieldErrors(errors);
+    if (Object.values(errors).some(Boolean)) return;
 
     setIsLoading(true);
     try {
@@ -110,6 +107,7 @@ export function AuthModal({
         educationLevel: data.education_level,
         university: data.university,
         isGuest: false,
+        accessToken: data.access_token,
       });
     } catch (err) {
       toast.error('Registration failed', { description: err.message });
@@ -121,6 +119,7 @@ export function AuthModal({
   // Handle guest setup
   const handleGuestSetup = async (e) => {
     e.preventDefault();
+    setFieldErrors({ displayName: !displayName.trim() ? 'Enter a display name.' : '' });
     if (!displayName.trim()) {
       toast.error('Please enter a display name');
       return;
@@ -155,6 +154,7 @@ export function AuthModal({
         educationLevel: data.education_level,
         university: data.university,
         isGuest: true,
+        accessToken: data.access_token,
       });
     } catch (err) {
       toast.error('Could not set up guest identity', { description: err.message });
@@ -166,10 +166,12 @@ export function AuthModal({
   // Handle log in
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!email.trim() || !password) {
-      toast.error('Please enter your email and password');
-      return;
-    }
+    const errors = {
+      email: !email.trim() || !email.includes('@') ? 'Enter a valid email address.' : '',
+      password: !password ? 'Enter your password.' : '',
+    };
+    setFieldErrors(errors);
+    if (Object.values(errors).some(Boolean)) return;
 
     setIsLoading(true);
     try {
@@ -200,6 +202,7 @@ export function AuthModal({
         educationLevel: data.education_level,
         university: data.university,
         isGuest: false,
+        accessToken: data.access_token,
       });
     } catch (err) {
       toast.error('Sign in failed', { description: err.message });
@@ -421,11 +424,12 @@ export function AuthModal({
                   type="text"
                   required
                   value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
+                  onChange={(e) => { setDisplayName(e.target.value); setFieldErrors((current) => ({ ...current, displayName: '' })); }}
                   placeholder="e.g. Alex Cruz or TechStudent"
                   className="pl-10 h-11 rounded-xl text-sm"
                 />
               </div>
+              {fieldError('displayName')}
             </div>
 
             {/* Email Input */}
@@ -439,11 +443,12 @@ export function AuthModal({
                   type="email"
                   required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(e.target.value); setFieldErrors((current) => ({ ...current, email: '' })); }}
                   placeholder="your.email@university.edu"
                   className="pl-10 h-11 rounded-xl text-sm"
                 />
               </div>
+              {fieldError('email')}
             </div>
 
             {/* Password Input */}
@@ -458,7 +463,7 @@ export function AuthModal({
                   required
                   minLength={6}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => { setPassword(e.target.value); setFieldErrors((current) => ({ ...current, password: '' })); }}
                   placeholder="••••••••"
                   className="pl-10 pr-10 h-11 rounded-xl text-sm"
                 />
@@ -470,6 +475,7 @@ export function AuthModal({
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+              {fieldError('password')}
             </div>
 
             <Button
@@ -594,11 +600,12 @@ export function AuthModal({
                   type="text"
                   required
                   value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
+                  onChange={(e) => { setDisplayName(e.target.value); setFieldErrors((current) => ({ ...current, displayName: '' })); }}
                   placeholder="e.g. Alex or NurseStudent"
                   className="pl-10 h-11 rounded-xl text-sm"
                 />
               </div>
+              {fieldError('displayName')}
             </div>
 
             <div className="p-3.5 rounded-xl bg-stone-100 dark:bg-zinc-800/60 border border-stone-200/80 dark:border-zinc-800 text-xs text-stone-600 dark:text-zinc-300">
@@ -663,11 +670,12 @@ export function AuthModal({
                   type="email"
                   required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(e.target.value); setFieldErrors((current) => ({ ...current, email: '' })); }}
                   placeholder="your.email@university.edu"
                   className="pl-10 h-11 rounded-xl text-sm"
                 />
               </div>
+              {fieldError('email')}
             </div>
 
             {/* Password Input */}
@@ -681,7 +689,7 @@ export function AuthModal({
                   type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => { setPassword(e.target.value); setFieldErrors((current) => ({ ...current, password: '' })); }}
                   placeholder="••••••••"
                   className="pl-10 pr-10 h-11 rounded-xl text-sm"
                 />
@@ -693,6 +701,7 @@ export function AuthModal({
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+              {fieldError('password')}
             </div>
 
             <Button

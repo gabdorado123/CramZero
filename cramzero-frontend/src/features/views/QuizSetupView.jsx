@@ -25,12 +25,19 @@ import ReactMarkdown from 'react-markdown';
 import { initAudio } from '@/lib/sfx';
 
 export function QuizSetupView({ navigateTo, activeDeck, setExamConfig }) {
-  const [qCount, setQCount] = useState(10);
+  const availableCards = Math.max(0, activeDeck?.cards?.length || 0);
+  const lengthOptions = [5, 10, 20, 30, 50]
+    .filter(option => option < availableCards)
+    .concat(availableCards > 0 ? [availableCards] : [])
+    .filter((option, index, options) => options.indexOf(option) === index)
+    .sort((a, b) => a - b);
+  const defaultCount = lengthOptions[lengthOptions.length - 1] || 0;
+  const [qCount, setQCount] = useState(defaultCount);
   const [qType, setQType] = useState('mc'); // 'mc', 'tf', 'mixed'
 
   const handleStart = (isRandom) => {
     initAudio();
-    setExamConfig({ count: qCount, timeMode: 'No Limit', isMock: false, questionType: qType, isRandom });
+    setExamConfig({ count: Math.min(qCount, availableCards), timeMode: 'No Limit', isMock: false, questionType: qType, isRandom });
     navigateTo('mock-exam-active');
   };
 
@@ -64,7 +71,7 @@ export function QuizSetupView({ navigateTo, activeDeck, setExamConfig }) {
           <Target size={18} className="text-amber-500" /> Challenge Length
         </h3>
         <div className="flex flex-wrap sm:flex-nowrap gap-2 sm:gap-3">
-          {[5, 10, 20, 30, 50].map(num => (
+          {lengthOptions.map(num => (
             <Button 
               key={num}
               variant="outline"

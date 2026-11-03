@@ -4,6 +4,8 @@ import re
 import math
 import secrets
 import hashlib
+import hmac
+import base64
 import time
 from datetime import datetime, timezone
 import tempfile
@@ -14,7 +16,7 @@ from urllib.request import Request as UrlRequest, urlopen
 from io import BytesIO
 from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from sqlalchemy.orm import Session
 from google import genai
 from google.genai import types
@@ -250,6 +252,67 @@ except Exception as e:
 
 app = FastAPI(title="CramZero API")
 
+AUTH_SECRET = os.environ.get("CRAMZERO_AUTH_SECRET") or secrets.token_hex(32)
+AUTH_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 30
+
+
+def issue_access_token(user_id: str) -> str:
+    expires = int(time.time()) + AUTH_TOKEN_TTL_SECONDS
+    payload = f"{user_id}:{expires}".encode()
+    signature = hmac.new(AUTH_SECRET.encode(), payload, hashlib.sha256).hexdigest()
+    encoded = base64.urlsafe_b64encode(payload).decode().rstrip("=")
+    return f"{encoded}.{signature}"
+
+
+def verify_access_token(token: str | None) -> str | None:
+    if not token or "." not in token:
+        return None
+    encoded, signature = token.split(".", 1)
+    try:
+        payload = base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4))
+        expected = hmac.new(AUTH_SECRET.encode(), payload, hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(signature, expected):
+            return None
+        user_id, expires = payload.decode().rsplit(":", 1)
+        if int(expires) < int(time.time()) or not user_id:
+            return None
+        return user_id
+    except (ValueError, UnicodeDecodeError):
+        return None
+
+
+PUBLIC_API_PATHS = {
+    "/api/health",
+    "/api/auth/register",
+    "/api/auth/login",
+    "/api/auth/guest",
+    "/api/universities",
+    "/api/universities/catalog",
+    "/api/decks/public",
+}
+
+
+@app.middleware("http")
+async def require_api_identity(request: Request, call_next):
+    if request.method == "OPTIONS" or not request.url.path.startswith("/api/"):
+        return await call_next(request)
+    if request.url.path in PUBLIC_API_PATHS or request.url.path == "/api/auth/me":
+        request.state.user_id = verify_access_token(
+            request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+        )
+        return await call_next(request)
+    user_id = verify_access_token(
+        request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+    )
+    if not user_id:
+        return JSONResponse(status_code=401, content={"detail": "Authentication required."})
+    for parameter in ("user_id", "viewer_id"):
+        supplied = request.query_params.get(parameter)
+        if supplied and supplied != user_id:
+            return JSONResponse(status_code=403, content={"detail": "You cannot act as another user."})
+    request.state.user_id = user_id
+    return await call_next(request)
+
 # Configure CORS origins - allow Vercel deployments, custom domains, and local dev
 allowed_origins_env = os.getenv("ALLOWED_ORIGINS") or os.getenv("FRONTEND_URL")
 allowed_origins = [
@@ -296,6 +359,16 @@ RATE_LIMITS = {
     },
 }
 
+QUIZ_DAILY_LIMITS = {"hearts": 30, "keys": 30}
+MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+COLLECTIBLE_TIERS = [
+    {"id": "spark", "name": "Spark Scholar", "rarity": "Common", "threshold": 0, "accent": "amber"},
+    {"id": "rare-orbit", "name": "Rare Pathfinder", "rarity": "Rare", "threshold": 100, "accent": "gold"},
+    {"id": "epic-mentor", "name": "Epic Mentor", "rarity": "Epic", "threshold": 500, "accent": "violet"},
+    {"id": "mythic-sage", "name": "Mythic Sage", "rarity": "Mythic", "threshold": 1500, "accent": "fuchsia"},
+    {"id": "legendary-zero", "name": "Legendary Zero", "rarity": "Legendary", "threshold": 4000, "accent": "sky"},
+]
+
 _in_memory_usage = {}
 
 def get_current_date_str() -> str:
@@ -332,12 +405,65 @@ def get_usage_count(action: str, identifier: str, db: Session | None = None) -> 
             
     return _in_memory_usage.get(key, 0)
 
+def get_user_xp(user_id: str, db: Session) -> int:
+    record = db.query(models.UserXP).filter(models.UserXP.user_id == user_id).first()
+    return record.total_xp if record else 0
+
+def _ranked_user_ids(db: Session, university: str | None = None):
+    query = db.query(models.User).filter(models.User.profile_visibility != "Private")
+    if university:
+        aliases = [alias for alias, canonical in PHILIPPINE_UNIVERSITY_ALIASES.items() if canonical == university]
+        query = query.filter(models.User.university.in_([university, *aliases]))
+    users = query.all()
+    xp_by_user = {
+        record.user_id: record.total_xp
+        for record in db.query(models.UserXP).filter(models.UserXP.user_id.in_([user.id for user in users])).all()
+    } if users else {}
+    users.sort(key=lambda user: (-xp_by_user.get(user.id, 0), (user.display_name or "Student").casefold(), user.id))
+    return [(user.id, xp_by_user.get(user.id, 0)) for user in users]
+
+def get_user_ranks(user_id: str, db: Session):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        return None, None
+    global_ids = _ranked_user_ids(db)
+    global_rank = next((index + 1 for index, (candidate_id, _) in enumerate(global_ids) if candidate_id == user_id), None)
+    university_rank = None
+    if user.university:
+        university_ids = _ranked_user_ids(db, user.university)
+        university_rank = next((index + 1 for index, (candidate_id, _) in enumerate(university_ids) if candidate_id == user_id), None)
+    return global_rank, university_rank
+
+def get_usage_reward(user_id: str, db: Session):
+    global_rank, university_rank = get_user_ranks(user_id, db)
+    ranks = [rank for rank in (global_rank, university_rank) if rank is not None]
+    best_rank = min(ranks) if ranks else None
+    if best_rank is not None and best_rank <= 5:
+        return {"unlimited": True, "multiplier": 1, "rank": global_rank, "university_rank": university_rank}
+    if best_rank is not None and (6 <= best_rank <= 10 or 15 <= best_rank <= 20):
+        return {"unlimited": False, "multiplier": 1.5, "rank": global_rank, "university_rank": university_rank}
+    return {"unlimited": False, "multiplier": 1, "rank": global_rank, "university_rank": university_rank}
+
+def get_collectibles(total_xp: int):
+    return [
+        {
+            **tier,
+            "unlocked": total_xp >= tier["threshold"],
+            "progress": 100 if total_xp >= tier["threshold"] else min(99, round((total_xp / max(tier["threshold"], 1)) * 100)),
+        }
+        for tier in COLLECTIBLE_TIERS
+    ]
+
 def enforce_rate_limit(action: str, identifier: str, db: Session | None = None):
     config = RATE_LIMITS.get(action)
     if not config:
         return
         
-    limit = config["limit"]
+    user_id = identifier.removeprefix("user:")
+    reward = get_usage_reward(user_id, db) if identifier.startswith("user:") else {"unlimited": False, "multiplier": 1}
+    if reward["unlimited"]:
+        return
+    limit = math.ceil(config["limit"] * reward["multiplier"])
     label = config["label"]
     current_count = get_usage_count(action, identifier, db)
     
@@ -383,18 +509,107 @@ def record_rate_limit_usage(action: str, identifier: str, db: Session | None = N
 
 @app.get("/api/rate-limits/")
 def get_rate_limits_status(req: Request, user_id: str | None = None, db: Session = Depends(get_db)):
+    if user_id:
+        _assert_actor(req, user_id)
     identifier = get_client_identifier(req, user_id)
+    reward = get_usage_reward(user_id, db) if user_id else {"unlimited": False, "multiplier": 1, "rank": None, "university_rank": None}
     status = {}
     for action, config in RATE_LIMITS.items():
         used = get_usage_count(action, identifier, db)
-        limit = config["limit"]
+        limit = None if reward["unlimited"] else math.ceil(config["limit"] * reward["multiplier"])
         status[action] = {
             "used": used,
             "limit": limit,
-            "remaining": max(0, limit - used),
+            "remaining": None if limit is None else max(0, limit - used),
             "label": config["label"],
+            "unlimited": reward["unlimited"],
+            "reward_multiplier": reward["multiplier"],
+            "global_rank": reward["rank"],
+            "university_rank": reward["university_rank"],
         }
     return status
+
+@app.get("/api/quiz-usage-policy")
+def get_quiz_usage_policy(user_id: str, request: Request, db: Session = Depends(get_db)):
+    _assert_actor(request, user_id)
+    reward = get_usage_reward(user_id, db)
+    if reward["unlimited"]:
+        return {
+            "hearts": None,
+            "keys": None,
+            "unlimited": True,
+            "global_rank": reward["rank"],
+            "university_rank": reward["university_rank"],
+        }
+    return {
+        "hearts": math.ceil(QUIZ_DAILY_LIMITS["hearts"] * reward["multiplier"]),
+        "keys": math.ceil(QUIZ_DAILY_LIMITS["keys"] * reward["multiplier"]),
+        "unlimited": False,
+        "global_rank": reward["rank"],
+        "university_rank": reward["university_rank"],
+    }
+
+@app.post("/api/users/{user_id}/quiz-xp")
+def record_quiz_xp(user_id: str, payload: schemas.QuizXPRequest, request: Request, db: Session = Depends(get_db)):
+    _assert_actor(request, user_id)
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+    if not payload.event_id.strip() or payload.source not in {"quiz", "mock-exam"}:
+        raise HTTPException(status_code=400, detail="Invalid XP event.")
+    existing = db.query(models.QuizXPEvent).filter(models.QuizXPEvent.event_id == payload.event_id).first()
+    if existing:
+        total_xp = get_user_xp(user_id, db)
+        return {"awarded": 0, "total_xp": total_xp, "collectibles": get_collectibles(total_xp)}
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    daily_xp = db.query(models.QuizXPEvent).filter(
+        models.QuizXPEvent.user_id == user_id,
+        models.QuizXPEvent.created_at >= today_start,
+    ).all()
+    if sum(event.amount for event in daily_xp) >= 500:
+        raise HTTPException(status_code=429, detail="Daily XP limit reached.")
+    record = models.QuizXPEvent(
+        event_id=payload.event_id.strip(),
+        user_id=user_id,
+        amount=payload.amount,
+        source=payload.source[:40],
+    )
+    db.add(record)
+    xp = db.query(models.UserXP).filter(models.UserXP.user_id == user_id).first()
+    if xp:
+        xp.total_xp += payload.amount
+    else:
+        xp = models.UserXP(user_id=user_id, total_xp=payload.amount)
+        db.add(xp)
+    db.commit()
+    return {"awarded": payload.amount, "total_xp": xp.total_xp, "collectibles": get_collectibles(xp.total_xp)}
+
+@app.get("/api/users/{user_id}/collectibles")
+def get_user_collectibles(user_id: str, db: Session = Depends(get_db)):
+    if not db.query(models.User).filter(models.User.id == user_id).first():
+        raise HTTPException(status_code=404, detail="User not found.")
+    total_xp = get_user_xp(user_id, db)
+    return {"total_xp": total_xp, "collectibles": get_collectibles(total_xp)}
+
+@app.get("/api/leaderboards")
+def get_leaderboards(scope: str = "global", university: str | None = None, limit: int = 20, db: Session = Depends(get_db)):
+    if scope not in {"global", "university"}:
+        raise HTTPException(status_code=400, detail="Scope must be global or university.")
+    if scope == "university" and not university:
+        raise HTTPException(status_code=400, detail="University is required for a university leaderboard.")
+    entries = []
+    for rank, (user_id, total_xp) in enumerate(_ranked_user_ids(db, university if scope == "university" else None)[:min(limit, 100)], start=1):
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        entries.append({
+            "rank": rank,
+            "id": user.id,
+            "display_name": user.display_name,
+            "avatar_url": user.avatar_url,
+            "university": user.university,
+            "total_xp": total_xp,
+            "collectible": get_collectibles(total_xp)[-1 if total_xp >= COLLECTIBLE_TIERS[-1]["threshold"] else max(index for index, tier in enumerate(COLLECTIBLE_TIERS) if total_xp >= tier["threshold"])],
+        })
+    return {"scope": scope, "university": university, "entries": entries}
 
 # --- PASSWORD HASHING UTILITIES ---
 def hash_password(password: str) -> str:
@@ -426,9 +641,21 @@ def _user_payload(user):
         "created_at": user.created_at,
     }
 
+
+def _authenticated_user_id(request: Request) -> str:
+    user_id = getattr(request.state, "user_id", None)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Authentication required.")
+    return user_id
+
+
+def _assert_actor(request: Request, supplied_user_id: str | None):
+    if supplied_user_id != _authenticated_user_id(request):
+        raise HTTPException(status_code=403, detail="You cannot act as another user.")
+
 # --- AUTH & USER PROFILE ENDPOINTS ---
 @app.post("/api/auth/register", response_model=schemas.UserResponse)
-def register_user(payload: schemas.UserRegister, db: Session = Depends(get_db)):
+def register_user(payload: schemas.UserRegister, request: Request, db: Session = Depends(get_db)):
     email = payload.email.strip().lower()
     if not email or "@" not in email:
         raise HTTPException(status_code=400, detail="Please enter a valid email address.")
@@ -439,7 +666,9 @@ def register_user(payload: schemas.UserRegister, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(status_code=400, detail="An account with this email already exists. Please sign in.")
     
-    target_user_id = payload.guest_user_id.strip() if payload.guest_user_id else None
+    requested_guest_id = payload.guest_user_id.strip() if payload.guest_user_id else None
+    authenticated_guest_id = getattr(request.state, "user_id", None)
+    target_user_id = requested_guest_id if requested_guest_id == authenticated_guest_id else None
     user = None
     if target_user_id:
         user = db.query(models.User).filter(models.User.id == target_user_id).first()
@@ -470,28 +699,38 @@ def register_user(payload: schemas.UserRegister, db: Session = Depends(get_db)):
     
     db.commit()
     db.refresh(user)
-    return _user_payload(user)
+    response = _user_payload(user)
+    response["access_token"] = issue_access_token(user.id)
+    return response
 
 
 @app.post("/api/auth/login", response_model=schemas.UserResponse)
-def login_user(payload: schemas.UserLogin, db: Session = Depends(get_db)):
+def login_user(payload: schemas.UserLogin, request: Request, db: Session = Depends(get_db)):
     email = payload.email.strip().lower()
     user = db.query(models.User).filter(models.User.email == email).first()
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password.")
     
     # If the user created decks as guest on this device, merge them into their logged in account!
-    if payload.guest_user_id and payload.guest_user_id != user.id:
+    guest_user_id = payload.guest_user_id if payload.guest_user_id == getattr(request.state, "user_id", None) else None
+    if guest_user_id and guest_user_id != user.id:
         db.query(models.Deck).filter(models.Deck.user_id == payload.guest_user_id).update({"user_id": user.id, "author_name": user.display_name})
         db.query(models.StudyHubMember).filter(models.StudyHubMember.user_id == payload.guest_user_id).update({"user_id": user.id, "display_name": user.display_name})
         db.commit()
 
-    return _user_payload(user)
+    response = _user_payload(user)
+    response["access_token"] = issue_access_token(user.id)
+    return response
 
 
 @app.post("/api/auth/guest", response_model=schemas.UserResponse)
-def setup_guest_user(payload: schemas.GuestUserCreate, db: Session = Depends(get_db)):
+def setup_guest_user(payload: schemas.GuestUserCreate, request: Request, db: Session = Depends(get_db)):
     user_id = (payload.user_id.strip() if payload.user_id else None) or f"guest-{secrets.token_hex(12)}"
+    existing_token_user = getattr(request.state, "user_id", None)
+    if existing_token_user and payload.user_id and payload.user_id != existing_token_user:
+        raise HTTPException(status_code=403, detail="You cannot act as another user.")
+    if not existing_token_user and db.query(models.User).filter(models.User.id == user_id).first():
+        raise HTTPException(status_code=403, detail="A session is required to update this user.")
     display_name = payload.display_name.strip() if payload.display_name else "Student"
     
     user = db.query(models.User).filter(models.User.id == user_id).first()
@@ -510,22 +749,32 @@ def setup_guest_user(payload: schemas.GuestUserCreate, db: Session = Depends(get
     db.query(models.StudyHubMember).filter(models.StudyHubMember.user_id == user.id).update({"display_name": display_name})
     db.commit()
     db.refresh(user)
-    return _user_payload(user)
+    response = _user_payload(user)
+    response["access_token"] = issue_access_token(user.id)
+    return response
 
 
 @app.get("/api/auth/me", response_model=schemas.UserResponse)
-def get_current_user_profile(user_id: str, db: Session = Depends(get_db)):
+def get_current_user_profile(user_id: str, request: Request, db: Session = Depends(get_db)):
+    authenticated_id = getattr(request.state, "user_id", None)
+    if authenticated_id:
+        user_id = authenticated_id
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         user = models.User(id=user_id, display_name="Student")
         db.add(user)
         db.commit()
         db.refresh(user)
-    return _user_payload(user)
+    elif not authenticated_id:
+        raise HTTPException(status_code=401, detail="Authentication required for an existing account.")
+    response = _user_payload(user)
+    response["access_token"] = issue_access_token(user.id)
+    return response
 
 
 @app.put("/api/auth/profile", response_model=schemas.UserResponse)
-def update_user_profile(payload: schemas.UserProfileUpdate, db: Session = Depends(get_db)):
+def update_user_profile(payload: schemas.UserProfileUpdate, request: Request, db: Session = Depends(get_db)):
+    _assert_actor(request, payload.user_id)
     user = db.query(models.User).filter(models.User.id == payload.user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
@@ -564,7 +813,9 @@ def update_user_profile(payload: schemas.UserProfileUpdate, db: Session = Depend
     
     db.commit()
     db.refresh(user)
-    return _user_payload(user)
+    response = _user_payload(user)
+    response["access_token"] = issue_access_token(user.id)
+    return response
 
 
 def _profile_payload(user, viewer_id: str | None, db: Session):
@@ -578,6 +829,7 @@ def _profile_payload(user, viewer_id: str | None, db: Session):
     ).order_by(models.Deck.created_at.desc()).all()
     return {
         **_user_payload(user),
+        "total_xp": get_user_xp(user.id, db),
         "follower_count": db.query(models.UserFollow).filter(models.UserFollow.following_id == user.id).count(),
         "following_count": db.query(models.UserFollow).filter(models.UserFollow.follower_id == user.id).count(),
         "is_following": is_following,
@@ -607,12 +859,15 @@ def list_universities(query: str = "", limit: int = 500, db: Session = Depends(g
         if term and term.casefold() not in university["name"].casefold() and term.casefold() not in university["short_name"].casefold() and term.casefold() not in university["city"].casefold():
             continue
         legacy_names = [alias for alias, canonical in PHILIPPINE_UNIVERSITY_ALIASES.items() if canonical == university["name"]]
-        communities.append({
-        **university,
-        "member_count": db.query(models.User).filter(
+        member_count = db.query(models.User).filter(
             models.User.profile_visibility == "Public",
             models.User.university.in_([university["name"], *legacy_names]),
-        ).count(),
+        ).count()
+        if member_count == 0:
+            continue
+        communities.append({
+        **university,
+        "member_count": member_count,
         })
     return communities[:min(limit, 500)]
 
@@ -640,6 +895,10 @@ def get_university_community(university_name: str, viewer_id: str | None = None,
         models.Deck.user_id.in_(user_ids),
         models.Deck.visibility == "Public",
     ).order_by(models.Deck.created_at.desc()).limit(100).all()
+    xp_by_user = {
+        record.user_id: record.total_xp
+        for record in db.query(models.UserXP).filter(models.UserXP.user_id.in_(user_ids)).all()
+    } if user_ids else {}
     leaderboard = []
     for user in users:
         public_deck_count = sum(1 for deck in decks if deck.user_id == user.id)
@@ -650,7 +909,8 @@ def get_university_community(university_name: str, viewer_id: str | None = None,
             "avatar_url": user.avatar_url,
             "public_decks": public_deck_count,
             "followers": follower_count,
-            "score": public_deck_count * 10 + follower_count * 2,
+            "score": xp_by_user.get(user.id, 0),
+            "total_xp": xp_by_user.get(user.id, 0),
         })
     leaderboard.sort(key=lambda item: (-item["score"], item["display_name"].casefold()))
     return {
@@ -728,7 +988,8 @@ def mark_notification_read(notification_id: int, user_id: str, db: Session = Dep
 
 
 @app.post("/api/users/{user_id}/follow")
-def follow_user(user_id: str, payload: schemas.FollowRequest, db: Session = Depends(get_db)):
+def follow_user(user_id: str, payload: schemas.FollowRequest, request: Request, db: Session = Depends(get_db)):
+    _assert_actor(request, payload.user_id)
     if payload.user_id == user_id:
         raise HTTPException(status_code=400, detail="You cannot follow yourself.")
     target = db.query(models.User).filter(models.User.id == user_id).first()
@@ -754,7 +1015,8 @@ def follow_user(user_id: str, payload: schemas.FollowRequest, db: Session = Depe
 
 
 @app.delete("/api/users/{user_id}/follow")
-def unfollow_user(user_id: str, payload: schemas.FollowRequest, db: Session = Depends(get_db)):
+def unfollow_user(user_id: str, payload: schemas.FollowRequest, request: Request, db: Session = Depends(get_db)):
+    _assert_actor(request, payload.user_id)
     follow = db.query(models.UserFollow).filter(
         models.UserFollow.follower_id == payload.user_id,
         models.UserFollow.following_id == user_id,
@@ -770,7 +1032,9 @@ def unfollow_user(user_id: str, payload: schemas.FollowRequest, db: Session = De
 
 # --- DECK MANAGEMENT & SHARING ENDPOINTS ---
 @app.get("/api/decks/", response_model=list[schemas.DeckResponse])
-def get_decks(user_id: str | None = None, db: Session = Depends(get_db)):
+def get_decks(user_id: str | None = None, request: Request = None, db: Session = Depends(get_db)):
+    if user_id:
+        _assert_actor(request, user_id)
     if user_id:
         return db.query(models.Deck).filter(models.Deck.user_id == user_id).order_by(models.Deck.created_at.desc()).all()
     return []
@@ -787,7 +1051,9 @@ def get_public_decks(search: str | None = None, limit: int = 50, db: Session = D
 
 
 @app.get("/api/decks/{deck_id}")
-def get_single_deck(deck_id: int, user_id: str | None = None, db: Session = Depends(get_db)):
+def get_single_deck(deck_id: int, user_id: str | None = None, request: Request = None, db: Session = Depends(get_db)):
+    if user_id:
+        _assert_actor(request, user_id)
     deck = db.query(models.Deck).filter(models.Deck.id == deck_id).first()
     if not deck:
         raise HTTPException(status_code=404, detail="Deck not found.")
@@ -806,7 +1072,8 @@ def get_single_deck(deck_id: int, user_id: str | None = None, db: Session = Depe
 
 
 @app.patch("/api/decks/{deck_id}/visibility")
-def update_deck_visibility(deck_id: int, payload: schemas.DeckVisibilityUpdate, db: Session = Depends(get_db)):
+def update_deck_visibility(deck_id: int, payload: schemas.DeckVisibilityUpdate, request: Request, db: Session = Depends(get_db)):
+    _assert_actor(request, payload.user_id)
     deck = db.query(models.Deck).filter(models.Deck.id == deck_id).first()
     if not deck:
         raise HTTPException(status_code=404, detail="Deck not found.")
@@ -821,7 +1088,8 @@ def update_deck_visibility(deck_id: int, payload: schemas.DeckVisibilityUpdate, 
 
 
 @app.post("/api/decks/{deck_id}/clone")
-def clone_deck_to_library(deck_id: int, payload: schemas.DeckCloneRequest, db: Session = Depends(get_db)):
+def clone_deck_to_library(deck_id: int, payload: schemas.DeckCloneRequest, request: Request, db: Session = Depends(get_db)):
+    _assert_actor(request, payload.user_id)
     source_deck = db.query(models.Deck).filter(models.Deck.id == deck_id).first()
     if not source_deck:
         raise HTTPException(status_code=404, detail="Deck not found.")
@@ -850,7 +1118,8 @@ def clone_deck_to_library(deck_id: int, payload: schemas.DeckCloneRequest, db: S
 
 
 @app.post("/api/decks/", response_model=schemas.DeckResponse)
-def create_deck(deck: schemas.DeckCreate, db: Session = Depends(get_db)):
+def create_deck(deck: schemas.DeckCreate, request: Request, db: Session = Depends(get_db)):
+    _assert_actor(request, deck.user_id)
     db_deck = models.Deck(
         title=deck.title, 
         description=deck.description, 
@@ -941,7 +1210,8 @@ def get_study_hubs(user_id: str, db: Session = Depends(get_db)):
 
 
 @app.post("/api/study-hubs")
-def create_study_hub(request: schemas.StudyHubCreate, db: Session = Depends(get_db)):
+def create_study_hub(request: schemas.StudyHubCreate, http_request: Request, db: Session = Depends(get_db)):
+    _assert_actor(http_request, request.owner_id)
     invite_code = secrets.token_hex(4).upper()
     while db.query(models.StudyHub).filter(models.StudyHub.invite_code == invite_code).first():
         invite_code = secrets.token_hex(4).upper()
@@ -962,6 +1232,8 @@ def create_study_hub(request: schemas.StudyHubCreate, db: Session = Depends(get_
         deck = db.query(models.Deck).filter(models.Deck.id == request.initial_deck_id).first()
         if not deck:
             raise HTTPException(status_code=404, detail="Initial deck not found.")
+        if deck.user_id != request.owner_id:
+            raise HTTPException(status_code=403, detail="You can only add your own deck when creating a hub.")
         db.add(models.StudyHubDeck(hub_id=hub.id, deck_id=deck.id, shared_by=request.owner_id))
 
     db.commit()
@@ -979,7 +1251,8 @@ def get_study_hub(hub_id: int, user_id: str, db: Session = Depends(get_db)):
 
 
 @app.post("/api/study-hubs/join")
-def join_study_hub(request: schemas.StudyHubJoin, db: Session = Depends(get_db)):
+def join_study_hub(request: schemas.StudyHubJoin, http_request: Request, db: Session = Depends(get_db)):
+    _assert_actor(http_request, request.user_id)
     hub = db.query(models.StudyHub).filter(models.StudyHub.invite_code == request.invite_code.strip().upper()).first()
     if not hub:
         raise HTTPException(status_code=404, detail="Study hub not found.")
@@ -993,7 +1266,8 @@ def join_study_hub(request: schemas.StudyHubJoin, db: Session = Depends(get_db))
 
 
 @app.post("/api/study-hubs/{hub_id}/decks")
-def share_study_hub_deck(hub_id: int, request: schemas.StudyHubDeckShare, db: Session = Depends(get_db)):
+def share_study_hub_deck(hub_id: int, request: schemas.StudyHubDeckShare, http_request: Request, db: Session = Depends(get_db)):
+    _assert_actor(http_request, request.user_id)
     hub = db.query(models.StudyHub).filter(models.StudyHub.id == hub_id).first()
     if not hub:
         raise HTTPException(status_code=404, detail="Study hub not found.")
@@ -1013,7 +1287,8 @@ def share_study_hub_deck(hub_id: int, request: schemas.StudyHubDeckShare, db: Se
 
 
 @app.patch("/api/study-hubs/{hub_id}/settings")
-def update_study_hub_settings(hub_id: int, request: schemas.StudyHubPermissionUpdate, db: Session = Depends(get_db)):
+def update_study_hub_settings(hub_id: int, request: schemas.StudyHubPermissionUpdate, http_request: Request, db: Session = Depends(get_db)):
+    _assert_actor(http_request, request.user_id)
     hub = db.query(models.StudyHub).filter(models.StudyHub.id == hub_id).first()
     if not hub:
         raise HTTPException(status_code=404, detail="Study hub not found.")
@@ -1034,7 +1309,8 @@ def get_study_hub_members(hub_id: int, user_id: str, db: Session = Depends(get_d
 
 
 @app.post("/api/study-hubs/{hub_id}/members/{member_id}/remove")
-def remove_study_hub_member(hub_id: int, member_id: int, request: schemas.StudyHubMemberAction, db: Session = Depends(get_db)):
+def remove_study_hub_member(hub_id: int, member_id: int, request: schemas.StudyHubMemberAction, http_request: Request, db: Session = Depends(get_db)):
+    _assert_actor(http_request, request.actor_id)
     hub = db.query(models.StudyHub).filter(models.StudyHub.id == hub_id).first()
     if not hub:
         raise HTTPException(status_code=404, detail="Study hub not found.")
@@ -1051,7 +1327,8 @@ def remove_study_hub_member(hub_id: int, member_id: int, request: schemas.StudyH
 
 
 @app.patch("/api/study-hubs/{hub_id}/members/{member_id}/role")
-def update_study_hub_member_role(hub_id: int, member_id: int, request: schemas.StudyHubMemberRoleUpdate, db: Session = Depends(get_db)):
+def update_study_hub_member_role(hub_id: int, member_id: int, request: schemas.StudyHubMemberRoleUpdate, http_request: Request, db: Session = Depends(get_db)):
+    _assert_actor(http_request, request.actor_id)
     hub = db.query(models.StudyHub).filter(models.StudyHub.id == hub_id).first()
     if not hub:
         raise HTTPException(status_code=404, detail="Study hub not found.")
@@ -1073,6 +1350,7 @@ def update_study_hub_member_role(hub_id: int, member_id: int, request: schemas.S
 # --- HYBRID GENERATOR: GROQ (PRIMARY) -> GEMINI (FALLBACK) ---
 @app.post("/api/generate-deck/", response_model=schemas.DeckCreate)
 def generate_deck_with_ai(request: schemas.GenerateRequest, req: Request, db: Session = Depends(get_db)):
+    _assert_actor(req, request.user_id)
     identifier = get_client_identifier(req, request.user_id)
     enforce_rate_limit("deck_generation", identifier, db)
 
@@ -1344,6 +1622,9 @@ def generate_deck_from_text_gemini(text_content: str, card_count: int) -> list:
 # --- FILE GENERATOR: GEMINI WITH AUTOMATIC GROQ FALLBACK ---
 @app.post("/api/generate-deck-from-file/", response_model=schemas.DeckCreate)
 async def generate_deck_from_file(req: Request, file: UploadFile = File(...), card_count: int = Form(10), user_id: str | None = Form(None), db: Session = Depends(get_db)):
+    _assert_actor(req, user_id)
+    if card_count < 1 or card_count > 50:
+        raise HTTPException(status_code=400, detail="Card count must be between 1 and 50.")
     identifier = get_client_identifier(req, user_id)
     enforce_rate_limit("deck_generation", identifier, db)
 
@@ -1352,8 +1633,16 @@ async def generate_deck_from_file(req: Request, file: UploadFile = File(...), ca
         raise HTTPException(status_code=400, detail="Unsupported file format. Please upload a .pdf, .docx, .pptx, or .txt file.")
         
     with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as temp_file:
-        content = await file.read()
-        temp_file.write(content)
+        total_bytes = 0
+        while chunk := await file.read(1024 * 1024):
+            total_bytes += len(chunk)
+            if total_bytes > MAX_UPLOAD_BYTES:
+                temp_file_path = temp_file.name
+                temp_file.close()
+                if os.path.exists(temp_file_path):
+                    os.remove(temp_file_path)
+                raise HTTPException(status_code=413, detail="File is too large. Maximum upload size is 20MB.")
+            temp_file.write(chunk)
         temp_file_path = temp_file.name
 
     flashcards_data = None
@@ -1467,6 +1756,8 @@ async def generate_deck_from_file(req: Request, file: UploadFile = File(...), ca
 
 @app.post("/api/decks/{deck_id}/readout")
 def generate_deck_readout(deck_id: int, req: Request, user_id: str | None = None, db: Session = Depends(get_db)):
+    if user_id:
+        _assert_actor(req, user_id)
     identifier = get_client_identifier(req, user_id)
     enforce_rate_limit("readout", identifier, db)
 
@@ -1475,6 +1766,17 @@ def generate_deck_readout(deck_id: int, req: Request, user_id: str | None = None
         raise HTTPException(status_code=404, detail="Deck not found.")
     if not deck.cards:
         raise HTTPException(status_code=400, detail="Add cards to this deck before generating a readout.")
+    viewer_id = _authenticated_user_id(req)
+    if deck.visibility != "Public" and deck.user_id != viewer_id:
+        shared = db.query(models.StudyHubDeck).join(
+            models.StudyHubMember,
+            models.StudyHubMember.hub_id == models.StudyHubDeck.hub_id,
+        ).filter(
+            models.StudyHubDeck.deck_id == deck_id,
+            models.StudyHubMember.user_id == viewer_id,
+        ).first()
+        if not shared:
+            raise HTTPException(status_code=403, detail="This deck is private.")
     if not groq_client and not ai_client:
         raise HTTPException(status_code=503, detail="AI services are currently unavailable.")
 
@@ -1646,6 +1948,7 @@ def generate_deck_readout(deck_id: int, req: Request, user_id: str | None = None
 
 @app.post("/api/chat/")
 def ai_tutor_chat(request: schemas.ChatRequest, req: Request, db: Session = Depends(get_db)):
+    _assert_actor(req, request.user_id)
     identifier = get_client_identifier(req, request.user_id)
     enforce_rate_limit("chat", identifier, db)
 
