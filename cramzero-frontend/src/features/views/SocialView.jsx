@@ -22,6 +22,9 @@ export function SocialView({ navigateTo, userId, setActiveDeck }) {
   const [leaderboard, setLeaderboard] = useState([]);
   const [collectibles, setCollectibles] = useState({ total_xp: 0, collectibles: [] });
   const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false);
+  const [leaderboardError, setLeaderboardError] = useState('');
+  const [collectiblesError, setCollectiblesError] = useState('');
+  const [leaderboardRetry, setLeaderboardRetry] = useState(0);
   const userUniversity = localStorage.getItem('cramzero-university') || '';
 
   useEffect(() => {
@@ -84,18 +87,32 @@ export function SocialView({ navigateTo, userId, setActiveDeck }) {
       return undefined;
     }
     setIsLeaderboardLoading(true);
-    Promise.all([
-      fetch(`${API_BASE}/api/leaderboards?scope=${leaderboardScope}${university ? `&university=${encodeURIComponent(university)}` : ''}`).then(response => response.ok ? response.json() : Promise.reject(new Error('Could not load leaderboard.'))),
-      fetch(`${API_BASE}/api/users/${encodeURIComponent(userId)}/collectibles`).then(response => response.ok ? response.json() : Promise.reject(new Error('Could not load collectibles.'))),
-    ])
-      .then(([leaderboardData, collectibleData]) => {
-        setLeaderboard(leaderboardData.entries || []);
-        setCollectibles(collectibleData);
+    setLeaderboardError('');
+    setCollectiblesError('');
+    const leaderboardRequest = fetch(`${API_BASE}/api/leaderboards?scope=${leaderboardScope}${university ? `&university=${encodeURIComponent(university)}` : ''}`)
+      .then(async response => {
+        if (!response.ok) throw new Error((await response.json().catch(() => ({}))).detail || 'Could not load leaderboard.');
+        return response.json();
       })
-      .catch(error => toast.error('Could not load rewards', { description: error.message }))
-      .finally(() => setIsLeaderboardLoading(false));
+      .then(data => {
+        setLeaderboard(data.entries || []);
+      })
+      .catch(error => {
+        setLeaderboard([]);
+        setLeaderboardError(error.message);
+      });
+    const collectiblesRequest = fetch(`${API_BASE}/api/users/${encodeURIComponent(userId)}/collectibles`)
+      .then(async response => {
+        if (!response.ok) throw new Error((await response.json().catch(() => ({}))).detail || 'Could not load collectibles.');
+        return response.json();
+      })
+      .then(setCollectibles)
+      .catch(error => {
+        setCollectiblesError(error.message);
+      });
+    Promise.allSettled([leaderboardRequest, collectiblesRequest]).finally(() => setIsLeaderboardLoading(false));
     return undefined;
-  }, [activeTab, leaderboardScope, userId, userUniversity]);
+  }, [activeTab, leaderboardScope, userId, userUniversity, leaderboardRetry]);
 
   const openProfile = async (profile) => {
     try {
@@ -147,8 +164,8 @@ export function SocialView({ navigateTo, userId, setActiveDeck }) {
         {leaderboardScope === 'university' && !userUniversity && <Card className="rounded-3xl border-dashed"><CardContent className="p-8 text-center text-sm text-taupe">Add your university to your profile to join its leaderboard.</CardContent></Card>}
         {isLeaderboardLoading && <p className="text-sm text-taupe">Loading rankings and collectibles...</p>}
         {(!isLeaderboardLoading && (leaderboardScope === 'global' || userUniversity)) && <div className="grid gap-5 lg:grid-cols-5">
-          <Card className="rounded-3xl lg:col-span-3"><CardContent className="p-6"><h3 className="mb-4 flex items-center gap-2 font-black text-umber dark:text-zinc-100"><Trophy size={18} className="text-amber-500" /> {leaderboardScope === 'global' ? 'Global XP leaderboard' : `${userUniversity} XP leaderboard`}</h3><div className="space-y-2">{leaderboard.length === 0 ? <p className="py-8 text-center text-sm text-taupe">Complete quizzes to start the rankings.</p> : leaderboard.map(member => <div key={member.id} className={`flex items-center gap-3 rounded-xl p-3 ${member.rank <= 3 ? 'bg-amber-50 dark:bg-amber-950/20' : 'bg-stone-50 dark:bg-zinc-800/60'}`}><span className="w-5 text-center text-xs font-black text-stone-400">{member.rank}</span><img src={member.avatar_url || 'https://api.dicebear.com/7.x/notionists/svg?seed=Student'} alt="" className="h-8 w-8 rounded-xl object-cover" /><span className="min-w-0 flex-1 truncate text-sm font-bold text-stone-800 dark:text-zinc-200">{member.display_name}</span><span className="text-xs font-black text-amber-600">{member.total_xp} XP</span></div>)}</div><p className="mt-4 text-[11px] leading-relaxed text-taupe">Ranks 1–5 unlock unlimited daily usage. Ranks 6–20 receive 50% extra daily usage.</p></CardContent></Card>
-          <Card className="rounded-3xl lg:col-span-2"><CardContent className="p-6"><h3 className="mb-4 flex items-center gap-2 font-black text-umber dark:text-zinc-100"><Sparkles size={18} className="text-violet-500" /> Collectible gallery</h3><p className="mb-4 text-xs text-taupe">Total XP: <strong className="text-amber-600">{collectibles.total_xp}</strong></p><div className="grid grid-cols-2 gap-3">{collectibles.collectibles.map(item => <div key={item.id} className={`relative overflow-hidden rounded-2xl border p-3 text-center ${item.unlocked ? 'border-amber-300 bg-gradient-to-br from-amber-50 to-orange-100 dark:border-amber-800 dark:from-amber-950/40 dark:to-zinc-900' : 'border-stone-200 bg-stone-100/70 opacity-60 dark:border-zinc-800 dark:bg-zinc-900'}`}><div className="mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-full bg-white/70 text-3xl shadow-inner dark:bg-zinc-800">{item.unlocked ? '🧙' : <LockKeyhole size={22} className="text-stone-400" />}</div><p className="text-xs font-black text-umber dark:text-zinc-100">{item.name}</p><Badge variant="outline" className="mt-1 text-[9px]">{item.rarity}</Badge><p className="mt-1 text-[10px] text-taupe">{item.unlocked ? 'Unlocked' : `${item.threshold} XP`}</p></div>)}</div></CardContent></Card>
+        <Card className="rounded-3xl lg:col-span-3"><CardContent className="p-6"><h3 className="mb-4 flex items-center gap-2 font-black text-umber dark:text-zinc-100"><Trophy size={18} className="text-amber-500" /> {leaderboardScope === 'global' ? 'Global XP leaderboard' : `${userUniversity} XP leaderboard`}</h3>{leaderboardError ? <div className="rounded-2xl bg-rose-50 p-4 text-sm text-rose-700 dark:bg-rose-950/30 dark:text-rose-300"><p className="font-bold">Could not load the leaderboard.</p><p className="mt-1">{leaderboardError}</p><button type="button" className="mt-3 font-bold underline" onClick={() => setLeaderboardRetry(value => value + 1)}>Try again</button></div> : <div className="space-y-2">{leaderboard.length === 0 ? <p className="py-8 text-center text-sm text-taupe">Complete quizzes to start the rankings.</p> : leaderboard.map(member => <div key={member.id} className={`flex items-center gap-3 rounded-xl p-3 ${member.rank <= 3 ? 'bg-amber-50 dark:bg-amber-950/20' : 'bg-stone-50 dark:bg-zinc-800/60'}`}><span className="w-5 text-center text-xs font-black text-stone-400">{member.rank}</span><img src={member.avatar_url || 'https://api.dicebear.com/7.x/notionists/svg?seed=Student'} alt="" className="h-8 w-8 rounded-xl object-cover" /><span className="min-w-0 flex-1 truncate text-sm font-bold text-stone-800 dark:text-zinc-200">{member.display_name}</span><span className="text-xs font-black text-amber-600">{member.total_xp} XP</span></div>)}</div>}<p className="mt-4 text-[11px] leading-relaxed text-taupe">Ranks 1–5 unlock unlimited daily usage. Ranks 6–20 receive 50% extra daily usage.</p></CardContent></Card>
+          <Card className="rounded-3xl lg:col-span-2"><CardContent className="p-6"><h3 className="mb-4 flex items-center gap-2 font-black text-umber dark:text-zinc-100"><Sparkles size={18} className="text-violet-500" /> Collectible gallery</h3>{collectiblesError ? <div className="rounded-2xl bg-amber-50 p-4 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-200"><p className="font-bold">Collectibles are unavailable.</p><p className="mt-1">{collectiblesError}</p><button type="button" className="mt-2 font-bold underline" onClick={() => setLeaderboardRetry(value => value + 1)}>Retry</button></div> : <><p className="mb-4 text-xs text-taupe">Total XP: <strong className="text-amber-600">{collectibles.total_xp}</strong></p><div className="grid grid-cols-2 gap-3">{collectibles.collectibles.map(item => <div key={item.id} className={`relative overflow-hidden rounded-2xl border p-3 text-center ${item.unlocked ? 'border-amber-300 bg-gradient-to-br from-amber-50 to-orange-100 dark:border-amber-800 dark:from-amber-950/40 dark:to-zinc-900' : 'border-stone-200 bg-stone-100/70 opacity-60 dark:border-zinc-800 dark:bg-zinc-900'}`}><div className="mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-full bg-white/70 text-3xl shadow-inner dark:bg-zinc-800">{item.unlocked ? '🧙' : <LockKeyhole size={22} className="text-stone-400" />}</div><p className="text-xs font-black text-umber dark:text-zinc-100">{item.name}</p><Badge variant="outline" className="mt-1 text-[9px]">{item.rarity}</Badge><p className="mt-1 text-[10px] text-taupe">{item.unlocked ? 'Unlocked' : `${item.threshold} XP`}</p></div>)}</div></>}</CardContent></Card>
         </div>}
       </div>}
       {activeTab === 'universities' && !selectedUniversity && <div className="space-y-4">

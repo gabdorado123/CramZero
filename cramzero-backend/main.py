@@ -289,6 +289,7 @@ PUBLIC_API_PATHS = {
     "/api/universities",
     "/api/universities/catalog",
     "/api/decks/public",
+    "/api/leaderboards",
 }
 
 
