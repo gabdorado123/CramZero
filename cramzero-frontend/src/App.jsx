@@ -49,6 +49,7 @@ import { MockExamSetupView } from '@/features/views/MockExamSetupView';
 import { MockExamActiveView } from '@/features/views/MockExamActiveView';
 import { MultiplayerView } from '@/features/views/MultiplayerView';
 import { SocialView } from '@/features/views/SocialView';
+import { NotificationsView } from '@/features/views/NotificationsView';
 import { OnboardingTour } from '@/components/OnboardingTour';
 import { speakWithElevenLabs } from '@/lib/elevenlabs';
 import { recordAnalyticsEvent } from '@/lib/analytics';
@@ -427,6 +428,7 @@ export default function App() {
     { id: 'decks', label: 'Library', icon: Library },
     { id: 'hubs', label: 'Hubs', icon: Share2 },
     { id: 'social', label: 'People', icon: Users },
+    { id: 'notifications', label: 'Inbox', icon: Inbox },
     { id: 'analytics', label: 'Stats', icon: BarChart2 },
     { id: 'multiplayer', label: 'Play', icon: Zap },
     { id: 'codespace', label: 'CodeSpace', icon: Code },
@@ -576,6 +578,7 @@ export default function App() {
           )}
           {currentView === 'hubs' && <StudyHubsView navigateTo={handleNavigate} setActiveHub={setActiveHub} myHubs={myHubs} userId={userId} displayName={displayName} />}
           {currentView === 'social' && <SocialView navigateTo={handleNavigate} userId={userId} setActiveDeck={setActiveDeck} />}
+          {currentView === 'notifications' && <NotificationsView navigateTo={handleNavigate} userId={userId} />}
           {currentView === 'analytics' && <AnalyticsView myDecks={myDecks} />}
           {currentView === 'new-deck' && <NewDeckView navigateTo={handleNavigate} myDecks={myDecks} setMyDecks={setMyDecks} userId={userId} setIsActionLoading={setIsActionLoading} setActionMessage={setActionMessage} />}
           {currentView === 'multiplayer' && <MultiplayerView navigateTo={handleNavigate} myDecks={myDecks} userDisplayName={displayName} userAvatarUrl={avatarUrl} setActiveDeck={setActiveDeck} />}

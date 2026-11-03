@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { 
-  User, Mail, Lock, ShieldCheck, ArrowLeft, RotateCw, CheckCircle, 
+  User, Mail, Lock, ShieldCheck, ArrowLeft, RotateCw, CheckCircle, UserPlus,
   Smartphone, Laptop, Sparkles, BookOpen, Users, Layers, LogOut, Check,
   KeyRound, Settings, Bell, Eye, Moon
 } from 'lucide-react';
@@ -57,8 +57,22 @@ export function ProfileView({
   const [upgradeEmail, setUpgradeEmail] = useState('');
   const [upgradePassword, setUpgradePassword] = useState('');
   const [isUpgrading, setIsUpgrading] = useState(false);
+  const [connectionsTab, setConnectionsTab] = useState('followers');
+  const [connections, setConnections] = useState([]);
+  const [connectionsLoading, setConnectionsLoading] = useState(false);
 
   const totalCards = myDecks.reduce((sum, d) => sum + (d.cards?.length || 0), 0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setConnectionsLoading(true);
+    fetch(`${API_BASE}/api/users/${encodeURIComponent(userId)}/${connectionsTab}?viewer_id=${encodeURIComponent(userId)}`)
+      .then(response => response.ok ? response.json() : Promise.reject(new Error('Could not load connections.')))
+      .then(data => { if (!cancelled) setConnections(data); })
+      .catch(error => { if (!cancelled) toast.error('Could not load connections', { description: error.message }); })
+      .finally(() => { if (!cancelled) setConnectionsLoading(false); });
+    return () => { cancelled = true; };
+  }, [userId, connectionsTab]);
 
   // Save profile updates (display name & avatar)
   const handleSaveProfile = async (e) => {
@@ -243,6 +257,20 @@ export function ProfileView({
             </div>
           </div>
         </div>
+      </Card>
+
+      <Card className="rounded-3xl border border-stone-200/90 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8">
+        <div className="mb-5 flex items-center justify-between gap-3">
+            <div>
+              <h3 className="flex items-center gap-2 text-lg font-black text-stone-900 dark:text-zinc-100"><Users size={18} className="text-violet-600" /> Your community</h3>
+              <p className="mt-1 text-xs text-stone-500 dark:text-zinc-400">See who follows you and the learners you follow.</p>
+            </div>
+            <UserPlus size={20} className="text-stone-300" />
+        </div>
+        <div className="mb-4 grid grid-cols-2 gap-1 rounded-xl bg-stone-100 p-1 dark:bg-zinc-800">
+            {['followers', 'following'].map(tab => <button key={tab} type="button" onClick={() => setConnectionsTab(tab)} className={`rounded-lg px-3 py-2 text-xs font-bold capitalize transition ${connectionsTab === tab ? 'bg-white text-umber shadow-sm dark:bg-zinc-700 dark:text-zinc-100' : 'text-stone-500 dark:text-zinc-400'}`}>{tab}</button>)}
+        </div>
+        {connectionsLoading ? <p className="py-5 text-center text-sm text-stone-500">Loading {connectionsTab}...</p> : connections.length === 0 ? <p className="rounded-2xl border border-dashed border-stone-200 py-7 text-center text-sm text-stone-500 dark:border-zinc-800">No {connectionsTab} yet.</p> : <div className="grid gap-2 sm:grid-cols-2">{connections.map(profile => <button key={profile.id} type="button" onClick={() => navigateTo('social')} className="flex items-center gap-3 rounded-2xl border border-stone-200 p-3 text-left transition hover:border-violet-300 hover:bg-violet-50/50 dark:border-zinc-800 dark:hover:bg-violet-950/20"><img src={profile.avatar_url || PRESET_AVATARS[0].url} alt="" className="h-10 w-10 rounded-xl object-cover" /><span className="min-w-0 flex-1 truncate text-sm font-bold text-stone-800 dark:text-zinc-100">{profile.display_name}</span><span className="text-xs text-stone-400">{profile.follower_count} followers</span></button>)}</div>}
       </Card>
 
       {/* UPGRADE PROMPT (Only for Guest Users) */}

@@ -31,11 +31,13 @@ Interactive quizzes dynamically format study deck terms into varying cognitive a
 - **True / False:** Rapid binary verification testing conceptual precision.
 - **Identification:** Free-text fill-in prompt testing active recall without cue bias.
 - **Matching Pairs:** Drag-and-drop or select-to-pair exercise to reinforce relational understanding across terms.
-- **Instant Explanations:** Explains *why* an answer is correct immediately upon selection.
+- **Mastery loop:** Incorrect options can be eliminated instead of ending the question, and missed questions return later in the same session.
+- **Hints and explanations:** Hint narrows the available choices; Explain reveals why the correct answer is correct and can be opened during the question.
+- **Completion feedback:** The session reports mastery progress, attempts, retry status, and explanations after successful answers.
 
 ---
 
-## 3. ⏱️ Timed AI Mock Exams
+## 3. ⏱️ Gizmo-Inspired Timed AI Mock Exams
 
 Designed to simulate realistic testing conditions before midterm or licensure examinations.
 
@@ -47,6 +49,8 @@ Designed to simulate realistic testing conditions before midterm or licensure ex
   - 🚩 Flagged for Review
 - **Flagging Mechanism:** Allows students to bookmark uncertain questions and jump back before final submission.
 - **Comprehensive Score Breakdown:** Displays final grade percentage, time spent, correct vs. incorrect answers, and detailed rationales for every item.
+- **Focused session layout:** A compact session header, progress rail, mastery/attempt strip, question card, and responsive controls keep attention on one question at a time.
+- **Session controls:** Hint, Reveal, and Explain actions support guided practice without automatically answering the question.
 
 ---
 
@@ -93,8 +97,14 @@ Classroom and study group spaces that centralize decks for an entire course or s
 
 ---
 
-## 7. 💻 CodeSpace & Analytics
+## 7. 🎮 XP, Levels & Collectibles
+
+- **XP:** Flashcard ratings and quiz answers contribute to a local XP total.
+- **Levels:** Every 100 XP advances the learner level.
+- **Collectibles:** Milestones include First Spark, Sharp Mind, Streak Builder, Deck Maker, and Zero Hero.
+- **Weekly challenge:** A local comparison board provides motivation without pretending to be a server-synchronized global leaderboard.
+
+## 8. 💻 CodeSpace & Analytics
 
 - **CodeSpace:** A built-in code playground and syntax-highlighted scratchpad designed for computer science and technical learners.
 - **Mastery Analytics:** Track your learning streak, view card retention curves, and monitor review consistency over days and weeks.
-

@@ -99,7 +99,7 @@ Initializes a lightweight student identity for local-first guest usage without p
   ```
 
 ### `PUT /api/auth/profile`
-Updates profile information, displays names, avatar URLs, or upgrades guest accounts to email/password authentication.
+Updates profile information, display names, avatar URLs, education details, visibility, or upgrades guest accounts to email/password authentication. University names are canonicalized when recognized; fresh names from the live university selector are preserved even if the backend catalog cache has not refreshed yet.
 - **Request Body:**
   ```json
   {
@@ -107,13 +107,103 @@ Updates profile information, displays names, avatar URLs, or upgrades guest acco
     "display_name": "Alex Cruz",
     "avatar_url": "https://api.dicebear.com/7.x/notionists/svg?seed=Elena",
     "email": "new.email@university.edu",
-    "password": "optionalNewPassword"
+    "password": "optionalNewPassword",
+    "bio": "Computer science learner",
+    "profile_visibility": "Public",
+    "education_level": "Undergraduate",
+    "university": "University of the Philippines Diliman"
+  }
+  ```
+
+### `GET /api/auth/me`
+Returns the current user profile used by the frontend to rehydrate account and education state after startup.
+- **Query Parameters:** `user_id` *(required, string)*
+- **Response:** `schemas.UserResponse`, including `bio`, `profile_visibility`, `education_level`, and `university`.
+
+---
+
+## 3. Social Profiles & University Communities
+
+### `GET /api/users/search`
+Searches public learner profiles by display name.
+- **Query Parameters:**
+  - `query` *(required, string)* - Search text.
+  - `viewer_id` *(optional, string)* - Adds follow state for the requesting learner.
+  - `limit` *(optional, integer)* - Capped by the server at 50.
+- **Response:** Profile objects with follower counts, following counts, education details, follow state, and visible public decks.
+
+### `GET /api/users/{user_id}/profile`
+Returns a public learner profile and its public decks. Private profiles can only be read by the profile owner.
+- **Query Parameters:** `viewer_id` *(optional, string)*
+
+### `POST /api/users/{user_id}/follow`
+Follows a public learner.
+- **Request Body:**
+  ```json
+  { "user_id": "usr_9f41b2c8a0" }
+  ```
+- **Response:** Updated profile object.
+
+### `DELETE /api/users/{user_id}/follow`
+Removes the requesting learner's follow relationship.
+- **Request Body:** Same as the follow endpoint.
+- **Response:** Updated profile object.
+
+### `GET /api/users/{user_id}/followers`
+Lists public profiles following the specified learner.
+- **Query Parameters:** `viewer_id` *(optional, string)*
+
+### `GET /api/users/{user_id}/following`
+Lists public profiles followed by the specified learner.
+- **Query Parameters:** `viewer_id` *(optional, string)*
+
+### `GET /api/notifications`
+Returns the latest 50 notifications for a user, including actor profile data and read state.
+- **Query Parameters:** `user_id` *(required, string)*
+
+### `PATCH /api/notifications/{notification_id}/read`
+Marks one notification as read.
+- **Query Parameters:** `user_id` *(required, string)*
+
+### `GET /api/universities`
+Searches the supported Philippine university communities and returns member counts.
+- **Query Parameters:**
+  - `query` *(optional, string)* - Matches institution name, short name, or city.
+  - `limit` *(optional, integer)* - Capped by the server at 500.
+- **Response:** Catalog entries with `name`, `short_name`, `city`, `logo_url`, and `member_count`.
+
+### `GET /api/universities/catalog`
+Returns the live university catalog used by the education selector. The frontend displays institution logos and city details and does not use a manually curated local fallback list.
+
+### `GET /api/universities/{university_name}`
+Returns a university community page.
+- **Query Parameters:** `viewer_id` *(optional, string)*
+- **Response:**
+  ```json
+  {
+    "name": "University of the Philippines Diliman",
+    "city": "Quezon City",
+    "short_name": "UP Diliman",
+    "logo_url": "https://...",
+    "member_count": 42,
+    "deck_count": 18,
+    "members": [],
+    "decks": [],
+    "leaderboard": [
+      {
+        "id": "usr_9f41b2c8a0",
+        "display_name": "Alex Cruz",
+        "public_decks": 4,
+        "followers": 8,
+        "score": 56
+      }
+    ]
   }
   ```
 
 ---
 
-## 3. Flashcard Decks Endpoints
+## 4. Flashcard Decks Endpoints
 
 ### `GET /api/decks/`
 Retrieves flashcard decks. If `user_id` query param is provided, returns personal decks created by or assigned to that user.
@@ -175,7 +265,7 @@ Clones a public deck into the authenticated user's private library.
 
 ---
 
-## 4. AI Generation & Document Parsing
+## 5. AI Generation & Document Parsing
 
 ### `POST /api/generate-deck/`
 Generates a flashcard deck from a natural language topic or study prompt using dual AI engine failover (Groq first, Gemini fallback).
@@ -226,7 +316,7 @@ Conversational AI Tutor answering questions based on the deck's context.
 
 ---
 
-## 5. Study Hubs (Classroom Collaboration)
+## 6. Study Hubs (Classroom Collaboration)
 
 ### `GET /api/study-hubs`
 Returns all study hubs the user has created or joined.
@@ -272,7 +362,7 @@ Updates hub permissions (e.g. toggle whether members can share decks). Requires 
 
 ---
 
-## 6. WebSocket Multiplayer Protocol
+## 7. WebSocket Multiplayer Protocol
 
 Multiplayer real-time matches connect to either `ws://localhost:8000/ws/multiplayer` (FastAPI) or `ws://localhost:8787` (Node.js server).
 
@@ -330,4 +420,3 @@ Multiplayer real-time matches connect to either `ws://localhost:8000/ws/multipla
      }
    }
    ```
-

@@ -30,6 +30,19 @@ class UserFollow(Base):
     following_id = Column(String(64), nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    recipient_id = Column(String(64), nullable=False, index=True)
+    actor_id = Column(String(64), nullable=False, index=True)
+    type = Column(String(40), nullable=False, default="follow")
+    message = Column(Text, nullable=False)
+    is_read = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
 class Deck(Base):
     __tablename__ = "decks"
 

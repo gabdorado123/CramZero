@@ -55,11 +55,14 @@ flowchart TD
 ## 2. Frontend Architecture
 
 - **Core Framework:** React 19 running on Vite 8.
-- **Styling & Design System:** Tailwind CSS v4 with custom warm parchment palette (`#FBF9F5`, `#F8F5EE`, `#F3EFE7`, `umber`, `taupe`, `sand`, `greige`) alongside dark mode support via Tailwind `dark:` variants.
+- **Styling & Design System:** Tailwind CSS v4 with responsive white/slate surfaces, sky-blue active states, violet/blue reward gradients, rounded cards, pill navigation, and dark mode support via Tailwind `dark:` variants. Shared `.cz-gizmo-card` and `.cz-gizmo-gradient` classes provide consistent surfaces.
 - **Component Primitives:** Customized Radix UI / Shadcn UI components (Buttons, Cards, Inputs, Textareas, Badges, Switches, Progress bars, Avatars).
 - **Smooth Navigation:** View transitions utilize `document.startViewTransition()` with fallback to instant React state updates.
 - **Adaptive Layouts:** Adaptive max-width containers and motion stabilization ensure study components, buttons, and flashcard containers scale reliably across mobile (320px–480px), tablet (768px), and desktop (1024px+) viewports.
+- **Progressive UX:** Study and onboarding flows expose loading, retry, empty, validation, mastery, and completion states rather than silently falling back.
 - **Audio Synthesis:** Seamless hybrid TTS combining ElevenLabs Flash v2.5 API with browser native `window.speechSynthesis` fallback.
+- **Social and education surfaces:** `SocialView`, `ProfileView`, `EducationSetupModal`, and `UniversitySelector` provide public profiles, follows, university communities, conditional undergraduate education setup, and live institution search with logos.
+- **Motivation surfaces:** `StudyRewardsPanel` derives local XP, levels, badges, study-day counts, and a local weekly challenge from recorded study events.
 
 ---
 
@@ -181,6 +184,20 @@ CramZero uses SQLAlchemy ORM with support for **PostgreSQL** (Neon / Render / Su
   - `date_str`: YYYY-MM-DD.
   - `count`: Integer.
 
+- **`user_follows`**:
+  - `follower_id`: String(64) learner initiating the follow.
+  - `following_id`: String(64) public learner being followed.
+  - Unique constraint prevents duplicate relationships.
+
+### 5.2 Education and university data
+
+Education metadata is stored on `users`:
+- `education_level`: Optional learner level.
+- `university`: Optional canonical university name; required by the UI only for undergraduate users.
+- `profile_visibility`: `Public` or `Private`.
+
+The university catalog is fetched from OpenAlex-backed institution data and exposed through `/api/universities/catalog`. If OpenAlex is unavailable, the backend uses the public Hipo university-domain dataset and serves the last successful in-memory response during short provider outages. Community responses add public member counts, public decks, logos, and a leaderboard; the catalog is not persisted as a manually curated frontend list.
+
 ---
 
 ## 6. Real-Time Multiplayer Protocol
@@ -207,4 +224,3 @@ To prevent lag or timing differences across devices:
 - Server sends `serverTime` (epoch ms) in state updates.
 - Clients compute `serverOffset = serverTime - Date.now()`.
 - Question timers compute remaining time against `questionStartedAt` plus `serverOffset`, keeping host and joiner countdown clocks strictly aligned.
-

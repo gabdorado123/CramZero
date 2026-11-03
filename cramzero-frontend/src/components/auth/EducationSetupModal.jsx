@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRight, GraduationCap } from 'lucide-react';
+import { ArrowLeft, ArrowRight, GraduationCap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -12,6 +12,18 @@ export function EducationSetupModal({ userId, onComplete }) {
   const [level, setLevel] = useState('');
   const [university, setUniversity] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isChoosingLevel, setIsChoosingLevel] = useState(true);
+
+  const chooseLevel = (nextLevel) => {
+    setLevel(nextLevel);
+    if (nextLevel !== 'Undergraduate') setUniversity('');
+    setIsChoosingLevel(false);
+  };
+
+  const goBackToLevelPicker = () => {
+    setIsChoosingLevel(true);
+    setUniversity('');
+  };
 
   const save = async (event) => {
     event.preventDefault();
@@ -53,10 +65,24 @@ export function EducationSetupModal({ userId, onComplete }) {
         </div>
         <form onSubmit={save} className="space-y-5 p-6 sm:p-8">
           <div>
-            <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-500 dark:text-zinc-400">Your level</label>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {LEVELS.map(item => <button key={item} type="button" onClick={() => setLevel(item)} className={`rounded-xl border px-3 py-3 text-left text-xs font-bold transition ${level === item ? 'border-violet-500 bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300' : 'border-stone-200 text-stone-600 hover:border-violet-300 dark:border-zinc-800 dark:text-zinc-300'}`}>{item}</button>)}
-            </div>
+            {isChoosingLevel ? (
+              <>
+                <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-500 dark:text-zinc-400">Your level</label>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {LEVELS.map(item => <button key={item} type="button" onClick={() => chooseLevel(item)} className="rounded-xl border border-stone-200 px-3 py-3 text-left text-xs font-bold text-stone-600 transition hover:border-violet-300 dark:border-zinc-800 dark:text-zinc-300">{item}</button>)}
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-violet-200 bg-violet-50 px-3 py-3 dark:border-violet-900/70 dark:bg-violet-950/30">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-violet-600 dark:text-violet-300">Your level</p>
+                  <p className="truncate text-sm font-bold text-violet-800 dark:text-violet-200">{level}</p>
+                </div>
+                <button type="button" onClick={goBackToLevelPicker} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-bold text-violet-700 transition hover:bg-violet-100 dark:text-violet-300 dark:hover:bg-violet-900/50">
+                  <ArrowLeft size={14} /> Back
+                </button>
+              </div>
+            )}
           </div>
           {level === 'Undergraduate' && <div>
             <label htmlFor="education-university" className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-500 dark:text-zinc-400">Philippine university</label>

@@ -13,12 +13,14 @@ Welcome to the comprehensive technical documentation for **CramZero**, a high-pe
 5. [Document Text Extraction Pipeline](#5-document-text-extraction-pipeline)
 6. [Identity & Authentication Architecture](#6-identity--authentication-architecture)
 7. [Study Hubs & Collaborative Ecosystem](#7-study-hubs--collaborative-ecosystem)
-8. [Real-Time Multiplayer Battle Arena](#8-real-time-multiplayer-battle-arena)
-9. [Audio Synthesis & AI Tutor](#9-audio-synthesis--ai-tutor)
-10. [REST & WebSocket API Summary](#10-rest--websocket-api-summary)
-11. [Data Models & Persistence](#11-data-models--persistence)
-12. [Local Setup & Development Guide](#12-local-setup--development-guide)
-13. [Deployment Guide](#13-deployment-guide)
+8. [Social Profiles & University Communities](#8-social-profiles--university-communities)
+9. [Motivation, Mastery & UI System](#9-motivation-mastery--ui-system)
+10. [Real-Time Multiplayer Battle Arena](#10-real-time-multiplayer-battle-arena)
+11. [Audio Synthesis & AI Tutor](#11-audio-synthesis--ai-tutor)
+12. [REST & WebSocket API Summary](#12-rest--websocket-api-summary)
+13. [Data Models & Persistence](#13-data-models--persistence)
+14. [Local Setup & Development Guide](#14-local-setup--development-guide)
+15. [Deployment Guide](#15-deployment-guide)
 
 ---
 
@@ -49,8 +51,10 @@ Traditional educational technology platforms often burden students with strict s
 | **Multiplayer Arena** | `MultiplayerView.jsx` | Live quiz battle room with synchronized timers, PIN-based lobbies, real-time scoreboards, and celebratory victory screen. |
 | **Study Hubs** | `StudyHubsView.jsx` / `HubDetailsView.jsx` / `CreateHubView.jsx` | Classroom groups with 6-digit invite codes, shared deck feeds, member roster, and admin permissions. |
 | **Student Profile** | `ProfileView.jsx` | Identity customizer (female & male preset avatars + custom URL), cloud account upgrade form, and session management. |
+| **Community** | `SocialView.jsx` | Public learner search, follow/unfollow, profile deck browsing, university communities, and campus leaderboards. |
 | **CodeSpace** | `CodeSpaceView.jsx` | Embedded scratchpad and code editor designed for computer science and technical learners. |
 | **Analytics** | `AnalyticsView.jsx` | Visual retention curves, review consistency logs, and card maturity progression. |
+| **Rewards** | `StudyRewardsPanel.jsx` | Local XP, learner levels, weekly challenge standings, and collectible milestone badges. |
 
 ---
 
@@ -118,9 +122,29 @@ Study Hubs allow classes, cohorts, and study groups to share learning decks:
   - `Member`: Can view, clone, and share decks to the hub.
 - **One-Click Cloning:** Members can clone any deck from the hub into their private collection for personalized review.
 
----
+## 8. Social Profiles & University Communities
 
-## 8. Real-Time Multiplayer Battle Arena
+The Community area supports both learner-to-learner discovery and university-based study groups.
+
+- **Public profile search:** Search by display name and open a profile when it is public.
+- **Following:** Follow or unfollow public profiles; profiles expose follower and following counts.
+- **Connection lists:** Profile pages show the current user's followers and following lists with quick access to Community.
+- **Notifications:** New follows create persistent notifications that appear in the Inbox and can be marked read.
+- **Public deck discovery:** A public profile can show its public decks for review or cloning.
+- **Profile controls:** Users can edit their bio, avatar, education level, university, and profile visibility.
+- **Education-aware onboarding:** Missing education data triggers setup for existing accounts. University selection is required only when the education level is `Undergraduate`.
+- **Live Philippine universities:** The selector displays institution name, short name, city, and logo from an OpenAlex-backed catalog. If OpenAlex is unavailable, the backend falls back to the public Hipo university-domain dataset and retains the last successful response in memory. It has loading, retry, no-result, and stale-request protection states.
+- **Provider-safe saving:** Profile saves normalize known aliases but preserve fresh live-provider university names when the frontend and backend catalog caches refresh at different times.
+- **University community pages:** Each supported institution has public member and deck listings plus a leaderboard scored from public decks and followers.
+
+## 9. Motivation, Mastery & UI System
+
+- **Mastery checks:** Quiz sessions can eliminate incorrect options, show hints, reveal explanations, and repeat missed questions until the learner answers correctly.
+- **Local progression:** Study events calculate XP, learner levels, review totals, correct-answer totals, active study days, and unlocked collectibles in the rewards panel.
+- **Responsive Gizmo-inspired UI:** The application uses rounded cards, pill navigation, sky-blue active states, violet/blue reward gradients, elevated mobile navigation, responsive spacing, and explicit loading/error/empty/completion states.
+- **Accessibility and device support:** Interactive controls retain visible focus states, touch-friendly sizing, and mobile/tablet/desktop layouts.
+
+## 10. Real-Time Multiplayer Battle Arena
 
 Multiplayer trivia matches allow up to dozens of players to compete in live study battles:
 - **Synchronized Match Timers:** The server broadcasts epoch timestamps (`serverTime`), allowing clients to calibrate their local clocks and keep the 15-second answer countdown perfectly aligned across devices.
@@ -129,7 +153,7 @@ Multiplayer trivia matches allow up to dozens of players to compete in live stud
 
 ---
 
-## 9. Audio Synthesis & AI Tutor
+## 11. Audio Synthesis & AI Tutor
 
 - **ElevenLabs Flash v2.5:** Generates ultra-low latency, human-grade lecture voice readouts of any study deck.
 - **Web Speech API Fallback:** Seamlessly activates browser-native speech synthesis if ElevenLabs API quotas are reached or when offline.
@@ -137,7 +161,7 @@ Multiplayer trivia matches allow up to dozens of players to compete in live stud
 
 ---
 
-## 10. REST & WebSocket API Summary
+## 12. REST & WebSocket API Summary
 
 For detailed schemas and example responses, see [docs/API_REFERENCE.md](docs/API_REFERENCE.md).
 
@@ -148,7 +172,19 @@ For detailed schemas and example responses, see [docs/API_REFERENCE.md](docs/API
 | `POST` | `/api/auth/register` | Register new cloud account with deck migration |
 | `POST` | `/api/auth/login` | Sign in with email and password |
 | `POST` | `/api/auth/guest` | Initialize or update guest identity |
+| `GET` | `/api/auth/me` | Rehydrate the current account profile |
 | `PUT` | `/api/auth/profile` | Update profile details and avatars |
+| `GET` | `/api/users/search` | Search public learner profiles |
+| `GET` | `/api/users/{id}/profile` | Read a public learner profile and public decks |
+| `POST` | `/api/users/{id}/follow` | Follow a public learner |
+| `DELETE` | `/api/users/{id}/follow` | Unfollow a learner |
+| `GET` | `/api/users/{id}/followers` | List a learner's followers |
+| `GET` | `/api/users/{id}/following` | List learners a user follows |
+| `GET` | `/api/notifications` | List notifications for a user |
+| `PATCH` | `/api/notifications/{id}/read` | Mark a notification as read |
+| `GET` | `/api/universities` | Search university communities and member counts |
+| `GET` | `/api/universities/catalog` | Return the live university catalog used by selectors |
+| `GET` | `/api/universities/{name}` | Read a university community, decks, members, and leaderboard |
 | `GET` | `/api/decks/` | Fetch personal decks for a user |
 | `GET` | `/api/decks/public` | Search and explore public community decks |
 | `POST` | `/api/decks/` | Create a new deck |
@@ -165,10 +201,12 @@ For detailed schemas and example responses, see [docs/API_REFERENCE.md](docs/API
 
 ---
 
-## 11. Data Models & Persistence
+## 13. Data Models & Persistence
 
 Defined in `cramzero-backend/models.py`:
 - `User`: Accounts and guest profiles.
+- `UserFollow`: Unique follower/following relationships.
+- `Notification`: Persistent social notifications, including follow events and read state.
 - `Deck`: Study collections with visibility and authorship.
 - `Card`: Terms and definitions belonging to a deck.
 - `StudyHub`: Collaborative classrooms with 6-digit invite codes.
@@ -178,7 +216,7 @@ Defined in `cramzero-backend/models.py`:
 
 ---
 
-## 12. Local Setup & Development Guide
+## 14. Local Setup & Development Guide
 
 ### Prerequisites
 - Node.js (v18+)
@@ -209,7 +247,6 @@ The frontend will run on `http://localhost:5173`, proxying API requests to `http
 
 ---
 
-## 13. Deployment Guide
+## 15. Deployment Guide
 
 For end-to-end cloud production deployment (Vercel, Render, Neon PostgreSQL), see the dedicated [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
-

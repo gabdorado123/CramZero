@@ -73,6 +73,7 @@ PHILIPPINE_UNIVERSITIES = [
     {"name": "University of San Carlos", "city": "Cebu City", "short_name": "USC", "logo_url": "https://upload.wikimedia.org/wikipedia/en/2/2f/University_of_San_Carlos_seal.svg"},
     {"name": "Silliman University", "city": "Dumaguete", "short_name": "Silliman", "logo_url": "https://upload.wikimedia.org/wikipedia/en/2/2a/Silliman_University_seal.svg"},
     {"name": "Mindanao State University - Iligan Institute of Technology", "city": "Iligan", "short_name": "MSU-IIT", "logo_url": "https://upload.wikimedia.org/wikipedia/en/3/3e/MSU-IIT_seal.svg"},
+    {"name": "Rizal Technological University", "city": "Mandaluyong", "short_name": "RTU", "logo_url": "https://www.rtu.edu.ph/wp-content/uploads/2021/09/RTU-Logo.png"},
 ]
 PHILIPPINE_UNIVERSITY_MAP = {item["name"]: item for item in PHILIPPINE_UNIVERSITIES}
 PHILIPPINE_UNIVERSITY_ALIASES = {
@@ -82,9 +83,11 @@ PHILIPPINE_UNIVERSITY_ALIASES = {
     "DLSU": "De La Salle University",
     "UST": "University of Santo Tomas",
     "PUP": "Polytechnic University of the Philippines",
+    "RTU": "Rizal Technological University",
 }
 HIPOLABS_PHILIPPINES_URL = "https://universities.hipolabs.com/search?country=Philippines"
 OPENALEX_PHILIPPINES_URL = "https://api.openalex.org/institutions"
+UNIVERSITY_DOMAINS_DATASET_URL = "https://raw.githubusercontent.com/Hipo/university-domains-list/master/world_universities_and_domains.json"
 _university_catalog_cache = {"items": [], "expires_at": 0}
 
 
@@ -92,39 +95,107 @@ def get_philippine_universities():
     if time.time() < _university_catalog_cache["expires_at"]:
         return _university_catalog_cache["items"]
     try:
-        payload = []
-        cursor = "*"
-        for _ in range(10):
-            params = urlencode({"filter": "country_code:PH", "per-page": 200, "cursor": cursor})
-            request = UrlRequest(f"{OPENALEX_PHILIPPINES_URL}?{params}", headers={"User-Agent": "CramZero/1.0"})
-            with urlopen(request, timeout=8) as response:
-                page = json.loads(response.read().decode("utf-8"))
-            payload.extend(page.get("results") or [])
-            cursor = (page.get("meta") or {}).get("next_cursor")
-            if not cursor:
-                break
-        universities = []
-        seen_names = set()
-        for item in payload:
-            name = (item.get("display_name") or "").strip()
-            homepage = (item.get("homepage_url") or "").strip()
-            if not name or name.casefold() in seen_names:
-                continue
-            seen_names.add(name.casefold())
-            domain = homepage.split("//")[-1].split("/")[0] if homepage else ""
-            universities.append({
-                "name": name,
-                "city": (item.get("geo") or {}).get("city") or "",
-                "short_name": name,
-                "logo_url": item.get("image_url") or item.get("image_thumbnail_url") or (f"https://{domain}/favicon.ico" if domain else ""),
-                "domain": domain,
-            })
+        params = urlencode({
+            "filter": "country_code:PH,type:education",
+            "per-page": 200,
+            "sort": "display_name:asc",
+        })
+        request = UrlRequest(
+            f"{OPENALEX_PHILIPPINES_URL}?{params}",
+            headers={"User-Agent": "CramZero/1.0 (university directory)"},
+        )
+        with urlopen(request, timeout=15) as response:
+            payload = json.loads(response.read().decode("utf-8")).get("results") or []
+        universities = _normalize_openalex_universities(payload)
         if universities:
             _university_catalog_cache["items"] = universities
             _university_catalog_cache["expires_at"] = time.time() + 3600
+            return universities
     except Exception as error:
-        print(f"Warning: Hipolabs university catalog unavailable, using cached catalog. {error}")
+        print(f"Warning: OpenAlex university catalog unavailable: {error}")
+
+    try:
+        request = UrlRequest(
+            UNIVERSITY_DOMAINS_DATASET_URL,
+            headers={"User-Agent": "CramZero/1.0 (university directory)"},
+        )
+        with urlopen(request, timeout=15) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        universities = _normalize_university_domain_records(
+            item for item in payload if item.get("country") == "Philippines"
+        )
+        if universities:
+            _university_catalog_cache["items"] = universities
+            _university_catalog_cache["expires_at"] = time.time() + 3600
+            return universities
+    except Exception as error:
+        print(f"Warning: university domain dataset unavailable: {error}")
+
+    # Keep the last successful response available during a provider outage.
     return _university_catalog_cache["items"]
+
+
+def _normalize_openalex_universities(payload):
+    universities = []
+    seen_names = set()
+    for item in payload:
+        name = (item.get("display_name") or "").strip()
+        homepage = (item.get("homepage_url") or "").strip()
+        if not name or name.casefold() in seen_names:
+            continue
+        seen_names.add(name.casefold())
+        domain = homepage.split("//")[-1].split("/")[0] if homepage else ""
+        universities.append({
+            "name": name,
+            "city": (item.get("geo") or {}).get("city") or "",
+            "short_name": (item.get("display_name_acronyms") or [name])[0],
+            "logo_url": item.get("image_url") or item.get("image_thumbnail_url") or (f"https://{domain}/favicon.ico" if domain else ""),
+            "domain": domain,
+        })
+    return universities
+
+
+def _normalize_university_domain_records(records):
+    universities = []
+    seen_names = set()
+    for item in records:
+        name = (item.get("name") or "").strip()
+        domains = item.get("domains") or []
+        if not name or name.casefold() in seen_names:
+            continue
+        seen_names.add(name.casefold())
+        domain = domains[0] if domains else ""
+        universities.append({
+            "name": name,
+            "city": item.get("state-province") or "",
+            "short_name": name,
+            "logo_url": f"https://{domain}/favicon.ico" if domain else "",
+            "domain": domain,
+        })
+    return universities
+
+
+def canonicalize_university_name(value, catalog):
+    selected = (value or "").strip()
+    if not selected:
+        return None
+    if len(selected) > 180:
+        raise HTTPException(status_code=400, detail="University name is too long.")
+    aliases = {key.casefold(): value for key, value in PHILIPPINE_UNIVERSITY_ALIASES.items()}
+    if selected.casefold() in aliases:
+        return aliases[selected.casefold()]
+    for item in catalog:
+        if selected.casefold() in {
+            item.get("name", "").casefold(),
+            item.get("short_name", "").casefold(),
+        }:
+            return item["name"]
+    if selected in PHILIPPINE_UNIVERSITY_MAP:
+        return selected
+    # The frontend may receive a fresh institution from the live provider
+    # before the backend catalog cache refreshes. Preserve that valid selection
+    # instead of rejecting it because the two requests completed at different times.
+    return selected
 
 
 def extract_json_data(text: str):
@@ -475,9 +546,8 @@ def update_user_profile(payload: schemas.UserProfileUpdate, db: Session = Depend
     if payload.university is not None:
         selected_university = payload.university.strip()
         catalog = get_philippine_universities()
-        if selected_university and selected_university not in {item["name"] for item in catalog} and selected_university not in PHILIPPINE_UNIVERSITY_MAP:
-            raise HTTPException(status_code=400, detail="Choose a university from the Philippine university list.")
-        user.university = selected_university or None
+        canonical_university = canonicalize_university_name(selected_university, catalog)
+        user.university = canonical_university
     
     # Check if upgrading guest to full account
     if payload.email and payload.password:
@@ -606,6 +676,57 @@ def get_public_profile(user_id: str, viewer_id: str | None = None, db: Session =
     return _profile_payload(user, viewer_id, db)
 
 
+def _connection_profiles(user_id: str, following: bool, viewer_id: str | None, db: Session):
+    column = models.UserFollow.following_id if following else models.UserFollow.follower_id
+    relationship_column = models.UserFollow.follower_id if following else models.UserFollow.following_id
+    rows = db.query(models.UserFollow).filter(column == user_id).order_by(models.UserFollow.created_at.desc()).all()
+    ids = [getattr(row, relationship_column.key) for row in rows]
+    users = db.query(models.User).filter(models.User.id.in_(ids)).all() if ids else []
+    by_id = {user.id: user for user in users}
+    return [_profile_payload(by_id[profile_id], viewer_id, db) for profile_id in ids if profile_id in by_id]
+
+
+@app.get("/api/users/{user_id}/followers")
+def get_followers(user_id: str, viewer_id: str | None = None, db: Session = Depends(get_db)):
+    return _connection_profiles(user_id, following=False, viewer_id=viewer_id, db=db)
+
+
+@app.get("/api/users/{user_id}/following")
+def get_following(user_id: str, viewer_id: str | None = None, db: Session = Depends(get_db)):
+    return _connection_profiles(user_id, following=True, viewer_id=viewer_id, db=db)
+
+
+@app.get("/api/notifications")
+def get_notifications(user_id: str, db: Session = Depends(get_db)):
+    notifications = db.query(models.Notification).filter(
+        models.Notification.recipient_id == user_id,
+    ).order_by(models.Notification.created_at.desc()).limit(50).all()
+    actor_ids = {item.actor_id for item in notifications}
+    actors = db.query(models.User).filter(models.User.id.in_(actor_ids)).all() if actor_ids else []
+    actor_map = {actor.id: actor for actor in actors}
+    return [{
+        "id": item.id,
+        "type": item.type,
+        "message": item.message,
+        "is_read": item.is_read,
+        "created_at": item.created_at,
+        "actor": _user_payload(actor_map[item.actor_id]) if item.actor_id in actor_map else None,
+    } for item in notifications]
+
+
+@app.patch("/api/notifications/{notification_id}/read")
+def mark_notification_read(notification_id: int, user_id: str, db: Session = Depends(get_db)):
+    notification = db.query(models.Notification).filter(
+        models.Notification.id == notification_id,
+        models.Notification.recipient_id == user_id,
+    ).first()
+    if not notification:
+        raise HTTPException(status_code=404, detail="Notification not found.")
+    notification.is_read = True
+    db.commit()
+    return {"id": notification.id, "is_read": True}
+
+
 @app.post("/api/users/{user_id}/follow")
 def follow_user(user_id: str, payload: schemas.FollowRequest, db: Session = Depends(get_db)):
     if payload.user_id == user_id:
@@ -621,6 +742,13 @@ def follow_user(user_id: str, payload: schemas.FollowRequest, db: Session = Depe
     ).first()
     if not existing:
         db.add(models.UserFollow(follower_id=payload.user_id, following_id=user_id))
+        actor = db.query(models.User).filter(models.User.id == payload.user_id).first()
+        db.add(models.Notification(
+            recipient_id=user_id,
+            actor_id=payload.user_id,
+            type="follow",
+            message=f"{actor.display_name if actor else 'A learner'} started following you.",
+        ))
         db.commit()
     return _profile_payload(target, payload.user_id, db)
 

@@ -43,10 +43,25 @@
 
 ### 🎴 Cognitive Science Study Modes
 - **3D Spaced Repetition Flashcards:** Flip cards with smooth animations, confidence ratings (*Easy*, *Medium*, *Hard*), keyboard navigation (`Space`, arrows, `1-3`), and shuffle.
+- **Mastery Knowledge Checks:** Wrong choices can be eliminated, hints narrow the field, explanations clarify the correct answer, and missed questions return during the same session until mastered.
 - **Dynamic Assessments:** Quizzes dynamically adapt cards into **Multiple Choice**, **True or False**, **Identification**, and **Matching Pairs**.
-- **Timed AI Mock Exams:** Practice under exam pressure with a customizable question count, real-time countdown timer, question jumper palette, and deep score breakdown.
+- **Gizmo-inspired Mock Exams:** Practice with a focused session header, progress rail, attempt and mastery indicators, timer, Hint/Reveal/Explain controls, and a detailed completion review.
 - **Audio Lecture Readouts:** Condensed audio summaries powered by **ElevenLabs Flash v2.5** with automatic browser **Web Speech API** fallback.
 - **Context-Aware AI Tutor:** Interactive chat drawer grounded in the specific concepts of any deck to answer questions and provide mnemonics.
+
+### 🎮 Motivation, Rewards & Progress
+- **Learning XP and levels:** Reviews and quiz answers award local XP with progress toward the next level.
+- **Collectibles and milestones:** Unlock badges for reviews, correct answers, active study days, deck creation, and XP milestones.
+- **Weekly challenge panel:** Shows a friendly local leaderboard and explains how Study Hubs can support class competition.
+- **Progressive feedback:** Loading, retry, mastery, completion, and empty states are surfaced throughout the study flow.
+
+### 🌐 Social Learning & University Communities
+- **People discovery:** Search public learner profiles, view bios and education details, and follow or unfollow users.
+- **Public profile decks:** Public profiles expose shareable decks that other learners can open or clone.
+- **Profile and app settings:** Edit display name, avatar, bio, education level, university, and profile visibility.
+- **University communities:** Browse Philippine university communities with member counts, public decks, and a community leaderboard.
+- **Live university directory:** Undergraduate users select from Philippine institution data with logos and city information; the selector uses OpenAlex through the backend, with a public Hipo university-domain dataset and last-successful-response cache as fallbacks rather than manual frontend entries.
+- **Education-aware onboarding:** Existing users without education data are prompted to complete setup, while university selection is shown only for undergraduate users.
 
 ### ⚔️ Real-Time Multiplayer Battle Arena
 - **Synchronized Match Timers:** Live quiz battles with synchronized 15-second answer countdowns between host and joiners.
@@ -96,6 +111,8 @@ cramzero/
 │   ├── src/
 │   │   ├── components/        # Radix UI primitives & layout elements
 │   │   │   ├── auth/          # AuthModal (Login, Register, Guest setup)
+│   │   │   ├── education/     # Live university selector and university logos
+│   │   │   ├── study/         # XP, levels, collectibles, and challenge panel
 │   │   │   ├── layout/        # PrimaryNavigation, MobileBottomNav, UsageTracker
 │   │   │   └── ui/            # Buttons, Cards, Inputs, Progress, Badges
 │   │   ├── features/views/    # Application Views
@@ -109,6 +126,7 @@ cramzero/
 │   │   │   ├── NewDeckView.jsx
 │   │   │   ├── ProfileView.jsx
 │   │   │   ├── QuizSetupView.jsx
+│   │   │   ├── SocialView.jsx
 │   │   │   └── StudyHubsView.jsx
 │   │   ├── lib/               # API clients, ElevenLabs TTS, analytics
 │   │   ├── App.jsx            # Main app router, state & theme management
@@ -118,7 +136,7 @@ cramzero/
 ├── docs/                      # Technical Documentation
 │   ├── ARCHITECTURE.md        # Deep dive into system design & AI pipelines
 │   ├── API_REFERENCE.md       # Comprehensive REST & WebSocket documentation
-│   ├── STUDY_MODES.md         # Guide to all 6 study modes and mechanics
+│   ├── STUDY_MODES.md         # Study modes, mastery loop, and reward mechanics
 │   └── DEPLOYMENT.md          # Cloud production deployment guides
 │
 ├── DOCUMENTATION.md           # Master documentation index
