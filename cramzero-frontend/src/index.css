@@ -23,6 +23,38 @@ body {
   overflow-x: hidden;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
+  background:
+    radial-gradient(circle at 8% 0%, rgb(251 191 36 / 0.08), transparent 28rem),
+    radial-gradient(circle at 92% 8%, rgb(124 58 237 / 0.06), transparent 30rem),
+    var(--color-sand);
+}
+
+:root {
+  --cz-shadow-soft: 0 8px 26px rgb(38 57 77 / 0.07);
+  --cz-shadow-lift: 0 18px 45px rgb(38 57 77 / 0.14);
+  --cz-focus: 0 0 0 4px rgb(14 165 233 / 0.2);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+*:focus-visible {
+  outline: 2px solid rgb(217 119 6);
+  outline-offset: 3px;
+  box-shadow: var(--cz-focus);
+}
+
+::selection {
+  color: #2c2117;
+  background: rgb(251 191 36 / 0.35);
+}
+
+.dark body {
+  background:
+    radial-gradient(circle at 8% 0%, rgb(245 158 11 / 0.09), transparent 28rem),
+    radial-gradient(circle at 92% 8%, rgb(124 58 237 / 0.12), transparent 30rem),
+    #09090b;
 }
 
 /* Eliminate 300ms mobile tap delay */
@@ -81,6 +113,55 @@ button,
 a {
   transition: box-shadow 180ms ease, opacity 180ms ease,
     background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+}
+
+.cz-surface {
+  border: 1px solid rgb(226 232 240 / 0.92);
+  background: rgb(255 255 255 / 0.9);
+  box-shadow: var(--cz-shadow-soft);
+  backdrop-filter: blur(18px);
+}
+
+.dark .cz-surface {
+  border-color: rgb(63 63 70 / 0.78);
+  background: rgb(24 24 27 / 0.88);
+}
+
+.cz-gizmo-card {
+  border: 1px solid rgb(226 232 240 / 0.95);
+  border-radius: 1.5rem;
+  background: rgb(255 255 255 / 0.96);
+  box-shadow: 0 10px 28px rgb(38 57 77 / 0.06);
+}
+
+.dark .cz-gizmo-card {
+  border-color: rgb(63 63 70 / 0.82);
+  background: rgb(24 24 27 / 0.94);
+}
+
+.cz-gizmo-gradient {
+  background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 48%, #ede9fe 100%);
+}
+
+.dark .cz-gizmo-gradient {
+  background: linear-gradient(135deg, rgb(8 47 73 / 0.62), rgb(30 41 59 / 0.85) 48%, rgb(49 46 129 / 0.5));
+}
+
+.cz-interactive {
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background-color 180ms ease;
+}
+
+.cz-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--cz-shadow-lift);
+}
+
+.cz-interactive:active {
+  transform: translateY(0) scale(0.985);
+}
+
+.safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
 
 .btn-lift {

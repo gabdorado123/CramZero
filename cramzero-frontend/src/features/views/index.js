@@ -13,3 +13,4 @@ export { QuizSetupView } from './QuizSetupView';
 export { MockExamSetupView } from './MockExamSetupView';
 export { MockExamActiveView } from './MockExamActiveView';
 export { MultiplayerView } from './MultiplayerView';
+export { SocialView } from './SocialView';

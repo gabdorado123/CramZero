@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { getAnalyticsEvents, subscribeToAnalytics } from '@/lib/analytics';
+import { StudyRewardsPanel } from '@/components/study/StudyRewardsPanel';
 
 export function DashboardView({ navigateTo, setHasActiveDeck, setActiveDeck, myDecks = [], displayName = 'Student' }) {
   const [events, setEvents] = useState(() => getAnalyticsEvents());
@@ -56,9 +57,9 @@ export function DashboardView({ navigateTo, setHasActiveDeck, setActiveDeck, myD
     return (
       <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 space-y-8 md:space-y-10 animate-in fade-in duration-300">
         {/* Welcome Hero Banner */}
-        <div data-tour="dashboard-welcome" className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent dark:from-amber-950/30 dark:via-zinc-900/40 dark:to-transparent border border-amber-500/25 dark:border-amber-900/40 p-6 sm:p-10 text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-6">
+        <div data-tour="dashboard-welcome" className="cz-gizmo-gradient relative overflow-hidden rounded-[2rem] border border-sky-200/80 p-6 shadow-[0_14px_35px_rgb(14_165_233/0.08)] sm:p-10 text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-6 dark:border-sky-900/50">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-white/70 text-sky-700 dark:bg-slate-900/50 dark:text-sky-300 border border-sky-200/80 dark:border-sky-800">
               <Sparkles size={13} />
               <span>Get Started with CramZero</span>
             </div>
@@ -83,7 +84,7 @@ export function DashboardView({ navigateTo, setHasActiveDeck, setActiveDeck, myD
             {/* Path 1: AI Prompt */}
             <Card 
               onClick={() => navigateTo('new-deck')}
-              className="bg-white dark:bg-zinc-900 border border-stone-200/90 dark:border-zinc-800 rounded-3xl p-6 hover:shadow-xl hover:border-amber-400 dark:hover:border-amber-500 transition-all cursor-pointer group flex flex-col justify-between hover:-translate-y-1 shadow-xs"
+              className="cz-gizmo-card p-6 hover:shadow-xl hover:border-sky-400 dark:hover:border-sky-500 transition-all cursor-pointer group flex flex-col justify-between hover:-translate-y-1"
             >
               <div>
                 <div className="w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
@@ -279,6 +280,8 @@ export function DashboardView({ navigateTo, setHasActiveDeck, setActiveDeck, myD
           </Card>
         ))}
       </div>
+
+      <StudyRewardsPanel events={events} deckCount={myDecks.length} displayName={displayName} />
 
       {/* Recent Decks Section (Direct 1-click access to decks) */}
       <div className="space-y-4">

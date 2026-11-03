@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   CheckCircle, ChevronLeft, ChevronRight, X,
-  Timer, AlertTriangle, Check, Layers, RotateCcw,
+  Timer, Check, Layers, RotateCcw,
   Sparkles, ArrowLeft, Target, ShieldCheck, Volume2, VolumeX
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,11 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState({});
+  const [eliminatedOptions, setEliminatedOptions] = useState({});
+  const [attempts, setAttempts] = useState({});
+  const [feedbackState, setFeedbackState] = useState({});
+  const [hintVisible, setHintVisible] = useState({});
+  const [explanationVisible, setExplanationVisible] = useState({});
   const [isFinished, setIsFinished] = useState(false);
   const [timeLeftSeconds, setTimeLeftSeconds] = useState(null);
   const [isSoundMuted, setIsSoundMuted] = useState(() => isSfxMuted());
@@ -61,7 +66,8 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
             statementDef: card.definition,
             options: ['True', 'False'],
             answer: 'True',
-            explanation: `Accurate. "${card.term}" correctly corresponds to: "${card.definition}".`
+            explanation: `Accurate. "${card.term}" correctly corresponds to: "${card.definition}".`,
+            hint: `Check whether the definition matches "${card.term}" exactly.`
           };
         } else {
           const impostor = shuffledOthers[0];
@@ -77,7 +83,8 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
             actualDef: card.definition,
             options: ['True', 'False'],
             answer: 'False',
-            explanation: `False. That statement describes "${impostor.term}". "${card.term}" actually refers to: "${card.definition}".`
+            explanation: `False. That statement describes "${impostor.term}". "${card.term}" actually refers to: "${card.definition}".`,
+            hint: `Compare the statement with the concept it describes, not just the familiar words.`
           };
         }
       } else {
@@ -98,7 +105,8 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
             : `What is the definition of "${card.term}"?`,
           options: options,
           answer: card.definition,
-          explanation: `The accurate definition of "${card.term}" is "${card.definition}".`
+          explanation: `The accurate definition of "${card.term}" is "${card.definition}".`,
+          hint: `Look for the option that most directly explains "${card.term}", rather than a related idea.`
         };
       }
     });
@@ -106,6 +114,11 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
     setQuestions(generatedQs);
     setCurrentIndex(0);
     setAnswers({});
+    setEliminatedOptions({});
+    setAttempts({});
+    setFeedbackState({});
+    setHintVisible({});
+    setExplanationVisible({});
     setIsFinished(false);
     timerCuesPlayedRef.current.clear();
 
@@ -154,12 +167,21 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
   };
 
   const handleSelect = (opt) => {
-    if (answers[currentIndex] !== undefined || isFinished) return;
+    if (answers[currentIndex] !== undefined || isFinished || eliminatedOptions[currentIndex]?.includes(opt)) return;
     initAudio();
     const isCorrect = opt === questions[currentIndex]?.answer;
     playSfx('answer_locked', { volume: 0.35 });
     playSfx(isCorrect ? 'answer_correct' : 'answer_incorrect', { volume: 0.65 });
-    setAnswers(prev => ({ ...prev, [currentIndex]: opt }));
+    setAttempts(prev => ({ ...prev, [currentIndex]: (prev[currentIndex] || 0) + 1 }));
+    setFeedbackState(prev => ({ ...prev, [currentIndex]: isCorrect ? 'correct' : 'wrong' }));
+    if (isCorrect) {
+      setAnswers(prev => ({ ...prev, [currentIndex]: opt }));
+    } else {
+      setEliminatedOptions(prev => ({
+        ...prev,
+        [currentIndex]: [...(prev[currentIndex] || []), opt],
+      }));
+    }
     recordAnalyticsEvent({
       type: 'quiz_answer',
       deckId: safeDeck.id || 'unknown-deck',
@@ -168,6 +190,35 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
       correct: isCorrect,
       mode: examConfig?.isMock ? 'mock-exam' : 'quiz',
     });
+  };
+
+  const handleHint = () => {
+    if (answeredCurrent || isFinished) return;
+    const currentOptions = questions[currentIndex]?.options || [];
+    const removableOption = currentOptions.find(
+      option => option !== questions[currentIndex]?.answer && !eliminatedOptions[currentIndex]?.includes(option)
+    );
+    if (!removableOption) return;
+    setEliminatedOptions(prev => ({
+      ...prev,
+      [currentIndex]: [...(prev[currentIndex] || []), removableOption],
+    }));
+    setHintVisible(prev => ({ ...prev, [currentIndex]: true }));
+    setFeedbackState(prev => ({ ...prev, [currentIndex]: 'hint' }));
+  };
+
+  const handleReveal = () => {
+    if (answeredCurrent || isFinished) return;
+    const currentQuestion = questions[currentIndex];
+    const distractors = (currentQuestion?.options || []).filter(option => option !== currentQuestion.answer);
+    setEliminatedOptions(prev => ({ ...prev, [currentIndex]: distractors }));
+    setHintVisible(prev => ({ ...prev, [currentIndex]: true }));
+    setFeedbackState(prev => ({ ...prev, [currentIndex]: 'hint' }));
+  };
+
+  const handleExplain = () => {
+    if (isFinished) return;
+    setExplanationVisible(prev => ({ ...prev, [currentIndex]: true }));
   };
 
   const handleNext = () => {
@@ -181,6 +232,11 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
   const handleRestart = () => {
     setCurrentIndex(0);
     setAnswers({});
+    setEliminatedOptions({});
+    setAttempts({});
+    setFeedbackState({});
+    setHintVisible({});
+    setExplanationVisible({});
     setIsFinished(false);
     timerCuesPlayedRef.current.clear();
     if (examConfig?.timeMode && examConfig?.timeMode !== 'No Limit') {
@@ -331,31 +387,24 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
   // ---------------------------------------------------------------------------
   const currentQ = questions[currentIndex];
   const answeredCurrent = answers[currentIndex] !== undefined;
+  const masteredCount = Object.keys(answers).length;
 
   return (
-    <div className="w-full max-w-3xl mx-auto flex flex-col my-auto py-6 md:py-10 px-4 sm:px-6 animate-in fade-in duration-300">
+  <div className="min-h-full w-full bg-slate-50/80 dark:bg-zinc-950">
+    <div className="mx-auto flex w-full max-w-4xl flex-col px-4 pb-8 pt-3 sm:px-6 md:pt-5 animate-in fade-in duration-300">
       
-      {/* Top Header Bar */}
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-stone-200/80 dark:border-zinc-800">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-            <Badge variant="secondary" className="bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border-none font-bold text-[11px] rounded-full px-2.5 py-0.5">
-              {examConfig?.isMock ? 'Mock Exam' : 'Knowledge Check'}
-            </Badge>
-            <span className="text-xs font-semibold text-stone-400 dark:text-zinc-500">•</span>
-            <span className="text-xs font-bold text-stone-500 dark:text-zinc-400">
-              Question {currentIndex + 1} of {questions.length}
-            </span>
-          </div>
-          <h2 className="text-xl md:text-2xl font-bold text-stone-900 dark:text-zinc-100 truncate">
-            {safeDeck.title}
-          </h2>
-        </div>
-
-        {/* Timer and Exit Button */}
-        <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
-          {timeLeftSeconds !== null && (
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-mono font-bold text-sm border ${
+    {/* Gizmo-style session header */}
+    <div className="flex items-center gap-3 border-b border-slate-200/80 pb-3 dark:border-zinc-800">
+      <Button variant="ghost" size="icon" onClick={() => setIsFinished(true)} className="rounded-full text-slate-700 hover:bg-slate-200 dark:text-zinc-200 dark:hover:bg-zinc-800" aria-label="Exit test">
+        <X size={21} />
+      </Button>
+      <div className="min-w-0 flex-1 text-center">
+        <p className="truncate text-sm font-black text-slate-800 dark:text-zinc-100">{safeDeck.title}</p>
+        <p className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400">{examConfig?.isMock ? 'Mock test' : 'Knowledge check'}</p>
+      </div>
+      <div className="flex items-center gap-1">
+        {timeLeftSeconds !== null && (
+          <div className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-mono text-xs font-bold ${
               timeLeftSeconds < 60
                 ? 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900 animate-pulse'
                 : 'bg-stone-100 text-stone-700 border-stone-200 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-800'
@@ -378,28 +427,35 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
             variant="ghost"
             size="sm"
             onClick={() => setIsFinished(true)}
-            className="rounded-full text-stone-500 hover:text-rose-600 dark:text-zinc-400 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 font-semibold text-xs h-9 px-3"
-            title="Quit Exam"
+            className="hidden rounded-full text-stone-500 hover:text-rose-600 dark:text-zinc-400 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 font-semibold text-xs h-9 px-3 sm:flex"
+            title="End test"
           >
-            <X size={15} className="mr-1.5" /> End Test
+            End
           </Button>
         </div>
       </div>
 
-      {/* Visual Progress Bar */}
-      <div className="w-full bg-stone-200/70 dark:bg-zinc-800 rounded-full h-1.5 mb-6 overflow-hidden">
+      <div className="mt-4 flex items-center gap-3">
+        <button type="button" onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))} disabled={currentIndex === 0} className="rounded-full bg-white p-2.5 text-slate-600 shadow-sm ring-1 ring-slate-200 disabled:opacity-40 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-zinc-800" aria-label="Previous question"><ChevronLeft size={18} /></button>
+        <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-zinc-800">
         <div
-          className="bg-amber-500 h-full rounded-full transition-all duration-300 ease-out"
+          className="h-full rounded-full bg-sky-500 transition-all duration-300 ease-out"
           style={{ width: `${((currentIndex + (answeredCurrent ? 1 : 0)) / questions.length) * 100}%` }}
         />
+        </div>
+        <button type="button" onClick={() => answeredCurrent && handleNext()} disabled={!answeredCurrent} className="rounded-full bg-white p-2.5 text-slate-600 shadow-sm ring-1 ring-slate-200 disabled:opacity-40 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-zinc-800" aria-label="Next question"><ChevronRight size={18} /></button>
+      </div>
+
+      <div className="mx-auto mt-4 flex w-full max-w-md items-center justify-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-600 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
+        <span className="text-sky-600">{masteredCount} mastered</span><span className="text-slate-300">•</span><span>{Object.values(attempts).reduce((sum, count) => sum + count, 0)} attempts</span><span className="ml-auto rounded-full bg-slate-100 px-3 py-1 text-slate-700 dark:bg-zinc-800 dark:text-zinc-200">+{masteredCount * 10} XP</span>
       </div>
 
       {/* Question Card Container */}
-      <Card className="rounded-3xl p-6 sm:p-8 md:p-10 shadow-lg bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border border-stone-200/90 dark:border-zinc-800 transition-all flex flex-col">
+      <Card className="mx-auto mt-5 w-full max-w-3xl rounded-[1.75rem] border-2 border-sky-500/90 bg-white p-5 shadow-[0_12px_35px_rgb(14_165_233/0.10)] dark:bg-zinc-900 sm:p-8 md:p-9">
         {/* Meta badges */}
         <div className="flex items-center justify-between gap-2 mb-4">
-          <Badge className="bg-amber-500/10 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/20 rounded-full text-[11px] font-bold tracking-wide px-3 py-1">
-            {currentQ.scenario || 'Concept Verification'}
+          <Badge className="bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-0 rounded-full text-[11px] font-bold tracking-wide px-3 py-1">
+            {answeredCurrent ? '✓ Mastered' : currentQ.scenario || 'Concept Verification'}
           </Badge>
           {currentQ.type === 'tf' ? (
             <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5 text-[10px] font-bold rounded-full">
@@ -423,10 +479,10 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
             {/* TRUE BUTTON */}
             {(() => {
               const opt = 'True';
-              const isSelected = answers[currentIndex] === opt;
+              const isEliminated = eliminatedOptions[currentIndex]?.includes(opt);
               const isCorrect = opt === currentQ.answer;
               const showCorrect = answeredCurrent && isCorrect;
-              const showIncorrect = isSelected && !isCorrect;
+              const showIncorrect = isEliminated;
 
               let btnStyle = "border-stone-200/90 dark:border-zinc-800 bg-stone-50/50 dark:bg-zinc-950/50 hover:border-emerald-500/60 hover:bg-emerald-50/20 dark:hover:border-emerald-500/60";
               let badgeStyle = "bg-stone-200 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400";
@@ -437,13 +493,13 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
               } else if (showIncorrect) {
                 btnStyle = "border-rose-500 bg-rose-50/90 dark:bg-rose-950/40 shadow-sm ring-2 ring-rose-500/20";
                 badgeStyle = "bg-rose-500 text-white";
-              } else if (answeredCurrent) {
+              } else if (answeredCurrent || isEliminated) {
                 btnStyle = "opacity-50 border-stone-200/50 dark:border-zinc-800/50";
               }
 
               return (
                 <button
-                  disabled={answeredCurrent}
+                  disabled={answeredCurrent || isEliminated}
                   onClick={() => handleSelect(opt)}
                   className={`p-6 rounded-2xl border-2 text-left transition-all flex flex-col justify-between h-36 ${btnStyle}`}
                 >
@@ -464,10 +520,10 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
             {/* FALSE BUTTON */}
             {(() => {
               const opt = 'False';
-              const isSelected = answers[currentIndex] === opt;
+              const isEliminated = eliminatedOptions[currentIndex]?.includes(opt);
               const isCorrect = opt === currentQ.answer;
               const showCorrect = answeredCurrent && isCorrect;
-              const showIncorrect = isSelected && !isCorrect;
+              const showIncorrect = isEliminated;
 
               let btnStyle = "border-stone-200/90 dark:border-zinc-800 bg-stone-50/50 dark:bg-zinc-950/50 hover:border-rose-500/60 hover:bg-rose-50/20 dark:hover:border-rose-500/60";
               let badgeStyle = "bg-stone-200 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400";
@@ -484,7 +540,7 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
 
               return (
                 <button
-                  disabled={answeredCurrent}
+                  disabled={answeredCurrent || isEliminated}
                   onClick={() => handleSelect(opt)}
                   className={`p-6 rounded-2xl border-2 text-left transition-all flex flex-col justify-between h-36 ${btnStyle}`}
                 >
@@ -506,10 +562,10 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
           /* MULTIPLE CHOICE 4 OPTIONS */
           <div className="space-y-3 my-2">
             {currentQ.options.map((opt, i) => {
-              const isSelected = answers[currentIndex] === opt;
+              const isEliminated = eliminatedOptions[currentIndex]?.includes(opt);
               const isCorrect = opt === currentQ.answer;
               const showCorrect = answeredCurrent && isCorrect;
-              const showIncorrect = isSelected && !isCorrect;
+              const showIncorrect = isEliminated;
 
               let bgClass = 'bg-stone-50/50 dark:bg-zinc-950/50 border-stone-200/90 dark:border-zinc-800 hover:bg-stone-100/70 dark:hover:bg-zinc-800/60 text-stone-800 dark:text-zinc-200';
               let circleClass = 'border-stone-300 dark:border-zinc-700 bg-transparent text-stone-500';
@@ -523,7 +579,7 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
                 bgClass = 'bg-rose-50/90 dark:bg-rose-950/40 border-rose-500 dark:border-rose-600 shadow-sm';
                 circleClass = 'border-rose-600 bg-rose-600 text-white';
                 textClass = 'text-rose-950 dark:text-rose-300 font-bold';
-              } else if (answeredCurrent) {
+              } else if (answeredCurrent || isEliminated) {
                 bgClass = 'bg-stone-50/30 dark:bg-zinc-950/30 border-stone-200/40 dark:border-zinc-800/40 opacity-50';
               }
 
@@ -532,7 +588,7 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
               return (
                 <button 
                   key={i} 
-                  disabled={answeredCurrent}
+                  disabled={answeredCurrent || isEliminated}
                   onClick={() => handleSelect(opt)}
                   className={`w-full p-4 md:p-5 rounded-2xl border-2 text-left transition-all flex items-start gap-3.5 ${bgClass}`}
                 >
@@ -546,19 +602,39 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
           </div>
         )}
 
+        {!answeredCurrent && (
+          <div className="mt-5 space-y-3">
+            <div className="flex items-start gap-2.5">
+              <Sparkles size={17} className="mt-0.5 shrink-0 text-violet-600 dark:text-violet-400" />
+              <div>
+                <p className="text-xs font-bold text-violet-900 dark:text-violet-300">
+                  {feedbackState[currentIndex] === 'wrong' ? 'That option is ruled out.' : 'Need a nudge?'}
+                </p>
+                {attempts[currentIndex] > 1 && (
+                  <p className="mt-1 text-[11px] text-violet-800/70 dark:text-violet-300/70">
+                    Keep going — this concept stays in your session until it clicks.
+                  </p>
+                )}
+                {hintVisible[currentIndex] && (
+                  <p className="mt-1 text-xs leading-relaxed text-violet-800/80 dark:text-violet-300/80">{currentQ.hint}</p>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <Button type="button" variant="outline" onClick={handleHint} className="h-10 rounded-full border-slate-200 bg-white text-xs font-bold text-slate-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"><Sparkles size={14} className="mr-1.5 text-sky-500" />Hint</Button>
+              <Button type="button" variant="outline" onClick={handleReveal} className="h-10 rounded-full border-slate-200 bg-white text-xs font-bold text-slate-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"><Target size={14} className="mr-1.5 text-blue-500" />Reveal</Button>
+              <Button type="button" variant="outline" onClick={handleExplain} className="h-10 rounded-full border-slate-200 bg-white text-xs font-bold text-slate-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"><Sparkles size={14} className="mr-1.5 text-violet-500" />Explain</Button>
+            </div>
+          </div>
+        )}
+
         {/* Immediate Explanation Feedback Box when Answered */}
-        {answeredCurrent && currentQ.explanation && (
+        {(answeredCurrent || explanationVisible[currentIndex]) && currentQ.explanation && (
           <div className={`mt-5 p-4 rounded-2xl border text-sm animate-in fade-in duration-200 ${
-            answers[currentIndex] === currentQ.answer
-              ? 'bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-300/60 dark:border-emerald-800/60 text-emerald-900 dark:text-emerald-300'
-              : 'bg-rose-50/80 dark:bg-rose-950/30 border-rose-300/60 dark:border-rose-800/60 text-rose-900 dark:text-rose-300'
+            'bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-300/60 dark:border-emerald-800/60 text-emerald-900 dark:text-emerald-300'
           }`}>
             <p className="font-semibold flex items-center gap-1.5 mb-1 text-xs sm:text-sm">
-              {answers[currentIndex] === currentQ.answer ? (
-                <><CheckCircle size={16} className="text-emerald-600 dark:text-emerald-400" /> Correct!</>
-              ) : (
-                <><AlertTriangle size={16} className="text-rose-600 dark:text-rose-400" /> Incorrect</>
-              )}
+              <><CheckCircle size={16} className="text-emerald-600 dark:text-emerald-400" /> Correct — here's why</>
             </p>
             <p className="text-xs sm:text-sm leading-relaxed opacity-95">{currentQ.explanation}</p>
           </div>
@@ -585,6 +661,7 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig }) {
           </Button>
         </div>
       </Card>
+    </div>
     </div>
   );
 }

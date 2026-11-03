@@ -13,8 +13,22 @@ class User(Base):
     password_hash = Column(String(255), nullable=True)
     display_name = Column(String(120), nullable=False, default="Student")
     avatar_url = Column(Text, nullable=True)
+    bio = Column(Text, nullable=True)
+    profile_visibility = Column(String(20), nullable=False, default="Public")
+    education_level = Column(String(80), nullable=True)
+    university = Column(String(180), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class UserFollow(Base):
+    __tablename__ = "user_follows"
+    __table_args__ = (UniqueConstraint("follower_id", "following_id", name="uq_user_follow"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    follower_id = Column(String(64), nullable=False, index=True)
+    following_id = Column(String(64), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class Deck(Base):
     __tablename__ = "decks"
@@ -25,7 +39,7 @@ class Deck(Base):
     visibility = Column(String(50), default="Private")
     user_id = Column(String(64), nullable=True, index=True)
     author_name = Column(String(120), nullable=True, default="Student")
-    created_at = Column(DateTime(timezone=True), server_default=func.now()) 
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     cards = relationship("Card", back_populates="deck", cascade="all, delete-orphan")
 
@@ -102,4 +116,4 @@ class ApiUsage(Base):
     action = Column(String(64), nullable=False, index=True)
     date_str = Column(String(10), nullable=False, index=True)
     count = Column(Integer, nullable=False, default=1)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

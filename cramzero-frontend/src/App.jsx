@@ -33,6 +33,7 @@ import { UsageTracker } from '@/components/layout/UsageTracker';
 import { LandingPageView } from '@/features/views/LandingPageView';
 import { ProfileView } from '@/features/views/ProfileView';
 import { AuthModal } from '@/components/auth/AuthModal';
+import { EducationSetupModal } from '@/components/auth/EducationSetupModal';
 import { DashboardView } from '@/features/views/DashboardView';
 import { StudyView } from '@/features/views/StudyView';
 import { DecksView } from '@/features/views/DecksView';
@@ -47,6 +48,7 @@ import { QuizSetupView } from '@/features/views/QuizSetupView';
 import { MockExamSetupView } from '@/features/views/MockExamSetupView';
 import { MockExamActiveView } from '@/features/views/MockExamActiveView';
 import { MultiplayerView } from '@/features/views/MultiplayerView';
+import { SocialView } from '@/features/views/SocialView';
 import { OnboardingTour } from '@/components/OnboardingTour';
 import { speakWithElevenLabs } from '@/lib/elevenlabs';
 import { recordAnalyticsEvent } from '@/lib/analytics';
@@ -97,6 +99,11 @@ export default function App() {
   const [displayName, setDisplayName] = useState(() => localStorage.getItem('cramzero-display-name') || 'Student');
   const [userEmail, setUserEmail] = useState(() => localStorage.getItem('cramzero-user-email') || '');
   const [avatarUrl, setAvatarUrl] = useState(() => localStorage.getItem('cramzero-avatar-url') || 'https://api.dicebear.com/7.x/notionists/svg?seed=Felix&backgroundColor=e5ddd3');
+  const [userBio, setUserBio] = useState(() => localStorage.getItem('cramzero-user-bio') || '');
+  const [educationLevel, setEducationLevel] = useState(() => localStorage.getItem('cramzero-education-level') || '');
+  const [university, setUniversity] = useState(() => localStorage.getItem('cramzero-university') || '');
+  const [isEducationProfileLoaded, setIsEducationProfileLoaded] = useState(false);
+  const [isEducationSetupDismissed, setIsEducationSetupDismissed] = useState(false);
   const [isGuest, setIsGuest] = useState(() => localStorage.getItem('cramzero-is-guest') !== 'false');
 
   const [hasProfileSetup, setHasProfileSetup] = useState(() => {
@@ -126,6 +133,18 @@ export default function App() {
       setAvatarUrl(userData.avatarUrl);
       localStorage.setItem('cramzero-avatar-url', userData.avatarUrl);
     }
+    if (userData.bio !== undefined) {
+      setUserBio(userData.bio || '');
+      localStorage.setItem('cramzero-user-bio', userData.bio || '');
+    }
+    if (userData.educationLevel) {
+      setEducationLevel(userData.educationLevel);
+      localStorage.setItem('cramzero-education-level', userData.educationLevel);
+    }
+    if (userData.university) {
+      setUniversity(userData.university);
+      localStorage.setItem('cramzero-university', userData.university);
+    }
     if (userData.email) {
       setUserEmail(userData.email);
       localStorage.setItem('cramzero-user-email', userData.email);
@@ -151,11 +170,55 @@ export default function App() {
     }
   };
 
+  useEffect(() => {
+    if (!hasProfileSetup || !userId) {
+      setIsEducationProfileLoaded(true);
+      return;
+    }
+
+    let cancelled = false;
+    const loadEducationProfile = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/api/auth/me?user_id=${encodeURIComponent(userId)}`);
+        if (!response.ok) throw new Error('Could not load your profile.');
+        const profile = await response.json();
+        if (cancelled) return;
+
+        const serverLevel = profile.education_level || '';
+        const serverUniversity = profile.university || '';
+        setEducationLevel(serverLevel);
+        setUniversity(serverUniversity);
+        if (serverLevel) localStorage.setItem('cramzero-education-level', serverLevel);
+        else localStorage.removeItem('cramzero-education-level');
+        if (serverUniversity) localStorage.setItem('cramzero-university', serverUniversity);
+        else localStorage.removeItem('cramzero-university');
+
+        const dismissedKey = `cramzero-education-skipped-${userId}`;
+        setIsEducationSetupDismissed(localStorage.getItem(dismissedKey) === 'true');
+      } catch (error) {
+        console.warn('Could not refresh education profile:', error);
+        if (!cancelled) {
+          setIsEducationSetupDismissed(false);
+        }
+      } finally {
+        if (!cancelled) setIsEducationProfileLoaded(true);
+      }
+    };
+
+    setIsEducationProfileLoaded(false);
+    loadEducationProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, [hasProfileSetup, userId]);
+
   const handleSignOut = () => {
     const nextId = crypto.randomUUID ? crypto.randomUUID() : `student-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     setUserId(nextId);
     localStorage.setItem('cramzero-user-id', nextId);
     setDisplayName('Student');
+    setUserBio('');
+    localStorage.removeItem('cramzero-user-bio');
     localStorage.setItem('cramzero-display-name', 'Student');
     setUserEmail('');
     localStorage.removeItem('cramzero-user-email');
@@ -363,6 +426,7 @@ export default function App() {
     { id: 'study', label: 'Study', icon: BookOpen },
     { id: 'decks', label: 'Library', icon: Library },
     { id: 'hubs', label: 'Hubs', icon: Share2 },
+    { id: 'social', label: 'People', icon: Users },
     { id: 'analytics', label: 'Stats', icon: BarChart2 },
     { id: 'multiplayer', label: 'Play', icon: Zap },
     { id: 'codespace', label: 'CodeSpace', icon: Code },
@@ -399,6 +463,29 @@ export default function App() {
         canDismiss={true}
         onAuthSuccess={handleAuthSuccess}
       />
+      {currentView !== 'landing' && hasProfileSetup && isEducationProfileLoaded && !isEducationSetupDismissed && !showAuthModal && (!educationLevel || (educationLevel === 'Undergraduate' && !university)) && (
+        <EducationSetupModal
+          userId={userId}
+          onComplete={(updated) => {
+            if (updated?.education_level) {
+              setEducationLevel(updated.education_level);
+              localStorage.setItem('cramzero-education-level', updated.education_level);
+            }
+            if (updated?.university) {
+              setUniversity(updated.university);
+              localStorage.setItem('cramzero-university', updated.university);
+            }
+            if (updated) {
+              setIsEducationSetupDismissed(false);
+              localStorage.removeItem(`cramzero-education-skipped-${userId}`);
+            }
+            if (!updated) {
+              localStorage.setItem(`cramzero-education-skipped-${userId}`, 'true');
+              setIsEducationSetupDismissed(true);
+            }
+          }}
+        />
+      )}
 
       {currentView === 'landing' ? (
         <LandingPageView 
@@ -409,11 +496,11 @@ export default function App() {
           onOpenAuth={(m) => { setAuthModalMode(m || 'prompt'); setShowAuthModal(true); }}
         />
       ) : (
-        <div className="flex h-screen h-[100dvh] w-full overflow-hidden font-sans bg-[#FBF9F5] dark:bg-zinc-950 text-umber dark:text-zinc-100 relative transition-colors">
+        <div className="flex h-screen h-[100dvh] w-full overflow-hidden bg-slate-50 font-sans text-slate-900 transition-colors dark:bg-zinc-950 dark:text-zinc-100">
           <OnboardingTour currentView={currentView} navigateTo={handleNavigate} />
 
           <main className="flex-1 flex flex-col relative overflow-hidden"> 
-            <header className="px-3 sm:px-4 md:px-6 lg:px-8 py-2 sm:py-2.5 border-b border-stone-200/70 dark:border-zinc-800/80 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md sticky top-0 z-20 transition-colors shrink-0 shadow-2xs">
+            <header className="sticky top-0 z-20 shrink-0 border-b border-slate-200/80 bg-white/90 px-3 py-2.5 shadow-[0_1px_18px_rgb(38_57_77/0.06)] backdrop-blur-xl transition-colors dark:border-zinc-800/80 dark:bg-zinc-950/90 sm:px-4 md:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-2 md:gap-4">
             {/* Brand Logo & Name (Protected with shrink-0, cannot collapse) */}
             <div className="flex items-center gap-2 cursor-pointer group shrink-0" onClick={() => handleNavigate('landing')}>
@@ -435,7 +522,7 @@ export default function App() {
               {/* User Profile Avatar Pill */}
               <button
                 onClick={() => handleNavigate('profile')}
-                className="flex items-center gap-1.5 sm:gap-2 p-1 pl-1.5 pr-2 sm:pr-2.5 rounded-full bg-stone-100 hover:bg-stone-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-stone-200/80 dark:border-zinc-800 transition-all text-xs font-bold text-stone-800 dark:text-zinc-200 shadow-2xs hover:scale-102"
+                className="cz-interactive flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 p-1 pl-1.5 pr-2 text-xs font-bold text-slate-800 shadow-2xs hover:bg-sky-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800 sm:pr-2.5"
                 title="View Profile & Account"
               >
                 <div className="relative w-6 h-6 rounded-full overflow-hidden bg-amber-200/80 shrink-0">
@@ -458,7 +545,7 @@ export default function App() {
 
         </header>
 
-        <div key={currentView} className={`flex-1 w-full overflow-y-auto no-scrollbar scroll-touch flex flex-col ${showNavDock ? 'pb-24 md:pb-6' : 'pb-6'} bg-gradient-to-b from-[#FBF9F5] via-[#F8F5EE] to-[#F3EFE7] dark:from-zinc-950 dark:via-zinc-950 dark:to-zinc-900 animate-in fade-in duration-300`}>
+        <div key={currentView} className={`flex-1 w-full overflow-y-auto no-scrollbar scroll-touch flex flex-col ${showNavDock ? 'pb-24 md:pb-6' : 'pb-6'} bg-gradient-to-b from-slate-50 via-white to-sky-50/40 dark:from-zinc-950 dark:via-zinc-950 dark:to-slate-950 animate-in fade-in duration-300`}>
           {/* Main Views */}
           {currentView === 'dashboard' && <DashboardView navigateTo={handleNavigate} setHasActiveDeck={setHasActiveDeck} setActiveDeck={setActiveDeck} myDecks={myDecks} displayName={displayName} />}
           {currentView === 'study' && <StudyView navigateTo={handleNavigate} hasActiveDeck={hasActiveDeck} setHasActiveDeck={setHasActiveDeck} setActiveDeck={setActiveDeck} myDecks={myDecks} />}
@@ -473,6 +560,12 @@ export default function App() {
               setUserEmail={setUserEmail} 
               avatarUrl={avatarUrl} 
               setAvatarUrl={setAvatarUrl} 
+              bio={userBio}
+              setBio={setUserBio}
+              educationLevel={educationLevel === 'skipped' ? '' : educationLevel}
+              setEducationLevel={setEducationLevel}
+              university={university === 'skipped' ? '' : university}
+              setUniversity={setUniversity}
               isGuest={isGuest} 
               setIsGuest={setIsGuest} 
               myDecks={myDecks} 
@@ -482,6 +575,7 @@ export default function App() {
             />
           )}
           {currentView === 'hubs' && <StudyHubsView navigateTo={handleNavigate} setActiveHub={setActiveHub} myHubs={myHubs} userId={userId} displayName={displayName} />}
+          {currentView === 'social' && <SocialView navigateTo={handleNavigate} userId={userId} setActiveDeck={setActiveDeck} />}
           {currentView === 'analytics' && <AnalyticsView myDecks={myDecks} />}
           {currentView === 'new-deck' && <NewDeckView navigateTo={handleNavigate} myDecks={myDecks} setMyDecks={setMyDecks} userId={userId} setIsActionLoading={setIsActionLoading} setActionMessage={setActionMessage} />}
           {currentView === 'multiplayer' && <MultiplayerView navigateTo={handleNavigate} myDecks={myDecks} userDisplayName={displayName} userAvatarUrl={avatarUrl} setActiveDeck={setActiveDeck} />}

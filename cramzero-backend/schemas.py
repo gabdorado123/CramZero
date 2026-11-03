@@ -69,6 +69,10 @@ class UserProfileUpdate(BaseModel):
     avatar_url: Optional[str] = None
     email: Optional[str] = None
     password: Optional[str] = None
+    bio: Optional[str] = None
+    profile_visibility: Optional[str] = None
+    education_level: Optional[str] = None
+    university: Optional[str] = None
 
 class UserResponse(BaseModel):
     id: str
@@ -77,6 +81,10 @@ class UserResponse(BaseModel):
     avatar_url: Optional[str] = None
     is_guest: bool = False
     created_at: Optional[datetime] = None
+    bio: Optional[str] = None
+    profile_visibility: str = "Public"
+    education_level: Optional[str] = None
+    university: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -88,6 +96,24 @@ class DeckVisibilityUpdate(BaseModel):
 class DeckCloneRequest(BaseModel):
     user_id: str
     display_name: Optional[str] = None
+
+
+class FollowRequest(BaseModel):
+    user_id: str
+
+
+class ProfileResponse(BaseModel):
+    id: str
+    display_name: str
+    avatar_url: Optional[str] = None
+    bio: Optional[str] = None
+    profile_visibility: str = "Public"
+    follower_count: int = 0
+    following_count: int = 0
+    is_following: bool = False
+    decks: List[DeckResponse] = []
+    education_level: Optional[str] = None
+    university: Optional[str] = None
 
 class GenerateRequest(BaseModel):
     topic: str

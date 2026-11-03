@@ -322,26 +322,44 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
   // ACTIVE GENERATION LOADING SCREEN
   // -------------------------------------------------------------
   if (isGeneratingAI) {
+    const progressSteps = generatingMode === 'file'
+      ? ['Reading your file', 'Finding key ideas', 'Building recall cards']
+      : ['Understanding your topic', 'Organizing key ideas', 'Writing recall cards'];
+    const activeStep = progress < 35 ? 0 : progress < 75 ? 1 : 2;
     return (
-      <div className="w-full max-w-2xl mx-auto px-4 py-16 flex flex-col items-center justify-center text-center animate-in fade-in duration-300 my-auto">
-        <div className="w-20 h-20 rounded-3xl bg-amber-500/15 dark:bg-amber-500/25 border border-amber-500/30 flex items-center justify-center mb-6 text-amber-600 dark:text-amber-400 shadow-lg shadow-amber-500/10">
-          <RotateCw size={36} className="animate-spin" />
+      <div className="my-auto flex w-full max-w-2xl flex-col items-center justify-center px-4 py-10 text-center animate-in fade-in duration-300 sm:py-16">
+        <div className="relative mb-6 flex h-24 w-24 items-center justify-center rounded-[2rem] border border-amber-500/30 bg-gradient-to-br from-amber-300/30 to-violet-500/20 text-amber-600 shadow-xl shadow-amber-500/10 dark:text-amber-400">
+          <div className="absolute inset-2 rounded-[1.4rem] border border-white/60 dark:border-white/10" />
+          <Sparkles size={34} className="animate-pulse" />
         </div>
-        <h3 className="text-xl sm:text-2xl font-extrabold text-umber dark:text-zinc-100 mb-2 tracking-tight">
+        <Badge className="mb-3 rounded-full border border-amber-300/60 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">
+          {generatingMode === 'file' ? 'Document mode' : 'Zero AI mode'}
+        </Badge>
+        <h3 className="mb-2 text-xl font-extrabold tracking-tight text-umber dark:text-zinc-100 sm:text-2xl">
           {generatingMode === 'file' ? 'Analyzing Document & Extracting Terms...' : 'Zero AI is Building Your Deck...'}
         </h3>
-        <p className="text-xs sm:text-sm text-taupe dark:text-zinc-400 max-w-md mx-auto mb-8 leading-relaxed">
+        <p className="mx-auto mb-8 max-w-md text-xs leading-relaxed text-taupe dark:text-zinc-400 sm:text-sm">
           {generatingMode === 'file' 
             ? 'Reading file contents, identifying core concepts, and drafting precise recall flashcards with failover protection.' 
             : `Synthesizing ${cardCount} flashcards with clear definitions, context, and key terms.`}
         </p>
 
-        <div className="w-full max-w-md space-y-2">
+        <div className="w-full max-w-md space-y-4 rounded-3xl border border-stone-200/80 bg-white/70 p-5 text-left shadow-sm dark:border-zinc-800 dark:bg-zinc-900/70 sm:p-6">
           <div className="flex justify-between text-xs font-bold text-amber-800 dark:text-amber-400">
             <span>Synthesizing Cards</span>
             <span>{progress}%</span>
           </div>
-          <Progress value={progress} className="h-2.5 [&>div]:bg-amber-500 rounded-full" />
+          <Progress value={progress} className="h-2.5 rounded-full [&>div]:bg-gradient-to-r [&>div]:from-amber-400 [&>div]:to-violet-500" />
+          <div className="grid gap-2 sm:grid-cols-3">
+            {progressSteps.map((step, index) => (
+              <div key={step} className={`flex items-center gap-2 rounded-xl px-2 py-2 text-[11px] font-bold ${index <= activeStep ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'text-stone-400 dark:text-zinc-600'}`}>
+                <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] ${index < activeStep ? 'bg-emerald-500 text-white' : index === activeStep ? 'bg-amber-500 text-white' : 'bg-stone-200 dark:bg-zinc-800'}`}>
+                  {index < activeStep ? <Check size={12} /> : index + 1}
+                </span>
+                <span className="truncate">{step}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -351,7 +369,7 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
   // MAIN CREATION INTERFACE: 3-Tab Selector
   // -------------------------------------------------------------
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 space-y-6 md:space-y-8 animate-in fade-in duration-300">
+    <div className="w-full max-w-4xl mx-auto px-4 py-6 sm:px-6 md:py-8 lg:px-8 space-y-6 md:space-y-8 animate-in fade-in duration-300">
       
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-2 border-b border-stone-200/60 dark:border-zinc-800/80">
@@ -364,9 +382,12 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
           >
             <ArrowLeft size={16} className="mr-1.5" /> Back to Library
           </Button>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-umber dark:text-zinc-100 tracking-tight">
-            Create Flashcard Deck
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-umber dark:text-zinc-100 tracking-tight">
+              Create Flashcard Deck
+            </h2>
+            <Badge className="hidden rounded-full border border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-300 sm:inline-flex">Build mode</Badge>
+          </div>
           <p className="text-xs sm:text-sm text-taupe dark:text-zinc-400 mt-0.5">
             Choose your preferred creation method below to build your study collection.
           </p>
@@ -374,8 +395,10 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
       </div>
 
       {/* 3-Mode Selector Tabs */}
-      <div className="grid grid-cols-3 gap-2 p-1.5 bg-stone-200/50 dark:bg-zinc-900/90 rounded-2xl border border-stone-200/80 dark:border-zinc-800/80">
+      <div className="cz-surface grid grid-cols-3 gap-1.5 rounded-2xl p-1.5">
         <button
+          type="button"
+          aria-pressed={activeTab === 'ai'}
           onClick={() => setActiveTab('ai')}
           className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
             activeTab === 'ai'
@@ -388,6 +411,8 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
         </button>
 
         <button
+          type="button"
+          aria-pressed={activeTab === 'file'}
           onClick={() => setActiveTab('file')}
           className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
             activeTab === 'file'
@@ -400,6 +425,8 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
         </button>
 
         <button
+          type="button"
+          aria-pressed={activeTab === 'manual'}
           onClick={() => setActiveTab('manual')}
           className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
             activeTab === 'manual'

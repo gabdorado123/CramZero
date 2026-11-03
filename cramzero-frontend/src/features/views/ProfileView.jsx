@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { 
   User, Mail, Lock, ShieldCheck, ArrowLeft, RotateCw, CheckCircle, 
   Smartphone, Laptop, Sparkles, BookOpen, Users, Layers, LogOut, Check,
-  KeyRound
+  KeyRound, Settings, Bell, Eye, Moon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { API_BASE } from '@/lib/api';
 import { PRESET_AVATARS } from '@/components/auth/AuthModal';
+import { UniversitySelector } from '@/components/education/UniversitySelector';
 
 export function ProfileView({ 
   navigateTo, 
@@ -21,6 +22,12 @@ export function ProfileView({
   setUserEmail, 
   avatarUrl, 
   setAvatarUrl, 
+  bio = '',
+  setBio,
+  educationLevel = '',
+  setEducationLevel,
+  university = '',
+  setUniversity,
   isGuest, 
   setIsGuest,
   myDecks, 
@@ -32,6 +39,15 @@ export function ProfileView({
   const [selectedAvatar, setSelectedAvatar] = useState(avatarUrl || PRESET_AVATARS[0].url);
   const [avatarCategory, setAvatarCategory] = useState('all'); // 'all' | 'female' | 'male'
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [bioInput, setBioInput] = useState(bio);
+  const [educationLevelInput, setEducationLevelInput] = useState(educationLevel);
+  const [universityInput, setUniversityInput] = useState(university);
+  const [profileVisibility, setProfileVisibility] = useState(() => localStorage.getItem('cramzero-profile-visibility') || 'Public');
+  const [settings, setSettings] = useState(() => ({
+    reminders: localStorage.getItem('cramzero-setting-reminders') !== 'false',
+    sound: localStorage.getItem('cramzero-setting-sound') !== 'false',
+    compact: localStorage.getItem('cramzero-setting-compact') === 'true',
+  }));
 
   const filteredAvatars = avatarCategory === 'all' 
     ? PRESET_AVATARS 
@@ -61,6 +77,10 @@ export function ProfileView({
           user_id: userId,
           display_name: nameInput.trim(),
           avatar_url: selectedAvatar,
+          bio: bioInput,
+          profile_visibility: profileVisibility,
+          education_level: educationLevelInput,
+          university: educationLevelInput === 'Undergraduate' ? universityInput : null,
         }),
       });
 
@@ -71,10 +91,18 @@ export function ProfileView({
 
       setDisplayName(updated.display_name);
       setAvatarUrl(updated.avatar_url);
+      if (setBio) setBio(updated.bio || '');
+      if (setEducationLevel) setEducationLevel(updated.education_level || '');
+      if (setUniversity) setUniversity(updated.university || '');
+      localStorage.setItem('cramzero-user-bio', updated.bio || '');
+      localStorage.setItem('cramzero-education-level', updated.education_level || '');
+      localStorage.setItem('cramzero-university', updated.university || '');
+      localStorage.removeItem('cramzero-education-skipped');
       localStorage.setItem('cramzero-display-name', updated.display_name);
       if (updated.avatar_url) {
         localStorage.setItem('cramzero-avatar-url', updated.avatar_url);
       }
+      localStorage.setItem('cramzero-profile-visibility', profileVisibility);
 
       toast.success('Profile updated!', {
         description: 'Your new display name and avatar are active across all hubs and decks.',
@@ -84,6 +112,12 @@ export function ProfileView({
     } finally {
       setIsSavingProfile(false);
     }
+  };
+
+  const updateSetting = (key, value) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
+    localStorage.setItem(`cramzero-setting-${key}`, String(value));
+    toast.success('Setting updated');
   };
 
   // Upgrade guest to full account
@@ -373,7 +407,7 @@ export function ProfileView({
           </div>
 
           {/* Display Name Input */}
-          <div className="max-w-md">
+          <div className="w-full">
             <label className="block text-xs font-bold text-stone-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">
               Display Name *
             </label>
@@ -388,6 +422,33 @@ export function ProfileView({
                 className="pl-10 h-11 rounded-xl text-sm"
               />
             </div>
+
+            <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-stone-500 dark:text-zinc-400">Short bio</label>
+                <textarea value={bioInput} onChange={(e) => setBioInput(e.target.value)} maxLength={500} placeholder="What are you learning?" className="min-h-24 w-full rounded-xl border border-stone-200 bg-white p-3 text-sm outline-none focus:ring-2 focus:ring-amber-400 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100" />
+              </div>
+              <div className="grid min-w-0 gap-4 sm:col-span-2 md:grid-cols-2">
+                <div>
+                  <label htmlFor="profile-level" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-stone-500 dark:text-zinc-400">Education level</label>
+                  <select id="profile-level" value={educationLevelInput} onChange={(e) => setEducationLevelInput(e.target.value)} className="h-11 w-full rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-800 outline-none focus:ring-2 focus:ring-amber-400 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100">
+                    <option value="">Choose your level</option>
+                    {['High school', 'Undergraduate', 'Graduate', 'Professional', 'Lifelong learner'].map(level => <option key={level} value={level}>{level}</option>)}
+                  </select>
+                </div>
+                {educationLevelInput === 'Undergraduate' && <div className="min-w-0 sm:col-span-2">
+                  <label htmlFor="profile-university" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-stone-500 dark:text-zinc-400">Philippine university</label>
+                  <UniversitySelector id="profile-university" value={universityInput} onChange={setUniversityInput} compact />
+                </div>}
+              </div>
+              <div className="sm:col-span-2">
+                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-stone-500 dark:text-zinc-400">Profile visibility</label>
+                <button type="button" onClick={() => setProfileVisibility(current => current === 'Public' ? 'Private' : 'Public')} className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left ${profileVisibility === 'Public' ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30' : 'border-stone-200 dark:border-zinc-800'}`}>
+                  <Eye size={18} className={profileVisibility === 'Public' ? 'text-emerald-600' : 'text-stone-400'} />
+                  <span><span className="block text-sm font-bold text-stone-800 dark:text-zinc-200">{profileVisibility} profile</span><span className="block text-xs text-stone-500">Controls profile and public deck discovery.</span></span>
+                </button>
+              </div>
+            </div>
           </div>
 
           <Button
@@ -401,7 +462,13 @@ export function ProfileView({
         </form>
       </Card>
 
+      <Card className="rounded-3xl border border-stone-200/90 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8">
+        <div className="mb-5 flex items-center gap-3"><div className="rounded-2xl bg-violet-100 p-3 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300"><Settings size={20} /></div><div><h3 className="font-bold text-stone-900 dark:text-zinc-100">App settings</h3><p className="text-xs text-stone-500 dark:text-zinc-400">Tune your CramZero study experience on this device.</p></div></div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {[['reminders', 'Study reminders', Bell], ['sound', 'Study sound effects', Sparkles], ['compact', 'Compact study cards', Moon]].map(([key, label, Icon]) => <button key={key} type="button" onClick={() => updateSetting(key, !settings[key])} className={`flex items-center gap-3 rounded-2xl border p-4 text-left transition ${settings[key] ? 'border-violet-300 bg-violet-50 dark:border-violet-900 dark:bg-violet-950/30' : 'border-stone-200 dark:border-zinc-800'}`}><Icon size={18} className={settings[key] ? 'text-violet-600' : 'text-stone-400'} /><span className="min-w-0 flex-1 text-sm font-bold text-stone-800 dark:text-zinc-200">{label}</span><span className={`h-5 w-9 rounded-full p-0.5 ${settings[key] ? 'bg-violet-500' : 'bg-stone-300 dark:bg-zinc-700'}`}><span className={`block h-4 w-4 rounded-full bg-white transition ${settings[key] ? 'translate-x-4' : ''}`} /></span></button>)}
+        </div>
+      </Card>
+
     </div>
   );
 }
-

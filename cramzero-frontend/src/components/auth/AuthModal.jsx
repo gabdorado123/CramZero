@@ -107,6 +107,8 @@ export function AuthModal({
         email: data.email,
         displayName: data.display_name,
         avatarUrl: data.avatar_url,
+        educationLevel: data.education_level,
+        university: data.university,
         isGuest: false,
       });
     } catch (err) {
@@ -150,6 +152,8 @@ export function AuthModal({
         email: null,
         displayName: data.display_name,
         avatarUrl: data.avatar_url,
+        educationLevel: data.education_level,
+        university: data.university,
         isGuest: true,
       });
     } catch (err) {
@@ -193,6 +197,8 @@ export function AuthModal({
         email: data.email,
         displayName: data.display_name,
         avatarUrl: data.avatar_url,
+        educationLevel: data.education_level,
+        university: data.university,
         isGuest: false,
       });
     } catch (err) {
@@ -721,4 +727,3 @@ export function AuthModal({
     </div>
   );
 }
-

@@ -9,6 +9,8 @@ from datetime import datetime, timezone
 import tempfile
 import asyncio
 import uuid
+from urllib.parse import urlencode
+from urllib.request import Request as UrlRequest, urlopen
 from io import BytesIO
 from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -58,6 +60,72 @@ except Exception as e:
 GROQ_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
 FALLBACK_GEMINI_MODELS = ["gemini-2.0-flash", "gemini-1.5-flash"]
 
+PHILIPPINE_UNIVERSITIES = [
+    {"name": "University of the Philippines Diliman", "city": "Quezon City", "short_name": "UP Diliman", "logo_url": "https://upload.wikimedia.org/wikipedia/en/9/9c/University_of_the_Philippines_seal.svg"},
+    {"name": "Ateneo de Manila University", "city": "Quezon City", "short_name": "Ateneo de Manila", "logo_url": "https://upload.wikimedia.org/wikipedia/en/8/8e/Ateneo_de_Manila_University_seal.svg"},
+    {"name": "De La Salle University", "city": "Manila", "short_name": "DLSU", "logo_url": "https://upload.wikimedia.org/wikipedia/en/8/8f/De_La_Salle_University_seal.svg"},
+    {"name": "University of Santo Tomas", "city": "Manila", "short_name": "UST", "logo_url": "https://upload.wikimedia.org/wikipedia/en/0/0c/University_of_Santo_Tomas_seal.svg"},
+    {"name": "Polytechnic University of the Philippines", "city": "Manila", "short_name": "PUP", "logo_url": "https://upload.wikimedia.org/wikipedia/en/3/3f/Polytechnic_University_of_the_Philippines_seal.svg"},
+    {"name": "Far Eastern University", "city": "Manila", "short_name": "FEU", "logo_url": "https://upload.wikimedia.org/wikipedia/en/9/9e/Far_Eastern_University_seal.svg"},
+    {"name": "Mapúa University", "city": "Manila", "short_name": "Mapúa", "logo_url": "https://upload.wikimedia.org/wikipedia/en/8/8c/Mapua_University_seal.svg"},
+    {"name": "University of the East", "city": "Manila", "short_name": "UE", "logo_url": "https://upload.wikimedia.org/wikipedia/en/6/6f/University_of_the_East_seal.svg"},
+    {"name": "Adamson University", "city": "Manila", "short_name": "Adamson", "logo_url": "https://upload.wikimedia.org/wikipedia/en/8/82/Adamson_University_seal.svg"},
+    {"name": "University of San Carlos", "city": "Cebu City", "short_name": "USC", "logo_url": "https://upload.wikimedia.org/wikipedia/en/2/2f/University_of_San_Carlos_seal.svg"},
+    {"name": "Silliman University", "city": "Dumaguete", "short_name": "Silliman", "logo_url": "https://upload.wikimedia.org/wikipedia/en/2/2a/Silliman_University_seal.svg"},
+    {"name": "Mindanao State University - Iligan Institute of Technology", "city": "Iligan", "short_name": "MSU-IIT", "logo_url": "https://upload.wikimedia.org/wikipedia/en/3/3e/MSU-IIT_seal.svg"},
+]
+PHILIPPINE_UNIVERSITY_MAP = {item["name"]: item for item in PHILIPPINE_UNIVERSITIES}
+PHILIPPINE_UNIVERSITY_ALIASES = {
+    "University of the Philippines": "University of the Philippines Diliman",
+    "UP Diliman": "University of the Philippines Diliman",
+    "Ateneo": "Ateneo de Manila University",
+    "DLSU": "De La Salle University",
+    "UST": "University of Santo Tomas",
+    "PUP": "Polytechnic University of the Philippines",
+}
+HIPOLABS_PHILIPPINES_URL = "https://universities.hipolabs.com/search?country=Philippines"
+OPENALEX_PHILIPPINES_URL = "https://api.openalex.org/institutions"
+_university_catalog_cache = {"items": [], "expires_at": 0}
+
+
+def get_philippine_universities():
+    if time.time() < _university_catalog_cache["expires_at"]:
+        return _university_catalog_cache["items"]
+    try:
+        payload = []
+        cursor = "*"
+        for _ in range(10):
+            params = urlencode({"filter": "country_code:PH", "per-page": 200, "cursor": cursor})
+            request = UrlRequest(f"{OPENALEX_PHILIPPINES_URL}?{params}", headers={"User-Agent": "CramZero/1.0"})
+            with urlopen(request, timeout=8) as response:
+                page = json.loads(response.read().decode("utf-8"))
+            payload.extend(page.get("results") or [])
+            cursor = (page.get("meta") or {}).get("next_cursor")
+            if not cursor:
+                break
+        universities = []
+        seen_names = set()
+        for item in payload:
+            name = (item.get("display_name") or "").strip()
+            homepage = (item.get("homepage_url") or "").strip()
+            if not name or name.casefold() in seen_names:
+                continue
+            seen_names.add(name.casefold())
+            domain = homepage.split("//")[-1].split("/")[0] if homepage else ""
+            universities.append({
+                "name": name,
+                "city": (item.get("geo") or {}).get("city") or "",
+                "short_name": name,
+                "logo_url": item.get("image_url") or item.get("image_thumbnail_url") or (f"https://{domain}/favicon.ico" if domain else ""),
+                "domain": domain,
+            })
+        if universities:
+            _university_catalog_cache["items"] = universities
+            _university_catalog_cache["expires_at"] = time.time() + 3600
+    except Exception as error:
+        print(f"Warning: Hipolabs university catalog unavailable, using cached catalog. {error}")
+    return _university_catalog_cache["items"]
+
 
 def extract_json_data(text: str):
     if not text:
@@ -85,9 +153,26 @@ try:
             if "author_name" not in cols:
                 conn.execute(text("ALTER TABLE decks ADD COLUMN author_name VARCHAR(120) DEFAULT 'Student'"))
                 conn.commit()
+            if "bio" not in [row[1] for row in conn.execute(text("PRAGMA table_info(users)")).fetchall()]:
+                conn.execute(text("ALTER TABLE users ADD COLUMN bio TEXT"))
+                conn.commit()
+            if "profile_visibility" not in [row[1] for row in conn.execute(text("PRAGMA table_info(users)")).fetchall()]:
+                conn.execute(text("ALTER TABLE users ADD COLUMN profile_visibility VARCHAR(20) DEFAULT 'Public'"))
+                conn.commit()
+            user_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(users)")).fetchall()]
+            if "education_level" not in user_cols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN education_level VARCHAR(80)"))
+                conn.commit()
+            if "university" not in user_cols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN university VARCHAR(180)"))
+                conn.commit()
         else:
             conn.execute(text("ALTER TABLE decks ADD COLUMN IF NOT EXISTS user_id VARCHAR(64)"))
             conn.execute(text("ALTER TABLE decks ADD COLUMN IF NOT EXISTS author_name VARCHAR(120) DEFAULT 'Student'"))
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT"))
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_visibility VARCHAR(20) DEFAULT 'Public'"))
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS education_level VARCHAR(80)"))
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS university VARCHAR(180)"))
             conn.commit()
 except Exception as e:
     print(f"Migration note (columns on decks): {e}")
@@ -262,6 +347,10 @@ def _user_payload(user):
         "email": user.email,
         "display_name": user.display_name or "Student",
         "avatar_url": user.avatar_url,
+        "bio": user.bio,
+        "profile_visibility": user.profile_visibility or "Public",
+        "education_level": user.education_level,
+        "university": user.university,
         "is_guest": not bool(user.email and user.password_hash),
         "created_at": user.created_at,
     }
@@ -377,6 +466,18 @@ def update_user_profile(payload: schemas.UserProfileUpdate, db: Session = Depend
     
     if payload.avatar_url is not None:
         user.avatar_url = payload.avatar_url
+    if payload.bio is not None:
+        user.bio = payload.bio.strip()[:500]
+    if payload.profile_visibility is not None:
+        user.profile_visibility = "Private" if payload.profile_visibility.lower() == "private" else "Public"
+    if payload.education_level is not None:
+        user.education_level = payload.education_level.strip()[:80] or None
+    if payload.university is not None:
+        selected_university = payload.university.strip()
+        catalog = get_philippine_universities()
+        if selected_university and selected_university not in {item["name"] for item in catalog} and selected_university not in PHILIPPINE_UNIVERSITY_MAP:
+            raise HTTPException(status_code=400, detail="Choose a university from the Philippine university list.")
+        user.university = selected_university or None
     
     # Check if upgrading guest to full account
     if payload.email and payload.password:
@@ -394,6 +495,149 @@ def update_user_profile(payload: schemas.UserProfileUpdate, db: Session = Depend
     db.commit()
     db.refresh(user)
     return _user_payload(user)
+
+
+def _profile_payload(user, viewer_id: str | None, db: Session):
+    is_following = bool(viewer_id and db.query(models.UserFollow).filter(
+        models.UserFollow.follower_id == viewer_id,
+        models.UserFollow.following_id == user.id,
+    ).first())
+    public_decks = db.query(models.Deck).filter(
+        models.Deck.user_id == user.id,
+        models.Deck.visibility == "Public",
+    ).order_by(models.Deck.created_at.desc()).all()
+    return {
+        **_user_payload(user),
+        "follower_count": db.query(models.UserFollow).filter(models.UserFollow.following_id == user.id).count(),
+        "following_count": db.query(models.UserFollow).filter(models.UserFollow.follower_id == user.id).count(),
+        "is_following": is_following,
+        "decks": [_deck_payload(deck) for deck in public_decks] if user.profile_visibility != "Private" or viewer_id == user.id else [],
+        "education_level": user.education_level,
+        "university": user.university,
+    }
+
+
+@app.get("/api/users/search")
+def search_users(query: str = "", viewer_id: str | None = None, limit: int = 20, db: Session = Depends(get_db)):
+    term = query.strip()
+    if not term:
+        return []
+    users = db.query(models.User).filter(
+        models.User.profile_visibility == "Public",
+        models.User.display_name.ilike(f"%{term}%"),
+    ).order_by(models.User.display_name.asc()).limit(min(limit, 50)).all()
+    return [_profile_payload(user, viewer_id, db) for user in users]
+
+
+@app.get("/api/universities")
+def list_universities(query: str = "", limit: int = 500, db: Session = Depends(get_db)):
+    term = query.strip()
+    communities = []
+    for university in get_philippine_universities():
+        if term and term.casefold() not in university["name"].casefold() and term.casefold() not in university["short_name"].casefold() and term.casefold() not in university["city"].casefold():
+            continue
+        legacy_names = [alias for alias, canonical in PHILIPPINE_UNIVERSITY_ALIASES.items() if canonical == university["name"]]
+        communities.append({
+        **university,
+        "member_count": db.query(models.User).filter(
+            models.User.profile_visibility == "Public",
+            models.User.university.in_([university["name"], *legacy_names]),
+        ).count(),
+        })
+    return communities[:min(limit, 500)]
+
+
+@app.get("/api/universities/catalog")
+def university_catalog():
+    return get_philippine_universities()
+
+
+@app.get("/api/universities/{university_name}")
+def get_university_community(university_name: str, viewer_id: str | None = None, db: Session = Depends(get_db)):
+    catalog_entry = next(
+        (item for item in get_philippine_universities() if item["name"] == university_name.strip()),
+        PHILIPPINE_UNIVERSITY_MAP.get(university_name.strip()),
+    )
+    if not catalog_entry:
+        raise HTTPException(status_code=404, detail="University is not in the supported Philippine university list.")
+    legacy_names = [alias for alias, canonical in PHILIPPINE_UNIVERSITY_ALIASES.items() if canonical == catalog_entry["name"]]
+    users = db.query(models.User).filter(
+        models.User.profile_visibility == "Public",
+        models.User.university.in_([catalog_entry["name"], *legacy_names]),
+    ).all()
+    user_ids = [user.id for user in users]
+    decks = db.query(models.Deck).filter(
+        models.Deck.user_id.in_(user_ids),
+        models.Deck.visibility == "Public",
+    ).order_by(models.Deck.created_at.desc()).limit(100).all()
+    leaderboard = []
+    for user in users:
+        public_deck_count = sum(1 for deck in decks if deck.user_id == user.id)
+        follower_count = db.query(models.UserFollow).filter(models.UserFollow.following_id == user.id).count()
+        leaderboard.append({
+            "id": user.id,
+            "display_name": user.display_name,
+            "avatar_url": user.avatar_url,
+            "public_decks": public_deck_count,
+            "followers": follower_count,
+            "score": public_deck_count * 10 + follower_count * 2,
+        })
+    leaderboard.sort(key=lambda item: (-item["score"], item["display_name"].casefold()))
+    return {
+        "name": catalog_entry["name"],
+        "city": catalog_entry["city"],
+        "short_name": catalog_entry["short_name"],
+        "logo_url": catalog_entry["logo_url"],
+        "member_count": len(users),
+        "deck_count": len(decks),
+        "members": [_profile_payload(user, viewer_id, db) for user in users[:50]],
+        "decks": [_deck_payload(deck) for deck in decks],
+        "leaderboard": leaderboard[:10],
+    }
+
+
+@app.get("/api/users/{user_id}/profile")
+def get_public_profile(user_id: str, viewer_id: str | None = None, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+    if user.profile_visibility == "Private" and viewer_id != user.id:
+        raise HTTPException(status_code=403, detail="This profile is private.")
+    return _profile_payload(user, viewer_id, db)
+
+
+@app.post("/api/users/{user_id}/follow")
+def follow_user(user_id: str, payload: schemas.FollowRequest, db: Session = Depends(get_db)):
+    if payload.user_id == user_id:
+        raise HTTPException(status_code=400, detail="You cannot follow yourself.")
+    target = db.query(models.User).filter(models.User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found.")
+    if target.profile_visibility == "Private":
+        raise HTTPException(status_code=403, detail="This profile is private.")
+    existing = db.query(models.UserFollow).filter(
+        models.UserFollow.follower_id == payload.user_id,
+        models.UserFollow.following_id == user_id,
+    ).first()
+    if not existing:
+        db.add(models.UserFollow(follower_id=payload.user_id, following_id=user_id))
+        db.commit()
+    return _profile_payload(target, payload.user_id, db)
+
+
+@app.delete("/api/users/{user_id}/follow")
+def unfollow_user(user_id: str, payload: schemas.FollowRequest, db: Session = Depends(get_db)):
+    follow = db.query(models.UserFollow).filter(
+        models.UserFollow.follower_id == payload.user_id,
+        models.UserFollow.following_id == user_id,
+    ).first()
+    if follow:
+        db.delete(follow)
+        db.commit()
+    target = db.query(models.User).filter(models.User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found.")
+    return _profile_payload(target, payload.user_id, db)
 
 
 # --- DECK MANAGEMENT & SHARING ENDPOINTS ---
@@ -1760,4 +2004,3 @@ async def websocket_multiplayer(websocket: WebSocket):
             room = multiplayer_rooms.get(current_room_pin)
             if room:
                 await remove_player(room, current_player_id)
-

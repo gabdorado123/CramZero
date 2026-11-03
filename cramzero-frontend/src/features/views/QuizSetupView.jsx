@@ -51,6 +51,12 @@ export function QuizSetupView({ navigateTo, activeDeck, setExamConfig }) {
           'Select the test parameters and question format for this session.'
         )}
       </p>
+      <div className="mb-6 flex items-start gap-3 rounded-2xl border border-violet-200/80 bg-violet-50/70 p-4 text-violet-900 dark:border-violet-900/60 dark:bg-violet-950/20 dark:text-violet-300">
+        <Sparkles size={18} className="mt-0.5 shrink-0 text-violet-600 dark:text-violet-400" />
+        <p className="text-xs leading-relaxed">
+          <span className="font-bold">Mastery mode:</span> wrong choices are ruled out, hints can narrow the field, and every question returns until you solve it.
+        </p>
+      </div>
       
       {/* Challenge Length Card */}
       <Card className="p-6 md:p-7 shadow-sm mb-6 bg-white dark:bg-zinc-900 border border-stone-200/90 dark:border-zinc-800 rounded-3xl">
