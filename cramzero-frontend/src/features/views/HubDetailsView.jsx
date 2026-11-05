@@ -1,8 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
 import {
   BookOpen, Users, UploadCloud, Plus, ArrowLeft, Trash2,
   CheckCircle, Copy, Link as LinkIcon, X, ShieldCheck,
-  Search, Sparkles, FileText, Share2, Layers, Check
+  Search, Sparkles, FileText, Share2, Layers, Check, Library
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
