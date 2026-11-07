@@ -47,28 +47,28 @@ export function StudyRewardsPanel({ events, deckCount, displayName = 'You' }) {
 
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
-      <Card className="overflow-hidden rounded-3xl border border-stone-800 bg-stone-900 text-stone-100 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 lg:col-span-3">
+      <Card className="overflow-hidden rounded-3xl border border-stone-200/90 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900 lg:col-span-3">
         <CardContent className="relative p-6 sm:p-7">
           <div className="relative flex items-start justify-between gap-4">
             <div>
-              <Badge className="border border-amber-400/30 bg-amber-400/15 font-bold text-amber-300">Your Study Progress</Badge>
-              <h3 className="mt-3 text-2xl font-black tracking-tight text-white">Level {level} learner</h3>
-              <p className="mt-1 text-sm text-stone-300">Every review advances your mastery and unlocks higher ranks.</p>
+              <Badge className="border border-amber-300/80 bg-amber-50 font-bold text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-300">Your Study Progress</Badge>
+              <h3 className="mt-3 text-2xl font-black tracking-tight text-umber dark:text-zinc-100">Level {level} learner</h3>
+              <p className="mt-1 text-sm font-medium text-stone-600 dark:text-zinc-400">Every review advances your mastery and unlocks higher ranks.</p>
             </div>
-            <div className="rounded-2xl border border-stone-700/80 bg-stone-800/90 p-3"><Zap size={24} className="text-amber-400" fill="currentColor" /></div>
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-amber-600 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400"><Zap size={24} fill="currentColor" /></div>
           </div>
           <div className="relative mt-6">
-            <div className="mb-2 flex justify-between text-xs font-bold text-stone-300">
+            <div className="mb-2 flex justify-between text-xs font-bold text-stone-700 dark:text-zinc-300">
               <span>{stats.xp} XP earned</span><span>{100 - levelProgress} XP to next level</span>
             </div>
-            <div className="h-3 overflow-hidden rounded-full border border-stone-700/50 bg-stone-800">
-              <div className="h-full rounded-full bg-amber-400 transition-all duration-700" style={{ width: `${levelProgress}%` }} />
+            <div className="h-3 overflow-hidden rounded-full border border-stone-200/80 bg-stone-100 dark:border-zinc-700 dark:bg-zinc-800">
+              <div className="h-full rounded-full bg-amber-500 transition-all duration-700" style={{ width: `${levelProgress}%` }} />
             </div>
           </div>
           <div className="relative mt-6 grid grid-cols-3 gap-2.5">
-            <div className="rounded-2xl border border-stone-700/60 bg-stone-800/70 p-3"><p className="text-xl font-black text-white">{stats.reviews}</p><p className="text-[10px] font-bold uppercase text-stone-400">Reviews</p></div>
-            <div className="rounded-2xl border border-stone-700/60 bg-stone-800/70 p-3"><p className="text-xl font-black text-white">{stats.correct}</p><p className="text-[10px] font-bold uppercase text-stone-400">Correct</p></div>
-            <div className="rounded-2xl border border-stone-700/60 bg-stone-800/70 p-3"><p className="text-xl font-black text-white">{stats.activeDays}</p><p className="text-[10px] font-bold uppercase text-stone-400">Study days</p></div>
+            <div className="rounded-2xl border border-stone-200/80 bg-stone-50/80 p-3 dark:border-zinc-800 dark:bg-zinc-800/60"><p className="text-xl font-black text-umber dark:text-zinc-100">{stats.reviews}</p><p className="text-[10px] font-bold uppercase text-stone-500 dark:text-zinc-400">Reviews</p></div>
+            <div className="rounded-2xl border border-stone-200/80 bg-stone-50/80 p-3 dark:border-zinc-800 dark:bg-zinc-800/60"><p className="text-xl font-black text-umber dark:text-zinc-100">{stats.correct}</p><p className="text-[10px] font-bold uppercase text-stone-500 dark:text-zinc-400">Correct</p></div>
+            <div className="rounded-2xl border border-stone-200/80 bg-stone-50/80 p-3 dark:border-zinc-800 dark:bg-zinc-800/60"><p className="text-xl font-black text-umber dark:text-zinc-100">{stats.activeDays}</p><p className="text-[10px] font-bold uppercase text-stone-500 dark:text-zinc-400">Study days</p></div>
           </div>
         </CardContent>
       </Card>

@@ -29,6 +29,7 @@ import ReactMarkdown from 'react-markdown';
 import { PrimaryNavigation } from '@/components/layout/PrimaryNavigation';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { UsageTracker } from '@/components/layout/UsageTracker';
+import { WorkspaceSkeleton } from '@/components/layout/WorkspaceSkeleton';
 import { LandingPageView } from '@/features/views/LandingPageView';
 import { DashboardView } from '@/features/views/DashboardView';
 import { AuthModal } from '@/components/auth/AuthModal';
@@ -648,60 +649,57 @@ export default function App() {
             </div>
           )}
           {/* Main Views */}
-          <Suspense fallback={
-            <div className="flex flex-1 items-center justify-center p-12">
-              <div className="flex items-center gap-2.5 rounded-2xl bg-white/80 dark:bg-zinc-900/80 px-4 py-2.5 shadow-xs border border-stone-200/80 dark:border-zinc-800">
-                <RotateCw size={15} className="animate-spin text-amber-500" />
-                <span className="text-xs font-semibold text-stone-600 dark:text-zinc-400">Loading...</span>
-              </div>
-            </div>
-          }>
-            {currentView === 'dashboard' && <DashboardView navigateTo={handleNavigate} setHasActiveDeck={setHasActiveDeck} setActiveDeck={setActiveDeck} myDecks={myDecks} displayName={displayName} />}
-            {currentView === 'study' && <StudyView navigateTo={handleNavigate} hasActiveDeck={hasActiveDeck} setHasActiveDeck={setHasActiveDeck} setActiveDeck={setActiveDeck} myDecks={myDecks} />}
-            {currentView === 'decks' && <DecksView navigateTo={handleNavigate} setActiveDeck={setActiveDeck} myDecks={myDecks} setMyDecks={setMyDecks} userId={userId} displayName={displayName} />}
-            {currentView === 'profile' && (
-              <ProfileView 
-                navigateTo={handleNavigate} 
-                userId={userId} 
-                displayName={displayName} 
-                setDisplayName={setDisplayName} 
-                userEmail={userEmail} 
-                setUserEmail={setUserEmail} 
-                avatarUrl={avatarUrl} 
-                setAvatarUrl={setAvatarUrl} 
-                bio={userBio}
-                setBio={setUserBio}
-                educationLevel={educationLevel === 'skipped' ? '' : educationLevel}
-                setEducationLevel={setEducationLevel}
-                university={university === 'skipped' ? '' : university}
-                setUniversity={setUniversity}
-                isGuest={isGuest} 
-                setIsGuest={setIsGuest} 
-                myDecks={myDecks} 
-                myHubs={myHubs} 
-                onOpenAuthModal={(m) => { setAuthModalMode(m || 'register'); setShowAuthModal(true); }}
-                onSignOut={handleSignOut}
-              />
-            )}
-            {currentView === 'hubs' && <StudyHubsView navigateTo={handleNavigate} setActiveHub={setActiveHub} myHubs={myHubs} userId={userId} displayName={displayName} />}
-            {currentView === 'social' && <SocialView navigateTo={handleNavigate} userId={userId} setActiveDeck={setActiveDeck} />}
-            {currentView === 'notifications' && <NotificationsView navigateTo={handleNavigate} userId={userId} />}
-            {currentView === 'analytics' && <AnalyticsView myDecks={myDecks} />}
-            {currentView === 'new-deck' && <NewDeckView navigateTo={handleNavigate} myDecks={myDecks} setMyDecks={setMyDecks} userId={userId} setIsActionLoading={setIsActionLoading} setActionMessage={setActionMessage} />}
-            {currentView === 'multiplayer' && <MultiplayerView navigateTo={handleNavigate} myDecks={myDecks} userDisplayName={displayName} userAvatarUrl={avatarUrl} setActiveDeck={setActiveDeck} />}
-            {currentView === 'codespace' && <CodeSpaceView navigateTo={handleNavigate} />}
-            
-            {/* Sub Views */}
-            {currentView === 'create-hub' && <CreateHubView navigateTo={handleNavigate} myHubs={myHubs} setMyHubs={setMyHubs} myDecks={myDecks} setMyDecks={setMyDecks} userId={userId} displayName={displayName} setIsActionLoading={setIsActionLoading} setActionMessage={setActionMessage} />}
-            {currentView === 'hub-details' && <HubDetailsView navigateTo={handleNavigate} activeHub={activeHub} setActiveHub={setActiveHub} setMyHubs={setMyHubs} myDecks={myDecks} setMyDecks={setMyDecks} setActiveDeck={setActiveDeck} userId={userId} />}
-            {currentView === 'deck-details' && <DeckDetailsView navigateTo={handleNavigate} activeDeck={activeDeck} setActiveDeck={setActiveDeck} setIsTutorOpen={setIsTutorOpen} userId={userId} displayName={displayName} myDecks={myDecks} setMyDecks={setMyDecks} />}
-            {currentView === 'flashcard-mode' && <FlashcardModeView navigateTo={handleNavigate} activeDeck={activeDeck} setIsTutorOpen={setIsTutorOpen} />}
-            
-            {/* Wired Active Assessment Views */}
-            {currentView === 'quiz-setup' && <QuizSetupView navigateTo={handleNavigate} activeDeck={activeDeck} setExamConfig={setExamConfig} />}
-            {currentView === 'mock-exam-setup' && <MockExamSetupView navigateTo={handleNavigate} activeDeck={activeDeck} setExamConfig={setExamConfig} />}
-            {currentView === 'mock-exam-active' && <MockExamActiveView navigateTo={handleNavigate} activeDeck={activeDeck} examConfig={examConfig} userId={userId} />}
-          </Suspense>
+          {isBooting ? (
+            <WorkspaceSkeleton />
+          ) : (
+            <Suspense fallback={<WorkspaceSkeleton />}>
+              {currentView === 'dashboard' && <DashboardView navigateTo={handleNavigate} setHasActiveDeck={setHasActiveDeck} setActiveDeck={setActiveDeck} myDecks={myDecks} displayName={displayName} />}
+              {currentView === 'study' && <StudyView navigateTo={handleNavigate} hasActiveDeck={hasActiveDeck} setHasActiveDeck={setHasActiveDeck} setActiveDeck={setActiveDeck} myDecks={myDecks} />}
+              {currentView === 'decks' && <DecksView navigateTo={handleNavigate} setActiveDeck={setActiveDeck} myDecks={myDecks} setMyDecks={setMyDecks} userId={userId} displayName={displayName} />}
+              {currentView === 'profile' && (
+                <ProfileView 
+                  navigateTo={handleNavigate} 
+                  userId={userId} 
+                  displayName={displayName} 
+                  setDisplayName={setDisplayName} 
+                  userEmail={userEmail} 
+                  setUserEmail={setUserEmail} 
+                  avatarUrl={avatarUrl} 
+                  setAvatarUrl={setAvatarUrl} 
+                  bio={userBio}
+                  setBio={setUserBio}
+                  educationLevel={educationLevel === 'skipped' ? '' : educationLevel}
+                  setEducationLevel={setEducationLevel}
+                  university={university === 'skipped' ? '' : university}
+                  setUniversity={setUniversity}
+                  isGuest={isGuest} 
+                  setIsGuest={setIsGuest} 
+                  myDecks={myDecks} 
+                  myHubs={myHubs} 
+                  onOpenAuthModal={(m) => { setAuthModalMode(m || 'register'); setShowAuthModal(true); }}
+                  onSignOut={handleSignOut}
+                />
+              )}
+              {currentView === 'hubs' && <StudyHubsView navigateTo={handleNavigate} setActiveHub={setActiveHub} myHubs={myHubs} userId={userId} displayName={displayName} />}
+              {currentView === 'social' && <SocialView navigateTo={handleNavigate} userId={userId} setActiveDeck={setActiveDeck} />}
+              {currentView === 'notifications' && <NotificationsView navigateTo={handleNavigate} userId={userId} />}
+              {currentView === 'analytics' && <AnalyticsView myDecks={myDecks} />}
+              {currentView === 'new-deck' && <NewDeckView navigateTo={handleNavigate} myDecks={myDecks} setMyDecks={setMyDecks} userId={userId} setIsActionLoading={setIsActionLoading} setActionMessage={setActionMessage} />}
+              {currentView === 'multiplayer' && <MultiplayerView navigateTo={handleNavigate} myDecks={myDecks} userDisplayName={displayName} userAvatarUrl={avatarUrl} setActiveDeck={setActiveDeck} />}
+              {currentView === 'codespace' && <CodeSpaceView navigateTo={handleNavigate} />}
+              
+              {/* Sub Views */}
+              {currentView === 'create-hub' && <CreateHubView navigateTo={handleNavigate} myHubs={myHubs} setMyHubs={setMyHubs} myDecks={myDecks} setMyDecks={setMyDecks} userId={userId} displayName={displayName} setIsActionLoading={setIsActionLoading} setActionMessage={setActionMessage} />}
+              {currentView === 'hub-details' && <HubDetailsView navigateTo={handleNavigate} activeHub={activeHub} setActiveHub={setActiveHub} setMyHubs={setMyHubs} myDecks={myDecks} setMyDecks={setMyDecks} setActiveDeck={setActiveDeck} userId={userId} />}
+              {currentView === 'deck-details' && <DeckDetailsView navigateTo={handleNavigate} activeDeck={activeDeck} setActiveDeck={setActiveDeck} setIsTutorOpen={setIsTutorOpen} userId={userId} displayName={displayName} myDecks={myDecks} setMyDecks={setMyDecks} />}
+              {currentView === 'flashcard-mode' && <FlashcardModeView navigateTo={handleNavigate} activeDeck={activeDeck} setIsTutorOpen={setIsTutorOpen} />}
+              
+              {/* Wired Active Assessment Views */}
+              {currentView === 'quiz-setup' && <QuizSetupView navigateTo={handleNavigate} activeDeck={activeDeck} setExamConfig={setExamConfig} />}
+              {currentView === 'mock-exam-setup' && <MockExamSetupView navigateTo={handleNavigate} activeDeck={activeDeck} setExamConfig={setExamConfig} />}
+              {currentView === 'mock-exam-active' && <MockExamActiveView navigateTo={handleNavigate} activeDeck={activeDeck} examConfig={examConfig} userId={userId} />}
+            </Suspense>
+          )}
         </div>
 
         {/* Mobile Bottom Navigation Bar */}
@@ -710,8 +708,8 @@ export default function App() {
         )}
       </main>
 
-      {/* Action Overlays for major creations */}
-      {(isBooting || isActionLoading) && (
+      {/* Action Overlays for major creations (e.g. AI Deck Generation) */}
+      {isActionLoading && (
         <div className="cz-loading-backdrop fixed inset-0 z-[100] flex flex-col items-center justify-center animate-in fade-in duration-300 p-4">
           <div className="cz-loading-card max-w-sm w-full flex flex-col items-center text-center animate-in zoom-in-95 duration-200">
             <div className="cz-loading-mark relative mb-6">
@@ -723,7 +721,7 @@ export default function App() {
               </div>
             </div>
             <h2 className="cz-loading-title mb-2">CramZero is cooking <span className="cz-loading-emoji" aria-hidden="true">🔎</span></h2>
-            <p className="cz-loading-subtitle animate-pulse">{actionMessage || 'Firing up the engines'}</p>
+            <p className="cz-loading-subtitle animate-pulse">{actionMessage || 'Synthesizing your materials'}</p>
           </div>
         </div>
       )}
