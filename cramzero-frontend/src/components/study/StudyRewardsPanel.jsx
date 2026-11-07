@@ -47,29 +47,28 @@ export function StudyRewardsPanel({ events, deckCount, displayName = 'You' }) {
 
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
-      <Card className="cz-color-card--quest overflow-hidden rounded-3xl border-0 shadow-lg lg:col-span-3">
+      <Card className="overflow-hidden rounded-3xl border border-stone-800 bg-stone-900 text-stone-100 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 lg:col-span-3">
         <CardContent className="relative p-6 sm:p-7">
-          <div className="absolute -right-8 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
           <div className="relative flex items-start justify-between gap-4">
             <div>
-              <Badge className="border-0 bg-white/15 text-violet-100">Your learning quest</Badge>
-              <h3 className="mt-3 text-2xl font-black tracking-tight">Level {level} learner</h3>
-              <p className="mt-1 text-sm text-violet-100">Every review powers your next unlock.</p>
+              <Badge className="border border-amber-400/30 bg-amber-400/15 font-bold text-amber-300">Your Study Progress</Badge>
+              <h3 className="mt-3 text-2xl font-black tracking-tight text-white">Level {level} learner</h3>
+              <p className="mt-1 text-sm text-stone-300">Every review advances your mastery and unlocks higher ranks.</p>
             </div>
-            <div className="rounded-2xl bg-white/15 p-3"><Zap size={24} className="text-yellow-200" fill="currentColor" /></div>
+            <div className="rounded-2xl border border-stone-700/80 bg-stone-800/90 p-3"><Zap size={24} className="text-amber-400" fill="currentColor" /></div>
           </div>
           <div className="relative mt-6">
-            <div className="mb-2 flex justify-between text-xs font-bold text-violet-100">
+            <div className="mb-2 flex justify-between text-xs font-bold text-stone-300">
               <span>{stats.xp} XP earned</span><span>{100 - levelProgress} XP to next level</span>
             </div>
-            <div className="h-3 overflow-hidden rounded-full bg-black/20">
-              <div className="h-full rounded-full bg-gradient-to-r from-yellow-300 to-amber-400 transition-all duration-700" style={{ width: `${levelProgress}%` }} />
+            <div className="h-3 overflow-hidden rounded-full border border-stone-700/50 bg-stone-800">
+              <div className="h-full rounded-full bg-amber-400 transition-all duration-700" style={{ width: `${levelProgress}%` }} />
             </div>
           </div>
-          <div className="relative mt-6 grid grid-cols-3 gap-2">
-            <div className="rounded-2xl bg-white/10 p-3"><p className="text-xl font-black">{stats.reviews}</p><p className="text-[10px] font-bold uppercase text-violet-100">Reviews</p></div>
-            <div className="rounded-2xl bg-white/10 p-3"><p className="text-xl font-black">{stats.correct}</p><p className="text-[10px] font-bold uppercase text-violet-100">Correct</p></div>
-            <div className="rounded-2xl bg-white/10 p-3"><p className="text-xl font-black">{stats.activeDays}</p><p className="text-[10px] font-bold uppercase text-violet-100">Study days</p></div>
+          <div className="relative mt-6 grid grid-cols-3 gap-2.5">
+            <div className="rounded-2xl border border-stone-700/60 bg-stone-800/70 p-3"><p className="text-xl font-black text-white">{stats.reviews}</p><p className="text-[10px] font-bold uppercase text-stone-400">Reviews</p></div>
+            <div className="rounded-2xl border border-stone-700/60 bg-stone-800/70 p-3"><p className="text-xl font-black text-white">{stats.correct}</p><p className="text-[10px] font-bold uppercase text-stone-400">Correct</p></div>
+            <div className="rounded-2xl border border-stone-700/60 bg-stone-800/70 p-3"><p className="text-xl font-black text-white">{stats.activeDays}</p><p className="text-[10px] font-bold uppercase text-stone-400">Study days</p></div>
           </div>
         </CardContent>
       </Card>

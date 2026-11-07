@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react';
 import {
   BookOpen, Users, UploadCloud, Plus, ArrowLeft, Trash2,
   CheckCircle, Copy, Link as LinkIcon, X, ShieldCheck,

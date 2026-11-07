@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { flushSync } from 'react-dom';
 import { 
   BookOpen, Clock, FileText, Send, ChevronLeft, ChevronRight, RotateCw, Menu, X, 
@@ -26,30 +26,32 @@ import { Bubble, BubbleContent, BubbleGroup, BubbleReactions } from "@/component
 import { Marker, MarkerContent } from "@/components/ui/marker";
 import { Message, MessageAvatar, MessageContent, MessageFooter } from "@/components/ui/message";
 import ReactMarkdown from 'react-markdown';
-import { CodeSpaceView } from '@/features/codespace/CodeSpaceView';
 import { PrimaryNavigation } from '@/components/layout/PrimaryNavigation';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { UsageTracker } from '@/components/layout/UsageTracker';
 import { LandingPageView } from '@/features/views/LandingPageView';
-import { ProfileView } from '@/features/views/ProfileView';
+import { DashboardView } from '@/features/views/DashboardView';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { EducationSetupModal } from '@/components/auth/EducationSetupModal';
-import { DashboardView } from '@/features/views/DashboardView';
-import { StudyView } from '@/features/views/StudyView';
-import { DecksView } from '@/features/views/DecksView';
-import { AnalyticsView } from '@/features/views/AnalyticsView';
-import { StudyHubsView } from '@/features/views/StudyHubsView';
-import { CreateHubView } from '@/features/views/CreateHubView';
-import { HubDetailsView } from '@/features/views/HubDetailsView';
-import { NewDeckView } from '@/features/views/NewDeckView';
-import { DeckDetailsView } from '@/features/views/DeckDetailsView';
-import { FlashcardModeView } from '@/features/views/FlashcardModeView';
-import { QuizSetupView } from '@/features/views/QuizSetupView';
-import { MockExamSetupView } from '@/features/views/MockExamSetupView';
-import { MockExamActiveView } from '@/features/views/MockExamActiveView';
-import { MultiplayerView } from '@/features/views/MultiplayerView';
-import { SocialView } from '@/features/views/SocialView';
-import { NotificationsView } from '@/features/views/NotificationsView';
+
+// Code-split heavy secondary views for instantaneous initial boot and low memory footprint
+const CodeSpaceView = lazy(() => import('@/features/codespace/CodeSpaceView').then(m => ({ default: m.CodeSpaceView })));
+const ProfileView = lazy(() => import('@/features/views/ProfileView').then(m => ({ default: m.ProfileView })));
+const StudyView = lazy(() => import('@/features/views/StudyView').then(m => ({ default: m.StudyView })));
+const DecksView = lazy(() => import('@/features/views/DecksView').then(m => ({ default: m.DecksView })));
+const AnalyticsView = lazy(() => import('@/features/views/AnalyticsView').then(m => ({ default: m.AnalyticsView })));
+const StudyHubsView = lazy(() => import('@/features/views/StudyHubsView').then(m => ({ default: m.StudyHubsView })));
+const CreateHubView = lazy(() => import('@/features/views/CreateHubView').then(m => ({ default: m.CreateHubView })));
+const HubDetailsView = lazy(() => import('@/features/views/HubDetailsView').then(m => ({ default: m.HubDetailsView })));
+const NewDeckView = lazy(() => import('@/features/views/NewDeckView').then(m => ({ default: m.NewDeckView })));
+const DeckDetailsView = lazy(() => import('@/features/views/DeckDetailsView').then(m => ({ default: m.DeckDetailsView })));
+const FlashcardModeView = lazy(() => import('@/features/views/FlashcardModeView').then(m => ({ default: m.FlashcardModeView })));
+const QuizSetupView = lazy(() => import('@/features/views/QuizSetupView').then(m => ({ default: m.QuizSetupView })));
+const MockExamSetupView = lazy(() => import('@/features/views/MockExamSetupView').then(m => ({ default: m.MockExamSetupView })));
+const MockExamActiveView = lazy(() => import('@/features/views/MockExamActiveView').then(m => ({ default: m.MockExamActiveView })));
+const MultiplayerView = lazy(() => import('@/features/views/MultiplayerView').then(m => ({ default: m.MultiplayerView })));
+const SocialView = lazy(() => import('@/features/views/SocialView').then(m => ({ default: m.SocialView })));
+const NotificationsView = lazy(() => import('@/features/views/NotificationsView').then(m => ({ default: m.NotificationsView })));
 import { getInAppNotifications, IN_APP_NOTIFICATIONS_UPDATED } from '@/lib/inAppNotifications';
 import { OnboardingTour } from '@/components/OnboardingTour';
 import { speakWithElevenLabs } from '@/lib/elevenlabs';
@@ -121,6 +123,7 @@ export default function App() {
     if (!userId) return undefined;
     let cancelled = false;
     const refreshNotifications = async () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       try {
         const [serverResponse, localNotifications] = await Promise.all([
           fetch(`${API_BASE}/api/notifications?user_id=${encodeURIComponent(userId)}`),
@@ -449,14 +452,14 @@ export default function App() {
         setCurrentView('hub-details');
         window.history.replaceState({}, '', window.location.pathname);
       }
-      setTimeout(() => setIsBooting(false), 800);
+      setIsBooting(false);
     };
 
     loadWorkspace()
       .catch(err => {
         console.error("Backend offline or error:", err);
         setWorkspaceError(err.message || 'Could not load your workspace.');
-        setTimeout(() => setIsBooting(false), 800);
+        setIsBooting(false);
       });
   }, [userId, displayName]);
 
@@ -645,51 +648,60 @@ export default function App() {
             </div>
           )}
           {/* Main Views */}
-          {currentView === 'dashboard' && <DashboardView navigateTo={handleNavigate} setHasActiveDeck={setHasActiveDeck} setActiveDeck={setActiveDeck} myDecks={myDecks} displayName={displayName} />}
-          {currentView === 'study' && <StudyView navigateTo={handleNavigate} hasActiveDeck={hasActiveDeck} setHasActiveDeck={setHasActiveDeck} setActiveDeck={setActiveDeck} myDecks={myDecks} />}
-          {currentView === 'decks' && <DecksView navigateTo={handleNavigate} setActiveDeck={setActiveDeck} myDecks={myDecks} setMyDecks={setMyDecks} userId={userId} displayName={displayName} />}
-          {currentView === 'profile' && (
-            <ProfileView 
-              navigateTo={handleNavigate} 
-              userId={userId} 
-              displayName={displayName} 
-              setDisplayName={setDisplayName} 
-              userEmail={userEmail} 
-              setUserEmail={setUserEmail} 
-              avatarUrl={avatarUrl} 
-              setAvatarUrl={setAvatarUrl} 
-              bio={userBio}
-              setBio={setUserBio}
-              educationLevel={educationLevel === 'skipped' ? '' : educationLevel}
-              setEducationLevel={setEducationLevel}
-              university={university === 'skipped' ? '' : university}
-              setUniversity={setUniversity}
-              isGuest={isGuest} 
-              setIsGuest={setIsGuest} 
-              myDecks={myDecks} 
-              myHubs={myHubs} 
-              onOpenAuthModal={(m) => { setAuthModalMode(m || 'register'); setShowAuthModal(true); }}
-              onSignOut={handleSignOut}
-            />
-          )}
-          {currentView === 'hubs' && <StudyHubsView navigateTo={handleNavigate} setActiveHub={setActiveHub} myHubs={myHubs} userId={userId} displayName={displayName} />}
-          {currentView === 'social' && <SocialView navigateTo={handleNavigate} userId={userId} setActiveDeck={setActiveDeck} />}
-          {currentView === 'notifications' && <NotificationsView navigateTo={handleNavigate} userId={userId} />}
-          {currentView === 'analytics' && <AnalyticsView myDecks={myDecks} />}
-          {currentView === 'new-deck' && <NewDeckView navigateTo={handleNavigate} myDecks={myDecks} setMyDecks={setMyDecks} userId={userId} setIsActionLoading={setIsActionLoading} setActionMessage={setActionMessage} />}
-          {currentView === 'multiplayer' && <MultiplayerView navigateTo={handleNavigate} myDecks={myDecks} userDisplayName={displayName} userAvatarUrl={avatarUrl} setActiveDeck={setActiveDeck} />}
-          {currentView === 'codespace' && <CodeSpaceView navigateTo={handleNavigate} />}
-          
-          {/* Sub Views */}
-          {currentView === 'create-hub' && <CreateHubView navigateTo={handleNavigate} myHubs={myHubs} setMyHubs={setMyHubs} myDecks={myDecks} setMyDecks={setMyDecks} userId={userId} displayName={displayName} setIsActionLoading={setIsActionLoading} setActionMessage={setActionMessage} />}
-          {currentView === 'hub-details' && <HubDetailsView navigateTo={handleNavigate} activeHub={activeHub} setActiveHub={setActiveHub} setMyHubs={setMyHubs} myDecks={myDecks} setMyDecks={setMyDecks} setActiveDeck={setActiveDeck} userId={userId} />}
-          {currentView === 'deck-details' && <DeckDetailsView navigateTo={handleNavigate} activeDeck={activeDeck} setActiveDeck={setActiveDeck} setIsTutorOpen={setIsTutorOpen} userId={userId} displayName={displayName} myDecks={myDecks} setMyDecks={setMyDecks} />}
-          {currentView === 'flashcard-mode' && <FlashcardModeView navigateTo={handleNavigate} activeDeck={activeDeck} setIsTutorOpen={setIsTutorOpen} />}
-          
-          {/* Wired Active Assessment Views */}
-          {currentView === 'quiz-setup' && <QuizSetupView navigateTo={handleNavigate} activeDeck={activeDeck} setExamConfig={setExamConfig} />}
-          {currentView === 'mock-exam-setup' && <MockExamSetupView navigateTo={handleNavigate} activeDeck={activeDeck} setExamConfig={setExamConfig} />}
-          {currentView === 'mock-exam-active' && <MockExamActiveView navigateTo={handleNavigate} activeDeck={activeDeck} examConfig={examConfig} userId={userId} />}
+          <Suspense fallback={
+            <div className="flex flex-1 items-center justify-center p-12">
+              <div className="flex items-center gap-2.5 rounded-2xl bg-white/80 dark:bg-zinc-900/80 px-4 py-2.5 shadow-xs border border-stone-200/80 dark:border-zinc-800">
+                <RotateCw size={15} className="animate-spin text-amber-500" />
+                <span className="text-xs font-semibold text-stone-600 dark:text-zinc-400">Loading...</span>
+              </div>
+            </div>
+          }>
+            {currentView === 'dashboard' && <DashboardView navigateTo={handleNavigate} setHasActiveDeck={setHasActiveDeck} setActiveDeck={setActiveDeck} myDecks={myDecks} displayName={displayName} />}
+            {currentView === 'study' && <StudyView navigateTo={handleNavigate} hasActiveDeck={hasActiveDeck} setHasActiveDeck={setHasActiveDeck} setActiveDeck={setActiveDeck} myDecks={myDecks} />}
+            {currentView === 'decks' && <DecksView navigateTo={handleNavigate} setActiveDeck={setActiveDeck} myDecks={myDecks} setMyDecks={setMyDecks} userId={userId} displayName={displayName} />}
+            {currentView === 'profile' && (
+              <ProfileView 
+                navigateTo={handleNavigate} 
+                userId={userId} 
+                displayName={displayName} 
+                setDisplayName={setDisplayName} 
+                userEmail={userEmail} 
+                setUserEmail={setUserEmail} 
+                avatarUrl={avatarUrl} 
+                setAvatarUrl={setAvatarUrl} 
+                bio={userBio}
+                setBio={setUserBio}
+                educationLevel={educationLevel === 'skipped' ? '' : educationLevel}
+                setEducationLevel={setEducationLevel}
+                university={university === 'skipped' ? '' : university}
+                setUniversity={setUniversity}
+                isGuest={isGuest} 
+                setIsGuest={setIsGuest} 
+                myDecks={myDecks} 
+                myHubs={myHubs} 
+                onOpenAuthModal={(m) => { setAuthModalMode(m || 'register'); setShowAuthModal(true); }}
+                onSignOut={handleSignOut}
+              />
+            )}
+            {currentView === 'hubs' && <StudyHubsView navigateTo={handleNavigate} setActiveHub={setActiveHub} myHubs={myHubs} userId={userId} displayName={displayName} />}
+            {currentView === 'social' && <SocialView navigateTo={handleNavigate} userId={userId} setActiveDeck={setActiveDeck} />}
+            {currentView === 'notifications' && <NotificationsView navigateTo={handleNavigate} userId={userId} />}
+            {currentView === 'analytics' && <AnalyticsView myDecks={myDecks} />}
+            {currentView === 'new-deck' && <NewDeckView navigateTo={handleNavigate} myDecks={myDecks} setMyDecks={setMyDecks} userId={userId} setIsActionLoading={setIsActionLoading} setActionMessage={setActionMessage} />}
+            {currentView === 'multiplayer' && <MultiplayerView navigateTo={handleNavigate} myDecks={myDecks} userDisplayName={displayName} userAvatarUrl={avatarUrl} setActiveDeck={setActiveDeck} />}
+            {currentView === 'codespace' && <CodeSpaceView navigateTo={handleNavigate} />}
+            
+            {/* Sub Views */}
+            {currentView === 'create-hub' && <CreateHubView navigateTo={handleNavigate} myHubs={myHubs} setMyHubs={setMyHubs} myDecks={myDecks} setMyDecks={setMyDecks} userId={userId} displayName={displayName} setIsActionLoading={setIsActionLoading} setActionMessage={setActionMessage} />}
+            {currentView === 'hub-details' && <HubDetailsView navigateTo={handleNavigate} activeHub={activeHub} setActiveHub={setActiveHub} setMyHubs={setMyHubs} myDecks={myDecks} setMyDecks={setMyDecks} setActiveDeck={setActiveDeck} userId={userId} />}
+            {currentView === 'deck-details' && <DeckDetailsView navigateTo={handleNavigate} activeDeck={activeDeck} setActiveDeck={setActiveDeck} setIsTutorOpen={setIsTutorOpen} userId={userId} displayName={displayName} myDecks={myDecks} setMyDecks={setMyDecks} />}
+            {currentView === 'flashcard-mode' && <FlashcardModeView navigateTo={handleNavigate} activeDeck={activeDeck} setIsTutorOpen={setIsTutorOpen} />}
+            
+            {/* Wired Active Assessment Views */}
+            {currentView === 'quiz-setup' && <QuizSetupView navigateTo={handleNavigate} activeDeck={activeDeck} setExamConfig={setExamConfig} />}
+            {currentView === 'mock-exam-setup' && <MockExamSetupView navigateTo={handleNavigate} activeDeck={activeDeck} setExamConfig={setExamConfig} />}
+            {currentView === 'mock-exam-active' && <MockExamActiveView navigateTo={handleNavigate} activeDeck={activeDeck} examConfig={examConfig} userId={userId} />}
+          </Suspense>
         </div>
 
         {/* Mobile Bottom Navigation Bar */}

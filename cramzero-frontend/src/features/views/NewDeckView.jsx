@@ -590,7 +590,7 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
 
       {/* TAB 2: FILE UPLOAD */}
       {activeTab === 'file' && (
-        <Card className="rounded-3xl border border-blue-200/80 dark:border-blue-900/40 bg-gradient-to-b from-blue-50/40 via-white to-white dark:from-blue-950/20 dark:via-zinc-900 dark:to-zinc-900 p-6 sm:p-8 shadow-xs">
+        <Card className="rounded-3xl border border-stone-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-8 shadow-xs">
           <input 
             type="file" 
             ref={fileInputRef} 
@@ -601,7 +601,7 @@ export function NewDeckView({ navigateTo, myDecks, setMyDecks, userId, setIsActi
 
           <div className="space-y-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
                 <UploadCloud size={22} />
               </div>
               <div>

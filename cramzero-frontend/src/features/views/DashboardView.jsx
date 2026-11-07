@@ -194,33 +194,39 @@ export function DashboardView({ navigateTo, setHasActiveDeck, setActiveDeck, myD
     <div className="cz-world-page w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 space-y-6 md:space-y-8 animate-in fade-in duration-300">
       
       {/* Welcome Hero Banner with Quick Study CTA */}
-      <Card data-tour="dashboard-welcome" className="cz-quest-hero border-0 text-white">
-        <CardContent className="relative z-10 flex flex-col items-start justify-between gap-6 p-6 sm:p-9 md:flex-row md:items-center">
+      <Card data-tour="dashboard-welcome" className="bg-white dark:bg-zinc-900 border border-stone-200/90 dark:border-zinc-800 shadow-sm rounded-3xl overflow-hidden">
+        <CardContent className="flex flex-col items-start justify-between gap-6 p-6 sm:p-8 md:flex-row md:items-center">
           <div className="max-w-2xl space-y-3">
-            <div className="cz-quest-chip inline-flex items-center gap-1.5 px-3 py-1 text-xs font-black uppercase tracking-wider">
-              <Sparkles size={13} /> Quest board: ready
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/25">
+              <Sparkles size={13} className="text-amber-500" /> Workspace Ready
             </div>
-            <h2 className="text-3xl font-black tracking-tight sm:text-5xl">
+            <h2 className="text-2xl sm:text-4xl font-black text-umber dark:text-zinc-100 tracking-tight">
               Welcome back, {displayName}!
             </h2>
-            <p className="max-w-xl text-sm font-semibold leading-relaxed text-blue-50 md:text-base">
-              Your next learning adventure is waiting. You have <span className="font-black text-white">{myDecks.length} deck{myDecks.length > 1 ? 's' : ''}</span> ready to conquer.
+            <p className="max-w-xl text-sm sm:text-base font-medium leading-relaxed text-stone-600 dark:text-zinc-400">
+              Your study workspace is active. You have <span className="font-bold text-umber dark:text-zinc-200">{myDecks.length} deck{myDecks.length > 1 ? 's' : ''}</span> in your library ready for review.
             </p>
-            <div className="flex flex-wrap gap-2 pt-1 text-xs font-black">
-              <span className="cz-quest-chip px-3 py-1.5">⭐ Level {Math.max(1, Math.floor(events.length / 10) + 1)}</span>
-              <span className="cz-quest-chip px-3 py-1.5">🎯 {events.length} XP earned</span>
-              <span className="cz-quest-chip px-3 py-1.5">🗺️ {myDecks.length} worlds unlocked</span>
+            <div className="flex flex-wrap gap-2 pt-1 text-xs font-bold">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-stone-100 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 border border-stone-200/80 dark:border-zinc-700/70">
+                ⭐ Level {Math.max(1, Math.floor(events.length / 10) + 1)}
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-stone-100 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 border border-stone-200/80 dark:border-zinc-700/70">
+                🎯 {events.length} XP earned
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-stone-100 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 border border-stone-200/80 dark:border-zinc-700/70">
+                📚 {myDecks.length} deck{myDecks.length !== 1 ? 's' : ''} available
+              </span>
             </div>
           </div>
 
           <div className="flex w-full shrink-0 flex-col items-stretch gap-3 sm:flex-row md:w-auto md:flex-col">
-            <div className="float-soft mx-auto flex h-28 w-28 items-center justify-center rounded-full border-4 border-white/60 bg-white/20 p-4 shadow-xl md:h-36 md:w-36">
-              <img src="/cramzero-logo.svg" alt="Zero guide character" className="h-full w-full object-contain" />
+            <div className="mx-auto hidden md:flex h-24 w-24 items-center justify-center rounded-2xl border border-stone-200/80 bg-amber-50/60 p-4 shadow-xs dark:border-zinc-800 dark:bg-zinc-800/50">
+              <img src="/cramzero-logo.svg" alt="CramZero mark" className="h-full w-full object-contain" />
             </div>
             <Button 
               size="lg" 
               onClick={handleLaunchFirstDeck} 
-              className="cz-quest-button h-12 rounded-2xl px-6 font-black transition-all hover:-translate-y-0.5"
+              className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-black h-12 rounded-2xl px-6 shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2"
             >
               <Play size={16} fill="currentColor" /> Study Flashcards
             </Button>
@@ -228,7 +234,7 @@ export function DashboardView({ navigateTo, setHasActiveDeck, setActiveDeck, myD
               size="lg" 
               variant="outline"
               onClick={() => navigateTo('new-deck')} 
-              className="h-12 rounded-2xl border-2 border-white/50 bg-white/15 px-5 font-black text-white hover:bg-white/25"
+              className="h-12 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-5 font-bold text-stone-800 dark:text-zinc-200 hover:bg-stone-50 dark:hover:bg-zinc-800/80 shadow-xs flex items-center justify-center gap-2"
             >
               <Plus size={16} /> New Deck
             </Button>

@@ -58,9 +58,9 @@ export function StudyHubsView({ navigateTo, setActiveHub, myHubs, userId, displa
         </Button>
       </div>
 
-      <Card data-tour="study-hubs" className="bg-gradient-to-r from-blue-50/70 via-indigo-50/40 to-blue-50/70 dark:from-blue-950/40 dark:via-zinc-900 dark:to-blue-950/30 border border-blue-200/80 dark:border-blue-900/50 shadow-sm text-umber dark:text-zinc-100 rounded-3xl overflow-hidden backdrop-blur-sm">
+      <Card data-tour="study-hubs" className="bg-white dark:bg-zinc-900 border border-stone-200/90 dark:border-zinc-800 shadow-sm text-umber dark:text-zinc-100 rounded-3xl overflow-hidden">
         <CardContent className="p-6 md:p-8 flex flex-col md:flex-row items-center gap-6">
-          <div className="w-14 h-14 bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center shrink-0 shadow-xs border border-blue-200/60 dark:border-blue-500/20">
+          <div className="w-14 h-14 bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 rounded-2xl flex items-center justify-center shrink-0 shadow-xs border border-amber-200/60 dark:border-amber-500/20">
             <Share2 size={26} />
           </div>
           <div className="flex-1 text-center md:text-left">
@@ -68,8 +68,8 @@ export function StudyHubsView({ navigateTo, setActiveHub, myHubs, userId, displa
             <p className="text-taupe dark:text-zinc-400 text-sm">Got an invite link or access code? Enter it below to sync cards.</p>
           </div>
           <form onSubmit={handleJoin} className="flex w-full md:w-auto gap-2">
-            <Input value={inviteCode} onChange={(event) => setInviteCode(event.target.value)} type="text" placeholder="e.g. BSIT-3A-26" aria-label="Hub invite code" className="flex-1 md:w-52 bg-white/95 dark:bg-zinc-900/95 border-stone-200 dark:border-zinc-800 h-11 rounded-full px-4 text-umber dark:text-zinc-100 focus-visible:ring-blue-400" />
-            <Button type="submit" disabled={!inviteCode.trim()} className="h-11 px-6 rounded-full font-bold text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 shadow-xs">Join</Button>
+            <Input value={inviteCode} onChange={(event) => setInviteCode(event.target.value)} type="text" placeholder="e.g. BSIT-3A-26" aria-label="Hub invite code" className="flex-1 md:w-52 bg-stone-50 dark:bg-zinc-800 border-stone-200 dark:border-zinc-700 h-11 rounded-full px-4 text-umber dark:text-zinc-100 focus-visible:ring-amber-400" />
+            <Button type="submit" disabled={!inviteCode.trim()} className="h-11 px-6 rounded-full font-bold text-stone-950 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 shadow-xs">Join</Button>
           </form>
         </CardContent>
       </Card>

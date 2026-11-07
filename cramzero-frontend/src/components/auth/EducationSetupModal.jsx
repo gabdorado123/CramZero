@@ -57,11 +57,11 @@ export function EducationSetupModal({ userId, onComplete }) {
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-stone-950/55 p-4 backdrop-blur-md dark:bg-black/70">
       <Card className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto overflow-x-hidden rounded-[2rem] border-0 bg-white shadow-2xl dark:bg-zinc-900">
-        <div className="bg-gradient-to-br from-violet-600 to-indigo-600 p-6 text-white sm:p-8">
-          <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15"><GraduationCap size={28} /></div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-100">Make Community yours</p>
-          <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Where are you learning?</h2>
-          <p className="mt-2 text-sm leading-relaxed text-violet-100">Choose your level and university to find classmates, share decks, and join your campus leaderboard.</p>
+        <div className="bg-stone-900 dark:bg-zinc-950 p-6 text-white sm:p-8 border-b border-stone-800 dark:border-zinc-800">
+          <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-400 border border-amber-500/25"><GraduationCap size={28} /></div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-400">Make Community yours</p>
+          <h2 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-3xl">Where are you learning?</h2>
+          <p className="mt-2 text-sm leading-relaxed text-stone-300">Choose your level and university to find classmates, share decks, and join your campus leaderboard.</p>
         </div>
         <form onSubmit={save} className="space-y-5 p-6 sm:p-8">
           <div>
