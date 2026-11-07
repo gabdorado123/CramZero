@@ -4,7 +4,6 @@ import {
   CheckCircle, Copy, Link as LinkIcon, X, ShieldCheck,
   Search, Sparkles, FileText, Share2, Layers, Check, Library
 } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
