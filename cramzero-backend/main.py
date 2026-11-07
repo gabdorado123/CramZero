@@ -1372,7 +1372,6 @@ def generate_deck_with_ai(request: schemas.GenerateRequest, req: Request, db: Se
     prompt = f"""
     You are an expert tutor. Generate a highly effective flashcard deck about: {request.topic}.
     Provide exactly {request.card_count} key terms and definitions.
-    Definitions must be direct and MUST NOT repeat or include the term at the beginning (e.g. write 'The primary powerhouse of the cell that generates ATP' instead of 'Mitochondria is the powerhouse of the cell').
     Respond ONLY with a valid JSON array of objects. Do not include markdown formatting blocks.
     Format exactly like this:
     [
@@ -1540,7 +1539,6 @@ def generate_deck_from_text_groq(text_content: str, card_count: int) -> list:
     prompt = f"""
     You are an expert tutor. Extract the most important concepts from this document content and generate a highly effective flashcard deck.
     Provide exactly {card_count} key terms and definitions based strictly on the document text.
-    Definitions must be direct and MUST NOT repeat or include the term at the beginning (e.g. write 'The primary powerhouse of the cell that generates ATP' instead of 'Mitochondria is the powerhouse of the cell').
     Respond ONLY with a valid JSON array of objects. Do not include markdown formatting blocks or any explanatory prose.
     Format exactly like this:
     [
@@ -1592,7 +1590,6 @@ def generate_deck_from_text_gemini(text_content: str, card_count: int) -> list:
     prompt = f"""
     You are an expert tutor. Extract the most important concepts from this document content and generate a highly effective flashcard deck.
     Provide exactly {card_count} key terms and definitions based strictly on the document text.
-    Definitions must be direct and MUST NOT repeat or include the term at the beginning (e.g. write 'The primary powerhouse of the cell that generates ATP' instead of 'Mitochondria is the powerhouse of the cell').
     Respond ONLY with a valid JSON array of objects. Do not include markdown formatting blocks or any explanatory prose.
     Format exactly like this:
     [
