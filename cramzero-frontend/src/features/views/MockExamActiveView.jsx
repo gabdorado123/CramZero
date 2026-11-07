@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { addInAppNotification } from '@/lib/inAppNotifications';
 import { recordAnalyticsEvent } from '@/lib/analytics';
 import { ensureSfxEnabledByDefault, initAudio, playSfx, playSfxSequence, isSfxMuted, toggleSfxMute } from '@/lib/sfx';
+import { sanitizeDefinition } from '@/lib/sanitizeDefinition';
 import { API_BASE } from '@/lib/api';
 
 const SESSION_HEART_LIMIT = 7;
@@ -120,6 +121,9 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig, userId 
       const otherCards = safeDeck.cards.filter(c => c.term !== card.term);
       const shuffledOthers = [...otherCards].sort(() => Math.random() - 0.5);
 
+      // Sanitize the target definition so it does NOT include or leak the term being asked
+      const cleanCardDef = sanitizeDefinition(card.definition, card.term) || card.definition;
+
       if (currentType === 'tf') {
         // True / False Generation: 50% chance True, 50% chance False
         const isTrue = Math.random() >= 0.5 || shuffledOthers.length === 0;
@@ -129,42 +133,51 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig, userId 
             type: 'tf',
             scenario: isMock ? "Verification Analysis" : "True / False Check",
             question: isMock
-              ? `Evaluate the validity: "${card.term}" is defined as "${card.definition}".`
-              : `True or False: "${card.term}" refers to "${card.definition}".`,
+              ? `Evaluate the validity: "${card.term}" is defined as "${cleanCardDef}".`
+              : `True or False: "${card.term}" refers to "${cleanCardDef}".`,
             statementTerm: card.term,
-            statementDef: card.definition,
+            statementDef: cleanCardDef,
             options: ['True', 'False'],
             answer: 'True',
-            explanation: `Accurate. "${card.term}" correctly corresponds to: "${card.definition}".`,
-            hint: `Check whether the definition matches "${card.term}" exactly.`
+            explanation: `Accurate. "${card.term}" correctly corresponds to: "${cleanCardDef}".`,
+            hint: `Check whether the statement matches "${card.term}" accurately.`
           };
         } else {
           const impostor = shuffledOthers[0];
+          const cleanImpostorDef = sanitizeDefinition(impostor.definition, [impostor.term, card.term]) || impostor.definition;
           return {
             type: 'tf',
             scenario: isMock ? "Verification Analysis" : "True / False Check",
             question: isMock
-              ? `Evaluate the validity: "${card.term}" is defined as "${impostor.definition}".`
-              : `True or False: "${card.term}" refers to "${impostor.definition}".`,
+              ? `Evaluate the validity: "${card.term}" is defined as "${cleanImpostorDef}".`
+              : `True or False: "${card.term}" refers to "${cleanImpostorDef}".`,
             statementTerm: card.term,
-            statementDef: impostor.definition,
+            statementDef: cleanImpostorDef,
             realTerm: impostor.term,
-            actualDef: card.definition,
+            actualDef: cleanCardDef,
             options: ['True', 'False'],
             answer: 'False',
-            explanation: `False. That statement describes "${impostor.term}". "${card.term}" actually refers to: "${card.definition}".`,
+            explanation: `False. That statement describes "${impostor.term}". "${card.term}" actually refers to: "${cleanCardDef}".`,
             hint: `Compare the statement with the concept it describes, not just the familiar words.`
           };
         }
       } else {
-        // Multiple Choice Generation
-        let distractors = shuffledOthers.slice(0, 3).map(c => c.definition);
+        // Multiple Choice Generation: clean the answer and all distractors so NONE include the term being asked
+        const cleanAnswer = cleanCardDef;
+
+        let distractors = shuffledOthers.slice(0, 3).map(c => sanitizeDefinition(c.definition, [c.term, card.term]) || c.definition);
         let fallbackIdx = 1;
         while (distractors.length < 3) {
           distractors.push(`Alternative contextual definition #${fallbackIdx++}`);
         }
-        
-        const options = [card.definition, ...distractors].sort(() => Math.random() - 0.5);
+
+        // Filter out any distractors that became identical to the correct answer
+        const uniqueDistractors = distractors.filter(d => d.toLowerCase() !== cleanAnswer.toLowerCase());
+        while (uniqueDistractors.length < 3) {
+          uniqueDistractors.push(`Alternative concept definition #${uniqueDistractors.length + 1}`);
+        }
+
+        const options = [cleanAnswer, ...uniqueDistractors.slice(0, 3)].sort(() => Math.random() - 0.5);
 
         return {
           type: 'mc',
@@ -173,8 +186,8 @@ export function MockExamActiveView({ navigateTo, activeDeck, examConfig, userId 
             ? `Analyze the following concept: "${card.term}". Which of the following statements best defines its core operational mechanism or definition?`
             : `What is the definition of "${card.term}"?`,
           options: options,
-          answer: card.definition,
-          explanation: `The accurate definition of "${card.term}" is "${card.definition}".`,
+          answer: cleanAnswer,
+          explanation: `The accurate definition of "${card.term}" is "${cleanAnswer}".`,
           hint: `Look for the option that most directly explains "${card.term}", rather than a related idea.`
         };
       }
